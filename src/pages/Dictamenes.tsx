@@ -1,3 +1,4 @@
+// src/pages/Dictamenes.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
@@ -18,24 +19,22 @@ type Row = {
   updatedAt: string; // YYYY-MM-DD
 };
 
-// ✅ esto es lo único “nuevo”: tipo de respuesta del backend (misma info, solo nombres)
 type AdminDictamenApi = {
   id: number;
   folio: string;
-  capituloId: number | string;
+  capituloId: number;
   capitulo: string;
   libro: string;
   evaluador: string;
   decision: Decision;
   promedio: number;
   status: DictamenStatus;
-  updatedAt: string; // ISO o YYYY-MM-DD
+  updatedAt?: string | null;
 };
 
 export default function Dictamenes() {
   const nav = useNavigate();
 
-  // ✅ ahora sí viene de backend (sin seed fijo)
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -45,48 +44,46 @@ export default function Dictamenes() {
   const [status, setStatus] = useState<"ALL" | DictamenStatus>("ALL");
   const [decision, setDecision] = useState<"ALL" | Decision>("ALL");
 
-  // ✅ cargar lista
+  const mapApi = (data: AdminDictamenApi[] = []): Row[] =>
+    data.map((d) => ({
+      id: String(d.id),
+      folio: d.folio ?? "—",
+      capituloId: String(d.capituloId ?? ""),
+      capitulo: d.capitulo ?? "—",
+      libro: d.libro ?? "—",
+      evaluador: d.evaluador ?? "—",
+      decision: d.decision,
+      promedio: Number(d.promedio ?? 0),
+      status: d.status,
+      updatedAt: (d.updatedAt || "").slice(0, 10),
+    }));
+
+  const load = async () => {
+    try {
+      setLoading(true);
+      setErrorMsg(null);
+      const { data } = await api.get<AdminDictamenApi[]>("/admin/dictamenes");
+      setRows(mapApi(data ?? []));
+    } catch (err: any) {
+      setErrorMsg(
+        err?.response?.data?.detail ??
+          "No se pudieron cargar los dictámenes. Revisa backend, token y rol."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     let alive = true;
-
-    const load = async () => {
-      try {
-        setLoading(true);
-        setErrorMsg(null);
-
-        // ✅ ajusta URL si tu backend usa otra ruta
-        const { data } = await api.get<AdminDictamenApi[]>("/admin/dictamenes");
-
-        const mapped: Row[] = (data ?? []).map((d) => ({
-          id: String(d.id),
-          folio: d.folio ?? "—",
-          capituloId: String(d.capituloId ?? ""),
-          capitulo: d.capitulo ?? "—",
-          libro: d.libro ?? "—",
-          evaluador: d.evaluador ?? "—",
-          decision: d.decision,
-          promedio: Number(d.promedio ?? 0),
-          status: d.status,
-          updatedAt: (d.updatedAt || "").slice(0, 10),
-        }));
-
-        if (!alive) return;
-        setRows(mapped);
-      } catch (err: any) {
-        if (!alive) return;
-        const msg =
-          err?.response?.data?.detail ??
-          "No se pudieron cargar los dictámenes. Revisa backend, token y rol.";
-        setErrorMsg(msg);
-      } finally {
-        if (alive) setLoading(false);
-      }
-    };
-
-    load();
+    (async () => {
+      if (!alive) return;
+      await load();
+    })();
     return () => {
       alive = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filtered = useMemo(() => {
@@ -101,74 +98,54 @@ export default function Dictamenes() {
     });
   }, [rows, q, status, decision]);
 
-  const touchRow = (id: string, patch: Partial<Row>) => {
-    setRows((prev) =>
-      prev.map((r) =>
-        r.id === id
-          ? { ...r, ...patch, updatedAt: new Date().toISOString().slice(0, 10) }
-          : r
-      )
-    );
-  };
-
-  // ✅ helper: aplicar dictamen actualizado que regrese el backend
-  const applyApiRow = (d: AdminDictamenApi) => {
-    const updated: Row = {
-      id: String(d.id),
-      folio: d.folio ?? "—",
-      capituloId: String(d.capituloId ?? ""),
-      capitulo: d.capitulo ?? "—",
-      libro: d.libro ?? "—",
-      evaluador: d.evaluador ?? "—",
-      decision: d.decision,
-      promedio: Number(d.promedio ?? 0),
-      status: d.status,
-      updatedAt: (d.updatedAt || "").slice(0, 10),
-    };
-
-    setRows((prev) => prev.map((r) => (r.id === String(updated.id) ? updated : r)));
-  };
-
-  // ✅ Acciones reales (backend)
-  const generarPdf = async (id: string) => {
-    const row = rows.find((r) => r.id === id);
-    if (!row) return;
-
-    if (row.status === "FIRMADO") {
-      alert("Este dictamen ya está firmado.");
-      return;
-    }
-
+  const renderDoc = async (id: string) => {
     try {
       setBusyId(id);
-      // ✅ ajusta URL si tu backend usa otra ruta
-      const { data } = await api.post<AdminDictamenApi>(`/admin/dictamenes/${Number(id)}/generate-pdf`);
-      if (data) applyApiRow(data);
-      else touchRow(id, { status: "GENERADO" });
+      await api.post(`/admin/dictamenes/${Number(id)}/render-document`);
+      await load();
+      alert("Documento generado (DOCX + PDF).");
     } catch (err: any) {
-      alert(err?.response?.data?.detail ?? "No se pudo generar el PDF.");
+      alert(err?.response?.data?.detail ?? "No se pudo generar el documento.");
     } finally {
       setBusyId(null);
     }
   };
 
-  const marcarFirmado = async (id: string) => {
-    const row = rows.find((r) => r.id === id);
-    if (!row) return;
-
-    if (row.status === "BORRADOR") {
-      alert("Primero genera el PDF antes de firmar.");
-      return;
-    }
-
+  // ✅ DESCARGA con TOKEN (Bearer) usando blob
+  const download = async (row: Row, format: "pdf" | "docx") => {
     try {
-      setBusyId(id);
-      // ✅ ajusta URL si tu backend usa otra ruta
-      const { data } = await api.post<AdminDictamenApi>(`/admin/dictamenes/${Number(id)}/mark-signed`);
-      if (data) applyApiRow(data);
-      else touchRow(id, { status: "FIRMADO" });
+      setBusyId(row.id);
+
+      const res = await api.get(
+        `/admin/dictamenes/${Number(row.id)}/download?format=${format}`,
+        { responseType: "blob" }
+      );
+
+      const contentType =
+        (res.headers?.["content-type"] as string | undefined) ||
+        (format === "pdf"
+          ? "application/pdf"
+          : "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+
+      const blob = new Blob([res.data], { type: contentType });
+
+      // Si backend manda Content-Disposition, lo intentamos leer
+      const cd = res.headers?.["content-disposition"] as string | undefined;
+      const fromHeader = cd ? /filename="?([^"]+)"?/i.exec(cd)?.[1] : undefined;
+
+      const fallback = `dictamen-${row.folio || row.id}.${format}`;
+      const filename = sanitizeFilename(fromHeader || fallback);
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
     } catch (err: any) {
-      alert(err?.response?.data?.detail ?? "No se pudo marcar como firmado.");
+      alert(err?.response?.data?.detail ?? "No se pudo descargar el archivo.");
     } finally {
       setBusyId(null);
     }
@@ -176,21 +153,26 @@ export default function Dictamenes() {
 
   return (
     <div style={styles.wrap}>
+      <style>{responsiveCss}</style>
+
       <div style={styles.top}>
-        <div>
+        <div style={{ minWidth: 0 }}>
           <h2 style={styles.h2}>Dictámenes</h2>
-          <p style={styles.p}>Tabla global. Abre un dictamen para editar y generar PDF.</p>
+          <p style={styles.p}>
+            Emite el documento con plantilla Word: editar datos, generar DOCX/PDF y descargar (con token).
+          </p>
         </div>
+
+        <button style={styles.refreshBtn} onClick={load} disabled={loading}>
+          {loading ? "..." : "Recargar"}
+        </button>
       </div>
 
-      {loading ? (
-        <div style={styles.muted}>Cargando dictámenes...</div>
-      ) : errorMsg ? (
-        <div style={styles.errorBox}>{errorMsg}</div>
-      ) : null}
+      {loading ? <div style={styles.muted}>Cargando dictámenes...</div> : null}
+      {errorMsg ? <div style={styles.errorBox}>{errorMsg}</div> : null}
 
       <div style={styles.filtersCard}>
-        <div style={styles.filtersGrid}>
+        <div className="d-grid" style={styles.filtersGrid}>
           <div style={styles.field}>
             <label style={styles.label}>Buscar</label>
             <input
@@ -210,19 +192,19 @@ export default function Dictamenes() {
             >
               <option value="ALL">Todos</option>
               <option value="BORRADOR">Borrador</option>
-              <option value="GENERADO">PDF generado</option>
+              <option value="GENERADO">Generado</option>
               <option value="FIRMADO">Firmado</option>
             </select>
           </div>
 
           <div style={styles.field}>
-            <label style={styles.label}>Dictamen</label>
+            <label style={styles.label}>Decisión</label>
             <select
               style={styles.input}
               value={decision}
               onChange={(e) => setDecision(e.target.value as "ALL" | Decision)}
             >
-              <option value="ALL">Todos</option>
+              <option value="ALL">Todas</option>
               <option value="APROBADO">Aprobado</option>
               <option value="CORRECCIONES">Correcciones</option>
               <option value="RECHAZADO">Rechazado</option>
@@ -232,107 +214,118 @@ export default function Dictamenes() {
 
         <div style={styles.resultsRow}>
           <span style={styles.muted}>
-            Mostrando <b>{filtered.length}</b> de {rows.length} dictámenes
+            Mostrando <b>{filtered.length}</b> de {rows.length}
           </span>
         </div>
       </div>
 
       <div style={styles.tableCard}>
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              <th style={styles.th}>Folio</th>
-              <th style={styles.th}>Capítulo</th>
-              <th style={styles.th}>Libro</th>
-              <th style={styles.th}>Evaluador</th>
-              <th style={styles.th}>Promedio</th>
-              <th style={styles.th}>Dictamen</th>
-              <th style={styles.th}>Estatus</th>
-              <th style={styles.th}>Actualizado</th>
-              <th style={styles.th}>Acción</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {filtered.map((x) => (
-              <tr key={x.id}>
-                <td style={styles.td}>{x.folio}</td>
-
-                <td style={styles.td}>
-                  <div style={styles.cellTitle}>{x.capitulo}</div>
-                  <div style={styles.cellSub}>ID: {x.id}</div>
-
-                  <div style={{ marginTop: 8 }}>
-                    <button
-                      style={styles.smallLinkBtn}
-                      type="button"
-                      onClick={() => nav(`/capitulos/${x.capituloId}`)}
-                    >
-                      Ver capítulo
-                    </button>
-                  </div>
-                </td>
-
-                <td style={styles.td}>{x.libro}</td>
-                <td style={styles.td}>{x.evaluador}</td>
-                <td style={styles.td}>{x.promedio.toFixed(1)}</td>
-
-                <td style={styles.td}>
-                  <span style={{ ...styles.pill, ...decisionTone(x.decision) }}>
-                    {decisionLabel(x.decision)}
-                  </span>
-                </td>
-
-                <td style={styles.td}>
-                  <span style={{ ...styles.pill, ...statusTone(x.status) }}>
-                    {statusLabel(x.status)}
-                  </span>
-
-                  <div style={styles.inlineActions}>
-                    <button
-                      style={styles.miniBtn}
-                      type="button"
-                      onClick={() => generarPdf(x.id)}
-                      disabled={x.status === "FIRMADO" || busyId === x.id}
-                      title="Generar el PDF del dictamen"
-                    >
-                      {busyId === x.id ? "..." : "Generar PDF"}
-                    </button>
-                    <button
-                      style={styles.miniBtn}
-                      type="button"
-                      onClick={() => marcarFirmado(x.id)}
-                      disabled={x.status === "FIRMADO" || busyId === x.id}
-                      title="Marcar como firmado"
-                    >
-                      {busyId === x.id ? "..." : "Firmar"}
-                    </button>
-                  </div>
-                </td>
-
-                <td style={styles.td}>{fmtDate(x.updatedAt)}</td>
-
-                <td style={styles.td}>
-                  <button
-                    style={styles.linkBtn}
-                    type="button"
-                    onClick={() => nav(`/dictamenes/${x.id}`)}
-                  >
-                    Abrir
-                  </button>
-                </td>
-              </tr>
-            ))}
-
-            {filtered.length === 0 && (
+        <div style={styles.tableScroll}>
+          <table style={styles.table}>
+            <thead>
               <tr>
-                <td style={styles.td} colSpan={9}>
-                  No hay resultados.
-                </td>
+                <th style={styles.th}>Folio</th>
+                <th style={styles.th}>Capítulo</th>
+                <th style={styles.th}>Libro</th>
+                <th style={styles.th}>Evaluador</th>
+                <th style={styles.th}>Promedio</th>
+                <th style={styles.th}>Decisión</th>
+                <th style={styles.th}>Estatus</th>
+                <th style={styles.th}>Actualizado</th>
+                <th style={styles.th}>Acciones</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+
+            <tbody>
+              {filtered.map((x) => (
+                <tr key={x.id}>
+                  <td style={styles.td}>
+                    <div style={styles.cellTitle}>{x.folio}</div>
+                    <div style={styles.cellSub}>ID: {x.id}</div>
+                  </td>
+
+                  <td style={styles.td}>
+                    <div style={styles.cellTitle}>{x.capitulo}</div>
+                    <div style={styles.cellSub}>Capítulo ID: {x.capituloId}</div>
+                  </td>
+
+                  <td style={styles.td}>{x.libro}</td>
+                  <td style={styles.td}>{x.evaluador}</td>
+                  <td style={styles.td}>{x.promedio.toFixed(1)}</td>
+
+                  <td style={styles.td}>
+                    <span style={{ ...styles.pill, ...decisionTone(x.decision) }}>
+                      {decisionLabel(x.decision)}
+                    </span>
+                  </td>
+
+                  <td style={styles.td}>
+                    <span style={{ ...styles.pill, ...statusTone(x.status) }}>
+                      {statusLabel(x.status)}
+                    </span>
+                  </td>
+
+                  <td style={styles.td}>{fmtDate(x.updatedAt)}</td>
+
+                  <td style={styles.td}>
+                    <div style={styles.inlineActions}>
+                      <button
+                        style={styles.miniBtn}
+                        type="button"
+                        onClick={() => nav(`/dictamenes/${x.id}/documento`)}
+                        title="Subir plantilla, editar datos y generar documento"
+                      >
+                        Documento
+                      </button>
+
+                      <button
+                        style={styles.miniBtn}
+                        type="button"
+                        onClick={() => renderDoc(x.id)}
+                        disabled={busyId === x.id}
+                        title="Genera DOCX y PDF"
+                      >
+                        {busyId === x.id ? "..." : "Generar"}
+                      </button>
+
+                      <button
+                        style={styles.miniBtn}
+                        type="button"
+                        onClick={() => download(x, "pdf")}
+                        disabled={x.status === "BORRADOR" || busyId === x.id}
+                        title="Descargar PDF"
+                      >
+                        PDF
+                      </button>
+
+                      <button
+                        style={styles.miniBtn}
+                        type="button"
+                        onClick={() => download(x, "docx")}
+                        disabled={x.status === "BORRADOR" || busyId === x.id}
+                        title="Descargar DOCX"
+                      >
+                        DOCX
+                      </button>
+                    </div>
+
+                    {x.status === "BORRADOR" ? (
+                      <div style={styles.cellSub}>Primero sube plantilla y genera.</div>
+                    ) : null}
+                  </td>
+                </tr>
+              ))}
+
+              {filtered.length === 0 && (
+                <tr>
+                  <td style={styles.td} colSpan={9}>
+                    No hay resultados.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -345,7 +338,7 @@ function decisionLabel(d: Decision) {
 }
 function statusLabel(s: DictamenStatus) {
   if (s === "BORRADOR") return "Borrador";
-  if (s === "GENERADO") return "PDF generado";
+  if (s === "GENERADO") return "Generado";
   return "Firmado";
 }
 
@@ -367,11 +360,34 @@ function fmtDate(dateStr: string) {
   return `${d}/${m}/${y}`;
 }
 
+// evita caracteres raros en el nombre de archivo
+function sanitizeFilename(name: string) {
+  return name.replace(/[\\/:*?"<>|]+/g, "-").trim();
+}
+
+const responsiveCss = `
+@media (max-width: 980px){
+  .d-grid{
+    grid-template-columns: 1fr !important;
+  }
+}
+`;
+
 const styles: Record<string, React.CSSProperties> = {
-  wrap: { display: "flex", flexDirection: "column", gap: 14, fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" },
-  top: { display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-end" },
+  wrap: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 14,
+    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+    padding: 12,
+    maxWidth: 1200,
+    margin: "0 auto",
+  },
+  top: { display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-end", flexWrap: "wrap" },
   h2: { margin: 0, fontSize: 18, color: "#111827" },
-  p: { margin: "6px 0 0 0", fontSize: 13, color: "#6B7280" },
+  p: { margin: "6px 0 0 0", fontSize: 13, color: "#6B7280", maxWidth: 720 },
+
+  refreshBtn: { padding: "10px 12px", borderRadius: 10, border: "1px solid #D8DEE9", background: "#fff", cursor: "pointer", fontWeight: 900 },
 
   errorBox: {
     border: "1px solid #FECACA",
@@ -393,31 +409,20 @@ const styles: Record<string, React.CSSProperties> = {
   muted: { color: "#6B7280", fontSize: 12 },
 
   tableCard: { background: "#fff", border: "1px solid #E7EAF0", borderRadius: 16, overflow: "hidden" },
-  table: { width: "100%", borderCollapse: "collapse" },
+  tableScroll: { width: "100%", overflowX: "auto" },
+  table: { width: "100%", borderCollapse: "collapse", minWidth: 980 },
   th: { textAlign: "left", fontSize: 12, padding: "10px 12px", background: "#F9FAFB", borderBottom: "1px solid #E7EAF0", color: "#374151" },
   td: { padding: "10px 12px", borderBottom: "1px solid #F1F5F9", fontSize: 13, color: "#111827", verticalAlign: "top" },
 
   cellTitle: { fontWeight: 900 },
-  cellSub: { fontSize: 11, color: "#6B7280", marginTop: 2 },
+  cellSub: { fontSize: 11, color: "#6B7280", marginTop: 4 },
 
   pill: { display: "inline-block", fontSize: 12, padding: "4px 10px", borderRadius: 999, border: "1px solid", fontWeight: 900, whiteSpace: "nowrap" },
 
-  inlineActions: { marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" },
+  inlineActions: { display: "flex", gap: 8, flexWrap: "wrap" },
   miniBtn: {
     padding: "8px 10px",
     borderRadius: 10,
-    border: "1px solid #D8DEE9",
-    background: "#fff",
-    cursor: "pointer",
-    fontWeight: 900,
-    fontSize: 12,
-  },
-
-  linkBtn: { padding: "8px 10px", borderRadius: 10, border: "1px solid #D8DEE9", background: "#fff", cursor: "pointer", fontWeight: 900 },
-
-  smallLinkBtn: {
-    padding: "6px 10px",
-    borderRadius: 999,
     border: "1px solid #D8DEE9",
     background: "#fff",
     cursor: "pointer",

@@ -16,7 +16,7 @@ import MisEnviosAutor from "./pages/autor/MisEnviosAutor"; // ✅ AUTOR (sin Pri
 
 import PrivateLayout from "./layout/PrivateLayout";
 import MisAsignacionesDictaminador from "./pages/dictaminador/MisAsignacionesDictaminador";
-
+import DictamenDocumento from "./pages/DictamenDocumento";
 
 
 
@@ -40,11 +40,12 @@ export default function App() {
         <Route path="/capitulos" element={<PrivateLayout><Capitulos /></PrivateLayout>} />
         <Route path="/capitulos/:id" element={<PrivateLayout><CapituloDetalle /></PrivateLayout>} />
 
-        <Route path="/dictamenes" element={<PrivateLayout><Dictamenes /></PrivateLayout>} />
         <Route path="/dictamenes/:id" element={<PrivateLayout><DictamenDetalle /></PrivateLayout>} />
 
         <Route path="/constancias" element={<PrivateLayout><Constancias /></PrivateLayout>} />
         <Route path="/usuarios" element={<PrivateLayout><Usuarios /></PrivateLayout>} />
+        <Route path="/dictamenes" element={<PrivateLayout><Dictamenes /></PrivateLayout>} />
+        <Route path="/dictamenes/:id/documento" element={<PrivateLayout><DictamenDocumento /></PrivateLayout>} />
 
         {/* 404 */}
         <Route path="*" element={<Navigate to="/" replace />} />
