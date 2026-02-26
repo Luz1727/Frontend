@@ -14,6 +14,11 @@ type Stat = {
 
 type ThemeMode = "dark" | "light";
 
+const themeColors: Record<ThemeMode, { text: string }> = {
+  dark: { text: "#e0e0e0" },
+  light: { text: "#1a1a1a" },
+};
+
 /** =========================
  *  🔒 Clock helpers (12h fijo)
  *  ========================= */
@@ -388,11 +393,12 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-        <div style={styles.headerContent}>
-          <div style={styles.titleSection}>
-            <h1 style={styles.h1}>
-              <span style={{ ...styles.h1Glitch, color: themeColors.text }}>DASHBOARD</span>
-              
+        
+        <div className={styles.headerContent}>
+          <div className={styles.titleSection}>
+            <h1 className={styles.h1}>
+              <span className={styles.h1Glitch}>DASHBOARD</span>
+              <span className={styles.h1Gradient}>CUÁNTICO</span>
             </h1>
 
             {/* ✅ RELOJ 12H FIJO */}
