@@ -1,0 +1,350 @@
+/* Animaciones para SweetAlert */
+@keyframes fadeInRight {
+  from {
+    opacity: 0;
+    transform: translate3d(100%, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -20px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animated {
+  animation-duration: 0.3s;
+  animation-fill-mode: both;
+}
+
+.fadeInRight {
+  animation-name: fadeInRight;
+}
+
+.fadeIn {
+  animation-name: fadeIn;
+}
+
+/* Estilos personalizados para SweetAlert */
+.swal2-popup {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  border-radius: 16px !important;
+  padding: 20px !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+}
+
+.swal2-title {
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  color: #1e293b !important;
+}
+
+.swal2-html-container {
+  font-size: 14px !important;
+  color: #64748b !important;
+}
+
+.swal2-confirm-btn {
+  background: #2d9cdb !important;
+  border-radius: 10px !important;
+  padding: 10px 24px !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  box-shadow: 0 4px 6px -1px rgba(45, 156, 219, 0.2) !important;
+}
+
+.swal2-cancel-btn {
+  background: #fff !important;
+  color: #ef4444 !important;
+  border: 1px solid #fee2e2 !important;
+  border-radius: 10px !important;
+  padding: 10px 24px !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+}
+
+.swal2-cancel-btn:hover {
+  background: #fee2e2 !important;
+}
+
+.swal2-toast {
+  border-radius: 12px !important;
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.2) !important;
+}
+
+.swal2-toast .swal2-title {
+  font-size: 14px !important;
+}
+
+.swal2-toast .swal2-html-container {
+  font-size: 13px !important;
+}
+/* Animaciones mejoradas */
+@keyframes zoomIn {
+  from {
+    opacity: 0;
+    transform: scale3d(0.3, 0.3, 0.3);
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes zoomOut {
+  from {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+    transform: scale3d(0.3, 0.3, 0.3);
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -30px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes fadeOutUp {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(0, -30px, 0);
+  }
+}
+
+@keyframes shake {
+  from, to {
+    transform: translate3d(0, 0, 0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translate3d(-5px, 0, 0);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translate3d(5px, 0, 0);
+  }
+}
+
+@keyframes pulse {
+  from {
+    transform: scale3d(1, 1, 1);
+  }
+  50% {
+    transform: scale3d(1.05, 1.05, 1.05);
+  }
+  to {
+    transform: scale3d(1, 1, 1);
+  }
+}
+
+.animated {
+  animation-duration: 0.4s;
+  animation-fill-mode: both;
+}
+
+.faster {
+  animation-duration: 0.3s;
+}
+
+.zoomIn {
+  animation-name: zoomIn;
+}
+
+.zoomOut {
+  animation-name: zoomOut;
+}
+
+.fadeInDown {
+  animation-name: fadeInDown;
+}
+
+.fadeOutUp {
+  animation-name: fadeOutUp;
+}
+
+.shake {
+  animation-name: shake;
+}
+
+.pulse {
+  animation-name: pulse;
+}
+
+/* Estilos premium para alertas */
+.alert-premium {
+  border-radius: 24px !important;
+  padding: 28px !important;
+  box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.4) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  backdrop-filter: blur(10px);
+}
+
+.alert-title {
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  color: #1e293b !important;
+  margin-bottom: 8px !important;
+  letter-spacing: -0.3px !important;
+}
+
+.alert-text {
+  font-size: 15px !important;
+  color: #475569 !important;
+  line-height: 1.6 !important;
+  margin-top: 4px !important;
+}
+
+.swal2-confirm-btn-premium {
+  background: linear-gradient(135deg, #2d9cdb 0%, #2389c4 100%) !important;
+  border-radius: 14px !important;
+  padding: 12px 28px !important;
+  font-weight: 600 !important;
+  font-size: 15px !important;
+  box-shadow: 0 8px 16px -4px rgba(45, 156, 219, 0.3) !important;
+  border: none !important;
+  transition: all 0.2s ease !important;
+}
+
+.swal2-confirm-btn-premium:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 12px 24px -6px rgba(45, 156, 219, 0.4) !important;
+}
+
+.swal2-cancel-btn-premium {
+  background: #fff !important;
+  color: #64748b !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 14px !important;
+  padding: 12px 28px !important;
+  font-weight: 600 !important;
+  font-size: 15px !important;
+  transition: all 0.2s ease !important;
+}
+
+.swal2-cancel-btn-premium:hover {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #475569 !important;
+  transform: translateY(-2px) !important;
+}
+
+/* Barra de progreso personalizada */
+.progress-bar-container {
+  width: 100%;
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 100px;
+  margin-top: 20px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, #2d9cdb, #764ba2);
+  border-radius: 100px;
+  animation: progress 2s ease-in-out infinite;
+}
+
+@keyframes progress {
+  0% {
+    width: 0%;
+    margin-left: 0%;
+  }
+  50% {
+    width: 70%;
+    margin-left: 15%;
+  }
+  100% {
+    width: 0%;
+    margin-left: 100%;
+  }
+}
+
+/* Input personalizado */
+.alert-input {
+  border-radius: 16px !important;
+  border: 2px solid #e2e8f0 !important;
+  padding: 14px 18px !important;
+  font-size: 15px !important;
+  margin-top: 16px !important;
+  transition: all 0.2s ease !important;
+}
+
+.alert-input:focus {
+  border-color: #2d9cdb !important;
+  box-shadow: 0 0 0 4px rgba(45, 156, 219, 0.1) !important;
+  outline: none !important;
+}
+
+/* Iconos animados */
+.swal2-icon {
+  margin: 0 auto 16px !important;
+  transform: scale(1.1);
+  animation: iconPop 0.4s ease;
+}
+
+@keyframes iconPop {
+  0% {
+    transform: scale(0);
+  }
+  80% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1.1);
+  }
+}
+
+/* Modo oscuro automático */
+@media (prefers-color-scheme: dark) {
+  .alert-premium {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+  }
+  
+  .alert-title {
+    color: #f1f5f9 !important;
+  }
+  
+  .alert-text {
+    color: #cbd5e1 !important;
+  }
+  
+  .swal2-cancel-btn-premium {
+    background: #1e293b !important;
+    color: #cbd5e1 !important;
+    border-color: #334155 !important;
+  }
+  
+  .swal2-cancel-btn-premium:hover {
+    background: #334155 !important;
+    color: #f1f5f9 !important;
+  }
+  
+  .alert-input {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #f1f5f9 !important;
+  }
+}

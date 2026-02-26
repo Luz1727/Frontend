@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { api } from "../../services/api";
 import brandLogo from "../../assets/brand-logo.jpeg";
 import styles from './MisEnviosAutor.module.css';
+import { alertService } from "../../utils/alerts";
 
 type ChapterStatus =
   | "RECIBIDO"
@@ -104,7 +105,6 @@ function statusLabel(s: ChapterStatus) {
   return "Rechazado";
 }
 
-// ✅ Función para obtener la clase CSS del pill según el estado
 function getPillClass(status: ChapterStatus): string {
   const baseClass = styles.pill;
   
@@ -373,6 +373,11 @@ export default function MisEnviosAutor() {
 
   const apiMsg = (err: any, fallback: string) => err?.response?.data?.detail || err?.message || fallback;
 
+  const showError = (msg: string) => {
+    alertService.error(msg);
+    setErrorMsg(msg);
+  };
+
   // =========================
   // LOADERS
   // =========================
@@ -416,7 +421,7 @@ export default function MisEnviosAutor() {
       }
       if (!items.length) setSelectedBookId(null);
     } catch (err: any) {
-      setErrorMsg(apiMsg(err, "No se pudieron cargar tus libros."));
+      showError(apiMsg(err, "No se pudieron cargar tus libros."));
     } finally {
       setLoading(false);
     }
@@ -469,8 +474,14 @@ export default function MisEnviosAutor() {
     const name = newBook.name.trim();
     const year = Number(newBook.year);
 
-    if (!name) return alert("Escribe el nombre del libro.");
-    if (!year || year < 1900 || year > 3000) return alert("Año inválido.");
+    if (!name) {
+      alertService.warning("Escribe el nombre del libro.");
+      return;
+    }
+    if (!year || year < 1900 || year > 3000) {
+      alertService.warning("Año inválido.");
+      return;
+    }
 
     try {
       setLoading(true);
@@ -482,10 +493,11 @@ export default function MisEnviosAutor() {
       setSelectedBookId(data.id);
       setOpenCreateBook(false);
       setNav("envios");
+      
+      alertService.success("Libro creado correctamente");
     } catch (err: any) {
       const msg = apiMsg(err, "No se pudo crear el libro.");
-      setErrorMsg(msg);
-      alert(msg);
+      showError(msg);
     } finally {
       setLoading(false);
     }
@@ -503,8 +515,14 @@ export default function MisEnviosAutor() {
     const title = newChapter.title.trim();
     const file = newChapter.file;
 
-    if (!title) return alert("Escribe el título del capítulo.");
-    if (!file) return alert("Selecciona un archivo (PDF o DOCX).");
+    if (!title) {
+      alertService.warning("Escribe el título del capítulo.");
+      return;
+    }
+    if (!file) {
+      alertService.warning("Selecciona un archivo (PDF o DOCX).");
+      return;
+    }
 
     const okTypes = [
       "application/pdf",
@@ -512,7 +530,7 @@ export default function MisEnviosAutor() {
       "application/msword",
     ];
     if (file.type && !okTypes.includes(file.type)) {
-      alert("Formato no permitido. Sube PDF o Word (DOC/DOCX).");
+      alertService.warning("Formato no permitido. Sube PDF o Word (DOC/DOCX).");
       return;
     }
 
@@ -532,10 +550,11 @@ export default function MisEnviosAutor() {
 
       setOpenUploadChapter(false);
       setNav("envios");
+      
+      alertService.success("Capítulo subido correctamente");
     } catch (err: any) {
       const msg = apiMsg(err, "No se pudo subir el capítulo.");
-      setErrorMsg(msg);
-      alert(msg);
+      showError(msg);
     } finally {
       setLoading(false);
     }
@@ -591,10 +610,11 @@ export default function MisEnviosAutor() {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
+      
+      alertService.success("Descarga iniciada");
     } catch (err: any) {
       const msg = apiMsg(err, "No se pudo descargar el archivo.");
-      setErrorMsg(msg);
-      alert(msg);
+      showError(msg);
     } finally {
       setLoading(false);
     }
@@ -642,10 +662,11 @@ export default function MisEnviosAutor() {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
+      
+      alertService.success("Dictamen descargado");
     } catch (err: any) {
       const msg = apiMsg(err, "No se pudo descargar el dictamen.");
-      setErrorMsg(msg);
-      alert(msg);
+      showError(msg);
     } finally {
       setLoading(false);
     }
@@ -667,7 +688,10 @@ export default function MisEnviosAutor() {
 
   const confirmReupload = async () => {
     if (!reuploadChapter) return;
-    if (!reuploadFile) return alert("Selecciona el archivo corregido (PDF o Word).");
+    if (!reuploadFile) {
+      alertService.warning("Selecciona el archivo corregido (PDF o Word).");
+      return;
+    }
 
     const okTypes = [
       "application/pdf",
@@ -675,7 +699,7 @@ export default function MisEnviosAutor() {
       "application/msword",
     ];
     if (reuploadFile.type && !okTypes.includes(reuploadFile.type)) {
-      alert("Formato no permitido. Sube PDF o Word (DOC/DOCX).");
+      alertService.warning("Formato no permitido. Sube PDF o Word (DOC/DOCX).");
       return;
     }
 
@@ -695,11 +719,10 @@ export default function MisEnviosAutor() {
 
       if (selectedBookId) await loadChapters(selectedBookId);
 
-      alert("Versión corregida enviada ✅");
+      alertService.success("Versión corregida enviada ✅");
     } catch (err: any) {
       const msg = apiMsg(err, "No se pudo enviar la versión corregida.");
-      setErrorMsg(msg);
-      alert(msg);
+      showError(msg);
     } finally {
       setLoading(false);
     }
@@ -715,11 +738,10 @@ export default function MisEnviosAutor() {
       const { data } = await api.patch<Preferences>("/account/preferences", prefs, { headers: authHeaders() });
       setPrefs(data);
       setOpenPrefs(false);
-      alert("Preferencias guardadas ✅");
+      alertService.success("Preferencias guardadas ✅");
     } catch (err: any) {
       const msg = apiMsg(err, "No se pudieron guardar notificaciones.");
-      setErrorMsg(msg);
-      alert(msg);
+      showError(msg);
     } finally {
       setLoading(false);
     }
@@ -732,19 +754,24 @@ export default function MisEnviosAutor() {
       const { data } = await api.patch<Privacy>("/account/privacy", privacy, { headers: authHeaders() });
       setPrivacy(data);
       setOpenPrivacy(false);
-      alert("Privacidad guardada ✅");
+      alertService.success("Privacidad guardada ✅");
     } catch (err: any) {
       const msg = apiMsg(err, "No se pudo guardar privacidad.");
-      setErrorMsg(msg);
-      alert(msg);
+      showError(msg);
     } finally {
       setLoading(false);
     }
   };
 
   const changePassword = async () => {
-    if (!pwd.current_password || !pwd.new_password) return alert("Completa ambos campos.");
-    if (pwd.new_password.length < 8) return alert("La nueva contraseña debe tener mínimo 8 caracteres.");
+    if (!pwd.current_password || !pwd.new_password) {
+      alertService.warning("Completa ambos campos.");
+      return;
+    }
+    if (pwd.new_password.length < 8) {
+      alertService.warning("La nueva contraseña debe tener mínimo 8 caracteres.");
+      return;
+    }
 
     try {
       setLoading(true);
@@ -752,20 +779,23 @@ export default function MisEnviosAutor() {
       await api.post("/account/change-password", pwd, { headers: authHeaders() });
       setPwd({ current_password: "", new_password: "" });
       setOpenPwd(false);
-      alert("Contraseña actualizada ✅");
+      alertService.success("Contraseña actualizada ✅");
     } catch (err: any) {
       const msg = apiMsg(err, "No se pudo cambiar la contraseña.");
-      setErrorMsg(msg);
-      alert(msg);
+      showError(msg);
     } finally {
       setLoading(false);
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    window.location.href = "/login";
+  const logout = async () => {
+    const result = await alertService.confirm("¿Seguro que quieres cerrar sesión?");
+    
+    if (result.isConfirmed) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.location.href = "/login";
+    }
   };
 
   // =========================
@@ -1333,7 +1363,7 @@ export default function MisEnviosAutor() {
           </div>
         )}
 
-        {/* MODAL: ver correcciones */}
+        {/* MODAL: ver correcciones - VERSIÓN MEJORADA */}
         {openCorrections && corrChapter && (
           <div
             className={styles.modalOverlay}
@@ -1344,33 +1374,38 @@ export default function MisEnviosAutor() {
             }}
           >
             <div className={styles.modalWide} onClick={(e) => e.stopPropagation()}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
-                <div>
-                  <div className={styles.modalTitle}>Correcciones / Dictámenes</div>
-                  <div className={styles.modalHint}>
-                    Capítulo: <b>{corrChapter.title}</b> • ID: <b>{corrChapter.id}</b> • Estado:{" "}
-                    <span className={getPillClass(corrChapter.status)}>
-                      {statusLabel(corrChapter.status)}
+              {/* Header mejorado */}
+              <div className={styles.dictamenHeader}>
+                <div className={styles.dictamenHeaderInfo}>
+                  <div className={styles.dictamenHeaderTitle}>
+                    📋 Correcciones y Dictámenes
+                    <span className={styles.dictamenHeaderBadge}>
+                      {dictamenes.length} {dictamenes.length === 1 ? 'resultado' : 'resultados'}
                     </span>
+                  </div>
+                  <div className={styles.dictamenHeaderMeta}>
+                    <span><strong>Capítulo:</strong> {corrChapter.title}</span>
+                    <span>•</span>
+                    <span><strong>ID:</strong> {corrChapter.id}</span>
+                    <span>•</span>
+                    <span><strong>Estado:</strong> <span className={getPillClass(corrChapter.status)}>{statusLabel(corrChapter.status)}</span></span>
                   </div>
                 </div>
 
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                <div className={styles.dictamenCardHeaderRight}>
                   <button
                     type="button"
-                    className={styles.secondaryBtn}
+                    className={styles.dictamenActionBtn}
                     onClick={() => openCorrectionsModal(corrChapter)}
                     disabled={loadingDictamenes || loading}
                     title="Recargar correcciones"
                   >
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-                      <Icon name="refresh" /> Recargar
-                    </span>
+                    <Icon name="refresh" /> Recargar
                   </button>
 
                   <button
                     type="button"
-                    className={styles.secondaryBtn}
+                    className={`${styles.dictamenActionBtn} ${styles.primary}`}
                     style={{
                       opacity: corrChapter.status === "CORRECCIONES" || corrChapter.status === "CORRECCIONES_SOLICITADAS_A_AUTOR" ? 1 : 0.55,
                     }}
@@ -1386,21 +1421,19 @@ export default function MisEnviosAutor() {
                         : "Disponible cuando el estado sea Correcciones"
                     }
                   >
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-                      <Icon name="edit" /> Subir versión corregida
-                    </span>
+                    <Icon name="edit" /> Subir versión
                   </button>
 
                   <button
                     type="button"
-                    className={styles.secondaryBtn}
+                    className={styles.dictamenActionBtn}
                     onClick={() => {
                       setOpenCorrections(false);
                       setCorrChapter(null);
                       setDictamenes([]);
                     }}
                   >
-                    Cerrar
+                    ✕ Cerrar
                   </button>
                 </div>
               </div>
@@ -1408,66 +1441,111 @@ export default function MisEnviosAutor() {
               <div className={styles.divider} />
 
               {loadingDictamenes ? (
-                <div className={styles.empty}>Cargando correcciones...</div>
+                <div className={styles.dictamenEmpty}>
+                  <div className={styles.dictamenEmptyIcon}>⏳</div>
+                  <div className={styles.dictamenEmptyTitle}>Cargando correcciones...</div>
+                  <div className={styles.dictamenEmptyText}>Estamos obteniendo la información de los dictámenes.</div>
+                </div>
               ) : dictamenes.length === 0 ? (
-                <div className={styles.empty}>Aún no hay correcciones registradas para este capítulo.</div>
+                <div className={styles.dictamenEmpty}>
+                  <div className={styles.dictamenEmptyIcon}>📭</div>
+                  <div className={styles.dictamenEmptyTitle}>No hay correcciones</div>
+                  <div className={styles.dictamenEmptyText}>
+                    Este capítulo aún no tiene correcciones o dictámenes registrados.
+                  </div>
+                </div>
               ) : (
                 <div className={styles.dictamenList}>
                   {dictamenes.map((d) => (
                     <div key={d.id} className={styles.dictamenCard}>
-                      <div className={styles.dictamenTopRow}>
-                        <div style={{ minWidth: 0 }}>
-                          <div className={styles.dictamenTitle}>
-                            Folio: <b>{d.folio}</b>
-                          </div>
-                          <div className={styles.dictamenMeta}>
-                            Tipo: <b>{d.tipo}</b> • Estado: <b>{d.status}</b> • Creado:{" "}
-                            <b>{d.created_at ? fmtDate(d.created_at) : "—"}</b>
+                      {/* Cabecera de la tarjeta */}
+                      <div className={styles.dictamenCardHeader}>
+                        <div className={styles.dictamenCardHeaderLeft}>
+                          <span className={styles.dictamenFolio}>{d.folio}</span>
+                          <div className={styles.dictamenMetaPills}>
+                            <span className={`${styles.dictamenMetaPill} ${styles.tipo}`}>
+                              📌 {d.tipo}
+                            </span>
+                            <span className={`${styles.dictamenMetaPill} ${styles.estado}`}>
+                              ⚡ {d.status}
+                            </span>
+                            <span className={`${styles.dictamenMetaPill} ${styles.fecha}`}>
+                              📅 {d.created_at ? fmtDate(d.created_at) : '—'}
+                            </span>
                           </div>
                         </div>
 
-                        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                          <span className={getDictamenPillClass(d.decision)}>{decisionLabel(d.decision)}</span>
-
-                          <button
-                            type="button"
-                            className={styles.secondaryBtn}
-                            style={{
-                              opacity: d.pdf_path ? 1 : 0.55,
-                            }}
-                            onClick={() => {
-                              if (!d.pdf_path) return;
-                              downloadDictamen(d);
-                            }}
-                            disabled={loading}
-                            title={d.pdf_path ? "Descargar dictamen (PDF)" : "Este dictamen no tiene PDF"}
-                          >
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-                              <Icon name="download" /> PDF dictamen
-                            </span>
-                          </button>
+                        <div className={styles.dictamenCardHeaderRight}>
+                          <span className={`${styles.dictamenDecisionBadge} ${
+                            d.decision === 'APROBADO' ? styles.aprobado : 
+                            d.decision === 'CORRECCIONES' ? styles.correcciones : 
+                            styles.rechazado
+                          }`}>
+                            {d.decision === 'APROBADO' && '✅ Aprobado'}
+                            {d.decision === 'CORRECCIONES' && '✏️ Correcciones'}
+                            {d.decision === 'RECHAZADO' && '❌ Rechazado'}
+                          </span>
                         </div>
                       </div>
 
-                      <div className={styles.dictamenGrid}>
-                        <div className={styles.dictamenBox}>
-                          <div className={styles.dictamenBoxTitle}>Comentarios / Correcciones</div>
-                          <div className={styles.dictamenBoxText}>{d.comentarios?.trim() ? d.comentarios : "—"}</div>
-                        </div>
+                      {/* Cuerpo de la tarjeta */}
+                      <div className={styles.dictamenCardBody}>
+                        <div className={styles.dictamenInfoGrid}>
+                          {/* Comentarios */}
+                          <div className={styles.dictamenInfoItem}>
+                            <div className={styles.dictamenInfoLabel}>
+                              <span>💬</span> Comentarios
+                            </div>
+                            <div className={`${styles.dictamenInfoValue} ${!d.comentarios?.trim() ? styles.empty : ''}`}>
+                              {d.comentarios?.trim() || 'Sin comentarios'}
+                            </div>
+                          </div>
 
-                        <div className={styles.dictamenBox}>
-                          <div className={styles.dictamenBoxTitle}>Conflicto de interés</div>
-                          <div className={styles.dictamenBoxText}>
-                            {d.conflicto_interes?.trim() ? d.conflicto_interes : "—"}
+                          {/* Conflicto de interés */}
+                          <div className={styles.dictamenInfoItem}>
+                            <div className={styles.dictamenInfoLabel}>
+                              <span>⚠️</span> Conflicto de interés
+                            </div>
+                            <div className={`${styles.dictamenInfoValue} ${!d.conflicto_interes?.trim() ? styles.empty : ''}`}>
+                              {d.conflicto_interes?.trim() || 'No especificado'}
+                            </div>
+                          </div>
+
+                          {/* Promedio y firma */}
+                          <div className={styles.dictamenInfoItem}>
+                            <div className={styles.dictamenInfoLabel}>
+                              <span>📊</span> Promedio
+                            </div>
+                            <div className={styles.dictamenInfoValue}>
+                              <strong style={{ fontSize: '20px' }}>{d.promedio ?? '—'}</strong>
+                              <div style={{ marginTop: '8px', fontSize: '12px', color: '#64748b' }}>
+                                {d.signed_at ? `Firmado: ${fmtDate(d.signed_at)}` : 'No firmado'}
+                              </div>
+                            </div>
                           </div>
                         </div>
+                      </div>
 
-                        <div className={styles.dictamenBox}>
-                          <div className={styles.dictamenBoxTitle}>Promedio</div>
-                          <div className={styles.dictamenBoxText}>{d.promedio ?? "—"}</div>
-                          <div style={{ height: 8 }} />
-                          <div className={styles.dictamenBoxTitle}>Firmado</div>
-                          <div className={styles.dictamenBoxText}>{d.signed_at ? fmtDate(d.signed_at) : "—"}</div>
+                      {/* Footer de la tarjeta */}
+                      <div className={styles.dictamenCardFooter}>
+                        <div className={styles.dictamenFooterLeft}>
+                          <span className={`${styles.dictamenFirmaInfo} ${d.signed_at ? styles.firmado : styles.noFirmado}`}>
+                            {d.signed_at ? '✅ Firmado' : '⏳ Pendiente de firma'}
+                          </span>
+                        </div>
+
+                        <div className={styles.dictamenFooterRight}>
+                          {d.pdf_path && (
+                            <button
+                              type="button"
+                              className={`${styles.dictamenActionBtn} ${styles.download}`}
+                              onClick={() => downloadDictamen(d)}
+                              disabled={loading}
+                              title="Descargar dictamen PDF"
+                            >
+                              <Icon name="download" /> Descargar PDF
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
