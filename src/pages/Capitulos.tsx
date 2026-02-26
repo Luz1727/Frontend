@@ -1,15 +1,15 @@
-// src/pages/Capitulos.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
+import styles from './Capitulos.module.css';
 
 type Status =
   | "RECIBIDO"
   | "ASIGNADO_A_DICTAMINADOR"
   | "ENVIADO_A_DICTAMINADOR"
   | "EN_REVISION_DICTAMINADOR"
-  | "CORRECCIONES_SOLICITITADAS_A_AUTOR"
   | "CORRECCIONES_SOLICITADAS_A_AUTOR"
+  | "CORRECCIONES"
   | "REENVIADO_POR_AUTOR"
   | "REVISADO_POR_EDITORIAL"
   | "LISTO_PARA_FIRMA"
@@ -26,8 +26,7 @@ type ChapterRow = {
   status: Status;
   updatedAt: string; // yyyy-mm-dd
   evaluatorEmail?: string | null;
-
-  // ✅ NUEVO (fechas / deadline)
+  // ✅ NUEVO (añadido por tu compañera)
   deadlineAt?: string | null; // yyyy-mm-dd
   deadlineStage?: string | null; // DICTAMEN | CORRECCION_AUTOR | REDICTAMEN | etc
 };
@@ -43,11 +42,58 @@ type AdminChapterApi = {
   status: Status;
   updated_at: string;
   evaluator_email?: string | null;
-
-  // ✅ NUEVO (lo debe devolver tu backend)
+  // ✅ NUEVO (añadido por tu compañera)
   deadline_at?: string | null; // DATETIME o DATE
   deadline_stage?: string | null;
 };
+
+// ✅ Función para obtener la clase del chip según el estado (TUYA)
+function getChipClass(status: Status): string {
+  const baseClass = styles.chip;
+  
+  const statusMap: Record<Status, string> = {
+    RECIBIDO: styles.chipRecibido,
+    ASIGNADO_A_DICTAMINADOR: styles.chipAsignado,
+    ENVIADO_A_DICTAMINADOR: styles.chipEnviado,
+    EN_REVISION_DICTAMINADOR: styles.chipRevision,
+    CORRECCIONES_SOLICITADAS_A_AUTOR: styles.chipCorreccionesSolicitadas,
+    CORRECCIONES: styles.chipCorrecciones,
+    REENVIADO_POR_AUTOR: styles.chipReenviado,
+    REVISADO_POR_EDITORIAL: styles.chipRevisadoEditorial,
+    LISTO_PARA_FIRMA: styles.chipListoFirma,
+    FIRMADO: styles.chipFirmado,
+    EN_REVISION: styles.chipRevision,
+    APROBADO: styles.chipAprobado,
+    RECHAZADO: styles.chipRechazado,
+  };
+  
+  return `${baseClass} ${statusMap[status] || styles.chipRecibido}`;
+}
+
+// ✅ Función para obtener la clase del pill según el estado (TUYA)
+function getPillClass(status: Status): string {
+  const baseClass = styles.pill;
+  
+  if (status === "APROBADO" || status === "FIRMADO") {
+    return `${baseClass} ${styles.pillApproved}`;
+  }
+  if (status === "CORRECCIONES" || status === "CORRECCIONES_SOLICITADAS_A_AUTOR") {
+    return `${baseClass} ${styles.pillCorrections}`;
+  }
+  if (status === "EN_REVISION" || status === "EN_REVISION_DICTAMINADOR" || status === "ENVIADO_A_DICTAMINADOR") {
+    return `${baseClass} ${styles.pillRevision}`;
+  }
+  if (status === "ASIGNADO_A_DICTAMINADOR" || status === "REVISADO_POR_EDITORIAL" || status === "LISTO_PARA_FIRMA") {
+    return `${baseClass} ${styles.pillAsignado}`;
+  }
+  if (status === "REENVIADO_POR_AUTOR") {
+    return `${baseClass} ${styles.pillReenviado}`;
+  }
+  if (status === "RECHAZADO") {
+    return `${baseClass} ${styles.pillRejected}`;
+  }
+  return `${baseClass} ${styles.pillDefault}`;
+}
 
 export default function Capitulos() {
   const nav = useNavigate();
@@ -69,14 +115,14 @@ export default function Capitulos() {
 
   // modal acciones
   const [actionOpen, setActionOpen] = useState(false);
+  // ✅ CAMBIADO por tu compañera: solo "ASIGNAR"
   const [actionType, setActionType] = useState<"ASIGNAR" | null>(null);
   const [selected, setSelected] = useState<ChapterRow | null>(null);
 
   const [actionForm, setActionForm] = useState({
     dictaminador: "",
     comentario: "",
-
-    // ✅ NUEVO: la editorial selecciona la fecha límite
+    // ✅ NUEVO (añadido por tu compañera)
     deadlineAt: "", // yyyy-mm-dd
   });
 
@@ -100,8 +146,7 @@ export default function Capitulos() {
         status: c.status,
         updatedAt: (c.updated_at || "").slice(0, 10),
         evaluatorEmail: c.evaluator_email ?? null,
-
-        // ✅ NUEVO
+        // ✅ NUEVO (añadido por tu compañera)
         deadlineAt: c.deadline_at ? (c.deadline_at || "").slice(0, 10) : null,
         deadlineStage: c.deadline_stage ?? null,
       }));
@@ -173,13 +218,12 @@ export default function Capitulos() {
     setTo("");
   };
 
+  // ✅ CAMBIADO por tu compañera: solo "ASIGNAR"
   const openAction = (type: "ASIGNAR", row: ChapterRow) => {
     setSelected(row);
     setActionType(type);
-
-    // ✅ NUEVO: limpiamos deadlineAt
+    // ✅ NUEVO (añadido por tu compañera)
     setActionForm({ dictaminador: "", comentario: "", deadlineAt: "" });
-
     setActionOpen(true);
   };
 
@@ -196,8 +240,7 @@ export default function Capitulos() {
     status: data.status,
     updatedAt: (data.updated_at || "").slice(0, 10),
     evaluatorEmail: data.evaluator_email ?? null,
-
-    // ✅ NUEVO
+    // ✅ NUEVO (añadido por tu compañera)
     deadlineAt: data.deadline_at ? (data.deadline_at || "").slice(0, 10) : null,
     deadlineStage: data.deadline_stage ?? null,
   });
@@ -211,13 +254,12 @@ export default function Capitulos() {
     setFolioDraft((p) => ({ ...p, [chapterId]: updated.folio }));
   };
 
-  // ✅ asignar dictaminador + fecha límite (la editorial la pone)
+  // ✅ CAMBIADO por tu compañera: asignar dictaminador + fecha límite
   const assignEvaluatorBackend = async (chapterId: string, evaluatorEmail: string, deadlineAt: string) => {
     const { data } = await api.post<AdminChapterApi>(`/admin/chapters/${Number(chapterId)}/assign`, {
       evaluator_email: evaluatorEmail,
-
-      // ✅ NUEVO
-      deadline_at: deadlineAt, // yyyy-mm-dd
+      // ✅ NUEVO (añadido por tu compañera)
+      deadline_at: deadlineAt,
       deadline_stage: "DICTAMEN",
     });
 
@@ -236,7 +278,7 @@ export default function Capitulos() {
         const email = actionForm.dictaminador.trim().toLowerCase();
         if (!email) return alert("Escribe el correo del dictaminador.");
 
-        // ✅ NUEVO
+        // ✅ NUEVO (añadido por tu compañera)
         const deadlineAt = actionForm.deadlineAt.trim();
         if (!deadlineAt) return alert("Selecciona la fecha límite.");
 
@@ -255,30 +297,30 @@ export default function Capitulos() {
   };
 
   return (
-    <div style={styles.wrap}>
-      <div style={styles.top}>
+    <div className={styles.wrap}>
+      <div className={styles.top}>
         <div>
-          <h2 style={styles.h2}>Capítulos (Admin)</h2>
-          <p style={styles.p}>Lista global filtrable conectada al backend.</p>
+          <h2 className={styles.h2}>Capítulos (Admin)</h2>
+          <p className={styles.p}>Lista global filtrable conectada al backend.</p>
         </div>
 
-        <button style={styles.ghostBtn} type="button" onClick={reload} disabled={loading}>
+        <button className={styles.ghostBtn} type="button" onClick={reload} disabled={loading}>
           {loading ? "Cargando..." : "Actualizar"}
         </button>
       </div>
 
-      {errorMsg && <div style={styles.errorBox}>{errorMsg}</div>}
+      {errorMsg && <div className={styles.errorBox}>{errorMsg}</div>}
 
       {loading ? (
-        <div style={styles.empty}>Cargando capítulos...</div>
+        <div className={styles.empty}>Cargando capítulos...</div>
       ) : (
         <>
           {/* Filtros */}
-          <div style={styles.filtersCard}>
-            <div style={styles.filtersGrid}>
-              <div style={styles.field}>
-                <label style={styles.label}>Libro</label>
-                <select style={styles.input} value={book} onChange={(e) => setBook(e.target.value)}>
+          <div className={styles.filtersCard}>
+            <div className={styles.filtersGrid}>
+              <div className={styles.field}>
+                <label className={styles.label}>Libro</label>
+                <select className={styles.input} value={book} onChange={(e) => setBook(e.target.value)}>
                   {books.map((b) => (
                     <option key={b} value={b}>
                       {b === "ALL" ? "Todos" : b}
@@ -287,9 +329,9 @@ export default function Capitulos() {
                 </select>
               </div>
 
-              <div style={styles.field}>
-                <label style={styles.label}>Estado</label>
-                <select style={styles.input} value={status} onChange={(e) => setStatus(e.target.value)}>
+              <div className={styles.field}>
+                <label className={styles.label}>Estado</label>
+                <select className={styles.input} value={status} onChange={(e) => setStatus(e.target.value)}>
                   <option value="ALL">Todos</option>
                   <option value="RECIBIDO">Recibido</option>
                   <option value="ASIGNADO_A_DICTAMINADOR">Asignado</option>
@@ -307,87 +349,71 @@ export default function Capitulos() {
                 </select>
               </div>
 
-              <div style={styles.field}>
-                <label style={styles.label}>Buscar</label>
+              <div className={styles.field}>
+                <label className={styles.label}>Buscar</label>
                 <input
-                  style={styles.input}
+                  className={styles.input}
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
                   placeholder="Folio, título, autor, dictaminador..."
                 />
               </div>
 
-              <div style={styles.field}>
-                <label style={styles.label}>Fecha desde</label>
-                <input style={styles.input} type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+              <div className={styles.field}>
+                <label className={styles.label}>Fecha desde</label>
+                <input className={styles.input} type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
               </div>
 
-              <div style={styles.field}>
-                <label style={styles.label}>Fecha hasta</label>
-                <input style={styles.input} type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+              <div className={styles.field}>
+                <label className={styles.label}>Fecha hasta</label>
+                <input className={styles.input} type="date" value={to} onChange={(e) => setTo(e.target.value)} />
               </div>
 
-              <div style={styles.fieldActions}>
-                <button style={styles.ghostBtn} onClick={clearFilters} type="button">
+              <div className={styles.fieldActions}>
+                <button className={styles.ghostBtn} onClick={clearFilters} type="button">
                   Limpiar
                 </button>
               </div>
             </div>
 
-            <div style={styles.resultsRow}>
-              <span style={styles.muted}>
+            <div className={styles.resultsRow}>
+              <span className={styles.muted}>
                 Mostrando <b>{filtered.length}</b> de {all.length} capítulos
               </span>
 
-              <div style={styles.chips}>
-                <span style={{ ...styles.chip, ...pillTone("RECIBIDO") }}>Recibidos: {counts.RECIBIDO}</span>
-                <span style={{ ...styles.chip, ...pillTone("ASIGNADO_A_DICTAMINADOR") }}>
-                  Asignados: {counts.ASIGNADO_A_DICTAMINADOR}
-                </span>
-                <span style={{ ...styles.chip, ...pillTone("ENVIADO_A_DICTAMINADOR") }}>
-                  Enviados: {counts.ENVIADO_A_DICTAMINADOR}
-                </span>
-                <span style={{ ...styles.chip, ...pillTone("EN_REVISION_DICTAMINADOR") }}>
-                  En revisión (dict): {counts.EN_REVISION_DICTAMINADOR}
-                </span>
-                <span style={{ ...styles.chip, ...pillTone("EN_REVISION") }}>En revisión: {counts.EN_REVISION}</span>
-                <span style={{ ...styles.chip, ...pillTone("CORRECCIONES_SOLICITADAS_A_AUTOR") }}>
-                  Correcciones sol: {counts.CORRECCIONES_SOLICITADAS_A_AUTOR}
-                </span>
-                <span style={{ ...styles.chip, ...pillTone("CORRECCIONES") }}>Correcciones: {counts.CORRECCIONES}</span>
-                <span style={{ ...styles.chip, ...pillTone("REENVIADO_POR_AUTOR") }}>
-                  Reenviados: {counts.REENVIADO_POR_AUTOR}
-                </span>
-                <span style={{ ...styles.chip, ...pillTone("REVISADO_POR_EDITORIAL") }}>
-                  Revisado editorial: {counts.REVISADO_POR_EDITORIAL}
-                </span>
-                <span style={{ ...styles.chip, ...pillTone("LISTO_PARA_FIRMA") }}>
-                  Listo firma: {counts.LISTO_PARA_FIRMA}
-                </span>
-                <span style={{ ...styles.chip, ...pillTone("FIRMADO") }}>Firmados: {counts.FIRMADO}</span>
-                <span style={{ ...styles.chip, ...pillTone("APROBADO") }}>Aprobados: {counts.APROBADO}</span>
-                <span style={{ ...styles.chip, ...pillTone("RECHAZADO") }}>Rechazados: {counts.RECHAZADO}</span>
+              <div className={styles.chips}>
+                <span className={getChipClass("RECIBIDO")}>Recibidos: {counts.RECIBIDO}</span>
+                <span className={getChipClass("ASIGNADO_A_DICTAMINADOR")}>Asignados: {counts.ASIGNADO_A_DICTAMINADOR}</span>
+                <span className={getChipClass("ENVIADO_A_DICTAMINADOR")}>Enviados: {counts.ENVIADO_A_DICTAMINADOR}</span>
+                <span className={getChipClass("EN_REVISION_DICTAMINADOR")}>En revisión (dict): {counts.EN_REVISION_DICTAMINADOR}</span>
+                <span className={getChipClass("EN_REVISION")}>En revisión: {counts.EN_REVISION}</span>
+                <span className={getChipClass("CORRECCIONES_SOLICITADAS_A_AUTOR")}>Correcciones sol: {counts.CORRECCIONES_SOLICITADAS_A_AUTOR}</span>
+                <span className={getChipClass("CORRECCIONES")}>Correcciones: {counts.CORRECCIONES}</span>
+                <span className={getChipClass("REENVIADO_POR_AUTOR")}>Reenviados: {counts.REENVIADO_POR_AUTOR}</span>
+                <span className={getChipClass("REVISADO_POR_EDITORIAL")}>Revisado editorial: {counts.REVISADO_POR_EDITORIAL}</span>
+                <span className={getChipClass("LISTO_PARA_FIRMA")}>Listo firma: {counts.LISTO_PARA_FIRMA}</span>
+                <span className={getChipClass("FIRMADO")}>Firmados: {counts.FIRMADO}</span>
+                <span className={getChipClass("APROBADO")}>Aprobados: {counts.APROBADO}</span>
+                <span className={getChipClass("RECHAZADO")}>Rechazados: {counts.RECHAZADO}</span>
               </div>
             </div>
           </div>
 
           {/* Tabla */}
-          <div style={styles.tableCard}>
-            <table style={styles.table}>
+          <div className={styles.tableCard}>
+            <table className={styles.table}>
               <thead>
                 <tr>
-                  <th style={styles.th}>Folio</th>
-                  <th style={styles.th}>Capítulo</th>
-                  <th style={styles.th}>Libro</th>
-                  <th style={styles.th}>Autor</th>
-                  <th style={styles.th}>Dictaminador</th>
-                  <th style={styles.th}>Estado</th>
-                  <th style={styles.th}>Actualizado</th>
-
-                  {/* ✅ NUEVO */}
-                  <th style={styles.th}>Fecha límite</th>
-
-                  <th style={styles.th}>Acción</th>
+                  <th className={styles.th}>Folio</th>
+                  <th className={styles.th}>Capítulo</th>
+                  <th className={styles.th}>Libro</th>
+                  <th className={styles.th}>Autor</th>
+                  <th className={styles.th}>Dictaminador</th>
+                  <th className={styles.th}>Estado</th>
+                  <th className={styles.th}>Actualizado</th>
+                  {/* ✅ NUEVO (añadido por tu compañera) */}
+                  <th className={styles.th}>Fecha límite</th>
+                  <th className={styles.th}>Acción</th>
                 </tr>
               </thead>
 
@@ -399,16 +425,17 @@ export default function Capitulos() {
                   return (
                     <tr key={x.id}>
                       {/* folio editable */}
-                      <td style={styles.td}>
+                      <td className={styles.td}>
                         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                           <input
-                            style={{ ...styles.inlineInput }}
+                            className={styles.inlineInput}
                             value={draft}
                             onChange={(e) => setFolioDraft((p) => ({ ...p, [x.id]: e.target.value }))}
                             placeholder="Ej: CAP-2026-001"
                           />
                           <button
-                            style={{ ...styles.inlineBtn, opacity: changed ? 1 : 0.55 }}
+                            className={styles.inlineBtn}
+                            style={{ opacity: changed ? 1 : 0.55 }}
                             type="button"
                             disabled={!changed || busyId === x.id}
                             onClick={async () => {
@@ -430,35 +457,35 @@ export default function Capitulos() {
                         </div>
                       </td>
 
-                      <td style={styles.td}>
-                        <div style={styles.cellTitle}>{x.title}</div>
-                        <div style={styles.cellSub}>ID: {x.id}</div>
+                      <td className={styles.td}>
+                        <div className={styles.cellTitle}>{x.title}</div>
+                        <div className={styles.cellSub}>ID: {x.id}</div>
                       </td>
 
-                      <td style={styles.td}>{x.book}</td>
-                      <td style={styles.td}>{x.author}</td>
-                      <td style={styles.td}>{x.evaluatorEmail || "—"}</td>
+                      <td className={styles.td}>{x.book}</td>
+                      <td className={styles.td}>{x.author}</td>
+                      <td className={styles.td}>{x.evaluatorEmail || "—"}</td>
 
-                      <td style={styles.td}>
-                        <span style={{ ...styles.pill, ...pillTone(x.status) }}>{statusLabel(x.status)}</span>
+                      <td className={styles.td}>
+                        <span className={getPillClass(x.status)}>{statusLabel(x.status)}</span>
                       </td>
 
-                      <td style={styles.td}>{fmtDate(x.updatedAt)}</td>
+                      <td className={styles.td}>{fmtDate(x.updatedAt)}</td>
 
-                      {/* ✅ NUEVO */}
-                      <td style={styles.td}>{x.deadlineAt ? fmtDate(x.deadlineAt) : "—"}</td>
+                      {/* ✅ NUEVO (añadido por tu compañera) */}
+                      <td className={styles.td}>{x.deadlineAt ? fmtDate(x.deadlineAt) : "—"}</td>
 
-                      <td style={styles.td}>
-                        <div style={styles.actions}>
-                          <button style={styles.linkBtn} onClick={() => nav(`/capitulos/${x.id}`)} type="button">
+                      <td className={styles.td}>
+                        <div className={styles.actions}>
+                          <button className={styles.linkBtn} onClick={() => nav(`/capitulos/${x.id}`)} type="button">
                             Ver
                           </button>
 
-                          <button style={styles.secondaryBtn} onClick={() => openAction("ASIGNAR", x)} type="button">
+                          <button className={styles.secondaryBtn} onClick={() => openAction("ASIGNAR", x)} type="button">
                             Asignar
                           </button>
 
-                          {/* ✅ QUITADOS: Corrección y Enviar */}
+                          {/* ✅ QUITADOS por tu compañera: Corrección y Enviar */}
                         </div>
                       </td>
                     </tr>
@@ -467,7 +494,7 @@ export default function Capitulos() {
 
                 {filtered.length === 0 && (
                   <tr>
-                    <td style={styles.td} colSpan={9}>
+                    <td className={styles.td} colSpan={9}> {/* Cambiado de 8 a 9 por la nueva columna */}
                       No hay resultados con esos filtros.
                     </td>
                   </tr>
@@ -480,39 +507,39 @@ export default function Capitulos() {
 
       {/* MODAL acciones */}
       {actionOpen && selected && actionType && (
-        <div style={styles.modalOverlay} onClick={() => setActionOpen(false)}>
-          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <div style={styles.modalTitle}>Asignar dictaminador</div>
+        <div className={styles.modalOverlay} onClick={() => setActionOpen(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalTitle}>Asignar dictaminador</div>
 
-            <div style={styles.modalHint}>
+            <div className={styles.modalHint}>
               Capítulo: <b>{selected.title}</b> • Folio: <b>{selected.folio || "—"}</b>
             </div>
 
-            <label style={styles.modalLabel}>Correo del dictaminador</label>
+            <label className={styles.modalLabel}>Correo del dictaminador</label>
             <input
-              style={styles.modalInput}
+              className={styles.modalInput}
               value={actionForm.dictaminador}
               onChange={(e) => setActionForm((s) => ({ ...s, dictaminador: e.target.value }))}
               placeholder="ej: dictaminador@correo.com"
             />
-            <div style={styles.modalInfo}>
+            <div className={styles.modalInfo}>
               El correo debe existir en la tabla <b>users</b> y tener <b>role=dictaminador</b>.
             </div>
 
-            {/* ✅ NUEVO: Fecha límite */}
-            <label style={styles.modalLabel}>Fecha límite (dictaminador)</label>
+            {/* ✅ NUEVO (añadido por tu compañera) */}
+            <label className={styles.modalLabel}>Fecha límite (dictaminador)</label>
             <input
-              style={styles.modalInput}
+              className={styles.modalInput}
               type="date"
               value={actionForm.deadlineAt}
               onChange={(e) => setActionForm((s) => ({ ...s, deadlineAt: e.target.value }))}
             />
 
-            <div style={styles.modalActions}>
-              <button style={styles.secondaryBtn} type="button" onClick={() => setActionOpen(false)}>
+            <div className={styles.modalActions}>
+              <button className={styles.secondaryBtn} type="button" onClick={() => setActionOpen(false)}>
                 Cancelar
               </button>
-              <button style={styles.primaryBtn} type="button" onClick={runAction} disabled={busyId === selected.id}>
+              <button className={styles.primaryBtn} type="button" onClick={runAction} disabled={busyId === selected.id}>
                 {busyId === selected.id ? "Procesando..." : "Confirmar"}
               </button>
             </div>
@@ -537,20 +564,6 @@ function statusLabel(s: Status) {
   if (s === "EN_REVISION") return "En revisión";
   if (s === "APROBADO") return "Aprobado";
   return "Rechazado";
-}
-
-function pillTone(s: Status): React.CSSProperties {
-  if (s === "APROBADO" || s === "FIRMADO")
-    return { background: "#E8F7EE", color: "#0A7A35", borderColor: "#BFE9CF" };
-  if (s === "CORRECCIONES" || s === "CORRECCIONES_SOLICITADAS_A_AUTOR")
-    return { background: "#FFF6E5", color: "#9A5B00", borderColor: "#FFE0A3" };
-  if (s === "EN_REVISION" || s === "EN_REVISION_DICTAMINADOR" || s === "ENVIADO_A_DICTAMINADOR")
-    return { background: "#E9F2FF", color: "#1447B2", borderColor: "#C9DDFF" };
-  if (s === "ASIGNADO_A_DICTAMINADOR" || s === "REVISADO_POR_EDITORIAL" || s === "LISTO_PARA_FIRMA")
-    return { background: "#EEF2FF", color: "#3730A3", borderColor: "#C7D2FE" };
-  if (s === "REENVIADO_POR_AUTOR") return { background: "#ECFDF5", color: "#065F46", borderColor: "#A7F3D0" };
-  if (s === "RECHAZADO") return { background: "#FEECEC", color: "#B42318", borderColor: "#F9CACA" };
-  return { background: "#F3F4F6", color: "#374151", borderColor: "#E5E7EB" };
 }
 
 function fmtDate(dateStr: string) {
@@ -579,100 +592,3 @@ function countStatuses(rows: ChapterRow[]) {
   for (const r of rows) out[r.status] += 1;
   return out;
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  wrap: { display: "flex", flexDirection: "column", gap: 14 },
-  top: { display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-end" },
-  h2: { margin: 0, fontSize: 18, color: "#111827" },
-  p: { margin: "6px 0 0 0", fontSize: 13, color: "#6B7280" },
-
-  empty: { padding: 20, color: "#6B7280" },
-
-  errorBox: {
-    border: "1px solid #FECACA",
-    background: "#FEF2F2",
-    color: "#991B1B",
-    padding: "10px 12px",
-    borderRadius: 12,
-    fontSize: 13,
-    fontWeight: 800,
-  },
-
-  filtersCard: { background: "#fff", border: "1px solid #E7EAF0", borderRadius: 16, padding: 12 },
-  filtersGrid: {
-    display: "grid",
-    gridTemplateColumns: "220px 220px 1fr 180px 180px 140px",
-    gap: 10,
-    alignItems: "end",
-  },
-  field: { display: "flex", flexDirection: "column", gap: 6 },
-  label: { fontSize: 13, fontWeight: 900, color: "#374151" },
-  input: {
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid #D8DEE9",
-    outline: "none",
-    fontSize: 14,
-    background: "#fff",
-  },
-  fieldActions: { display: "flex", justifyContent: "flex-end" },
-
-  resultsRow: { marginTop: 10, display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" },
-  muted: { color: "#6B7280", fontSize: 12 },
-
-  chips: { display: "flex", gap: 8, flexWrap: "wrap" },
-  chip: {
-    display: "inline-block",
-    fontSize: 12,
-    padding: "4px 10px",
-    borderRadius: 999,
-    border: "1px solid",
-    fontWeight: 900,
-    whiteSpace: "nowrap",
-  },
-
-  tableCard: { background: "#fff", border: "1px solid #E7EAF0", borderRadius: 16, overflow: "hidden" },
-  table: { width: "100%", borderCollapse: "collapse" },
-  th: {
-    textAlign: "left",
-    fontSize: 12,
-    padding: "10px 12px",
-    background: "#F9FAFB",
-    borderBottom: "1px solid #E7EAF0",
-    color: "#374151",
-  },
-  td: { padding: "10px 12px", borderBottom: "1px solid #F1F5F9", fontSize: 13, color: "#111827", verticalAlign: "top" },
-
-  cellTitle: { fontWeight: 900 },
-  cellSub: { fontSize: 11, color: "#6B7280", marginTop: 2 },
-
-  pill: {
-    display: "inline-block",
-    fontSize: 12,
-    padding: "4px 10px",
-    borderRadius: 999,
-    border: "1px solid",
-    fontWeight: 900,
-    whiteSpace: "nowrap",
-  },
-
-  actions: { display: "flex", gap: 8, flexWrap: "wrap" },
-  linkBtn: { padding: "8px 10px", borderRadius: 10, border: "1px solid #D8DEE9", background: "#fff", cursor: "pointer", fontWeight: 900 },
-  secondaryBtn: { padding: "8px 10px", borderRadius: 10, border: "1px solid #D8DEE9", background: "#fff", cursor: "pointer", fontWeight: 900 },
-  ghostBtn: { padding: "10px 12px", borderRadius: 12, border: "1px solid #D8DEE9", background: "#fff", cursor: "pointer", fontWeight: 900 },
-  ghostBtnSmall: { padding: "8px 10px", borderRadius: 10, border: "1px solid #E7EAF0", background: "#fff", cursor: "pointer", fontWeight: 900 },
-  primaryBtn: { padding: "10px 12px", borderRadius: 12, border: "none", background: "#0F3D3E", color: "#fff", cursor: "pointer", fontWeight: 900 },
-
-  inlineInput: { width: 160, padding: "8px 10px", borderRadius: 10, border: "1px solid #D8DEE9", outline: "none" },
-  inlineBtn: { padding: "8px 10px", borderRadius: 10, border: "1px solid #D8DEE9", background: "#fff", cursor: "pointer", fontWeight: 900 },
-
-  modalOverlay: { position: "fixed", inset: 0, background: "rgba(17,24,39,0.35)", display: "grid", placeItems: "center", padding: 16, zIndex: 999 },
-  modal: { width: "100%", maxWidth: 560, background: "#fff", border: "1px solid #E7EAF0", borderRadius: 16, padding: 14, boxShadow: "0 20px 60px rgba(0,0,0,0.18)" },
-  modalTitle: { fontWeight: 1000, color: "#111827", fontSize: 16, marginBottom: 8 },
-  modalHint: { fontSize: 13, color: "#6B7280", marginBottom: 12 },
-  modalLabel: { fontSize: 12, fontWeight: 900, color: "#374151", marginTop: 10, display: "block" },
-  modalInput: { width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #D8DEE9", outline: "none", fontSize: 14, marginTop: 6, background: "#fff" },
-  modalTextarea: { width: "100%", minHeight: 110, padding: "10px 12px", borderRadius: 12, border: "1px solid #D8DEE9", outline: "none", fontSize: 14, marginTop: 6, resize: "vertical", background: "#fff" },
-  modalInfo: { marginTop: 10, fontSize: 13, color: "#374151", background: "#F9FAFB", border: "1px solid #E7EAF0", padding: 12, borderRadius: 12 },
-  modalActions: { marginTop: 14, display: "flex", justifyContent: "flex-end", gap: 10 },
-};

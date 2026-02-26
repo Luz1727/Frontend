@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../services/api";
+import styles from './Usuarios.module.css';
 
 type Role = "editorial" | "dictaminador" | "autor";
 
@@ -49,16 +50,20 @@ function fmtDate(dateStr: string) {
   return `${d}/${m}/${y}`;
 }
 
-function roleTone(role: Role): React.CSSProperties {
-  if (role === "editorial") return { background: "#E9F2FF", color: "#1447B2", borderColor: "#C9DDFF" };
-  if (role === "dictaminador") return { background: "#E8F7EE", color: "#0A7A35", borderColor: "#BFE9CF" };
-  return { background: "#FFF6E5", color: "#9A5B00", borderColor: "#FFE0A3" };
+// ✅ Funciones para obtener clases de pills
+function getRolePillClass(role: Role): string {
+  const baseClass = styles.pill;
+  
+  if (role === "editorial") return `${baseClass} ${styles.pillEditorial}`;
+  if (role === "dictaminador") return `${baseClass} ${styles.pillDictaminador}`;
+  return `${baseClass} ${styles.pillAutor}`;
 }
-function activeTone(): React.CSSProperties {
-  return { background: "#E8F7EE", color: "#0A7A35", borderColor: "#BFE9CF" };
-}
-function inactiveTone(): React.CSSProperties {
-  return { background: "#F3F4F6", color: "#374151", borderColor: "#E5E7EB" };
+
+function getActivePillClass(active: boolean): string {
+  const baseClass = styles.pill;
+  
+  if (active) return `${baseClass} ${styles.pillActive}`;
+  return `${baseClass} ${styles.pillInactive}`;
 }
 
 function canvasHasInk(canvas: HTMLCanvasElement) {
@@ -113,7 +118,6 @@ export default function Usuarios() {
 
   const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
 
-  // ✅ input file controlado por ref (para que SÍ abra el selector)
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Canvas firma
@@ -234,7 +238,6 @@ export default function Usuarios() {
   }, [tab]);
 
   useEffect(() => {
-    // default dictaminador seleccionado si hay
     if (!selectedDictId && dictaminadores.length > 0) {
       setSelectedDictId(dictaminadores[0].id);
     }
@@ -312,41 +315,32 @@ export default function Usuarios() {
     }
   };
 
-
-
-//ELIMINAR AUTORES Y DICTAMINADORES (OPCIONAL, PERO RECOMENDADO)
   const deleteUser = async (u: User) => {
-  // seguridad: no permitir eliminar editoriales desde UI
-  if (u.role === "editorial") {
-    alert("No puedes eliminar un usuario editorial.");
-    return;
-  }
-
-  const ok = confirm(`¿Eliminar a "${u.name}" (${u.email})?\n\nEsta acción NO se puede deshacer.`);
-  if (!ok) return;
-
-  try {
-    await api.delete(`/admin/users/${u.id}`);
-
-    // quita del estado
-    setUsers((prev) => prev.filter((x) => x.id !== u.id));
-
-    // si borraste el dictaminador que estaba seleccionado, limpia firma
-    if (selectedDictId === u.id) {
-      setSelectedDictId("");
-      setSignaturePreview(null);
-      clearCanvas();
+    if (u.role === "editorial") {
+      alert("No puedes eliminar un usuario editorial.");
+      return;
     }
 
-    alert("Usuario eliminado.");
-  } catch (err: any) {
-    const msg = err?.response?.data?.detail ?? "No se pudo eliminar el usuario.";
-    alert(msg);
-  }
-};
+    const ok = confirm(`¿Eliminar a "${u.name}" (${u.email})?\n\nEsta acción NO se puede deshacer.`);
+    if (!ok) return;
 
+    try {
+      await api.delete(`/admin/users/${u.id}`);
 
+      setUsers((prev) => prev.filter((x) => x.id !== u.id));
 
+      if (selectedDictId === u.id) {
+        setSelectedDictId("");
+        setSignaturePreview(null);
+        clearCanvas();
+      }
+
+      alert("Usuario eliminado.");
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail ?? "No se pudo eliminar el usuario.";
+      alert(msg);
+    }
+  };
 
   const editUser = (u: User) => {
     alert(`Después: modal editar usuario\n\n${u.name} (${u.role})`);
@@ -410,78 +404,81 @@ export default function Usuarios() {
 
   // ---------------- UI ----------------
   return (
-    <div style={styles.wrap}>
-      <div style={styles.top}>
+    <div className={styles.wrap}>
+      <div className={styles.top}>
         <div>
-          <h2 style={styles.h2}>Usuarios y roles</h2>
-          <p style={styles.p}>Gestión de dictaminadores y autores. (solo editorial/admin)</p>
-          {errorMsg && <div style={{ ...styles.error, marginTop: 8 }}>{errorMsg}</div>}
+          <h2 className={styles.h2}>Usuarios y roles</h2>
+          <p className={styles.p}>Gestión de dictaminadores y autores. (solo editorial/admin)</p>
+          {errorMsg && <div className={styles.error} style={{ marginTop: 8 }}>{errorMsg}</div>}
         </div>
 
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           <span style={{ fontSize: 12, color: "#6B7280" }}>{loadingList ? "Cargando..." : "Actualizado"}</span>
-          <button style={styles.linkBtn} type="button" onClick={fetchUsers} disabled={loadingList}>
+          <button className={styles.linkBtn} type="button" onClick={fetchUsers} disabled={loadingList}>
             Recargar
           </button>
         </div>
       </div>
 
       {/* Tabs */}
-      <div style={styles.tabs}>
+      <div className={styles.tabs}>
         <button
-          style={{ ...styles.tabBtn, ...(tab === "DICTAMINADORES" ? styles.tabActive : null) }}
+          className={`${styles.tabBtn} ${tab === "DICTAMINADORES" ? styles.tabActive : ""}`}
           onClick={() => setTab("DICTAMINADORES")}
         >
           Dictaminadores
         </button>
-        <button style={{ ...styles.tabBtn, ...(tab === "AUTORES" ? styles.tabActive : null) }} onClick={() => setTab("AUTORES")}>
+        <button
+          className={`${styles.tabBtn} ${tab === "AUTORES" ? styles.tabActive : ""}`}
+          onClick={() => setTab("AUTORES")}
+        >
           Autores
         </button>
       </div>
 
-      <div style={styles.grid}>
+      <div className={styles.grid}>
         {/* Izquierda: Alta + Firma */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {/* Alta */}
-          <div style={styles.formCard}>
-            <h3 style={styles.h3}>Alta de {tab === "DICTAMINADORES" ? "dictaminadores" : "autores"}</h3>
-            <p style={styles.p2}>
+          <div className={styles.formCard}>
+            <h3 className={styles.h3}>Alta de {tab === "DICTAMINADORES" ? "dictaminadores" : "autores"}</h3>
+            <p className={styles.p2}>
               Se crea un usuario con rol <b>{tab === "DICTAMINADORES" ? "dictaminador" : "autor"}</b>.
             </p>
 
-            <div style={styles.form}>
-              <div style={styles.field}>
-                <label style={styles.label}>Nombre</label>
-                <input style={styles.input} value={name} onChange={(e) => setName(e.target.value)} />
+            <div className={styles.form}>
+              <div className={styles.field}>
+                <label className={styles.label}>Nombre</label>
+                <input className={styles.input} value={name} onChange={(e) => setName(e.target.value)} />
               </div>
 
-              <div style={styles.field}>
-                <label style={styles.label}>Correo</label>
+              <div className={styles.field}>
+                <label className={styles.label}>Correo</label>
                 <input
-                  style={styles.input}
+                  className={styles.input}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="correo@dominio.com"
                 />
               </div>
 
-              {/* ✅ Campos extra SOLO para dictaminador */}
+              {/* Campos extra SOLO para dictaminador */}
               {tab === "DICTAMINADORES" && (
                 <>
-                  <div style={styles.field}>
-                    <label style={styles.label}>Institución</label>
+                  <div className={styles.field}>
+                    <label className={styles.label}>Institución</label>
                     <input
-                      style={styles.input}
+                      className={styles.input}
                       value={institution}
                       onChange={(e) => setInstitution(e.target.value)}
                       placeholder="Universidad / Instituto"
                     />
                   </div>
 
-                  <div style={styles.field}>
-                    <label style={styles.label}>CVU / SNII</label>
+                  <div className={styles.field}>
+                    <label className={styles.label}>CVU / SNII</label>
                     <input
-                      style={styles.input}
+                      className={styles.input}
                       value={cvoSnii}
                       onChange={(e) => setCvoSnii(e.target.value)}
                       placeholder="Ej: 123456 (será su contraseña)"
@@ -490,25 +487,25 @@ export default function Usuarios() {
                 </>
               )}
 
-              <button style={styles.primaryBtn} onClick={addUser} disabled={savingUser}>
+              <button className={styles.primaryBtn} onClick={addUser} disabled={savingUser}>
                 {savingUser ? "Guardando..." : "Dar de alta"}
               </button>
 
-              <div style={styles.note}>Dictaminador: contraseña = CVU/SNII. Autor: contraseña = nombre.</div>
+              <div className={styles.note}>Dictaminador: contraseña = CVU/SNII. Autor: contraseña = nombre.</div>
             </div>
           </div>
 
           {/* Firma */}
-          <div style={styles.formCard}>
-            <h3 style={styles.h3}>Firma (dictaminador)</h3>
-            <p style={styles.p2}>
+          <div className={styles.formCard}>
+            <h3 className={styles.h3}>Firma (dictaminador)</h3>
+            <p className={styles.p2}>
               Guarda la firma del dictaminador para usarla al <b>emitir constancias</b> o <b>cerrar dictámenes</b>.
             </p>
 
-            <div style={styles.field}>
-              <label style={styles.label}>Selecciona dictaminador</label>
+            <div className={styles.field}>
+              <label className={styles.label}>Selecciona dictaminador</label>
               <select
-                style={styles.input}
+                className={styles.input}
                 value={selectedDictId}
                 onChange={(e) => onSelectDictaminador(e.target.value)}
                 disabled={dictaminadores.length === 0}
@@ -525,22 +522,22 @@ export default function Usuarios() {
               </select>
             </div>
 
-            <div style={styles.signatureRow}>
-              <div style={styles.signatureBox}>
-                <div style={styles.signatureTitle}>Vista previa</div>
+            <div className={styles.signatureRow}>
+              <div className={styles.signatureBox}>
+                <div className={styles.signatureTitle}>Vista previa</div>
                 {signaturePreview ? (
-                  <img src={signaturePreview} alt="Firma" style={styles.signaturePreview} />
+                  <img src={signaturePreview} alt="Firma" className={styles.signaturePreview} />
                 ) : (
-                  <div style={styles.signatureEmpty}>Sin firma guardada</div>
+                  <div className={styles.signatureEmpty}>Sin firma guardada</div>
                 )}
 
-                <div style={styles.signatureHint}>
+                <div className={styles.signatureHint}>
                   {savingSignature ? <b>Guardando firma...</b> : <span>Sube PNG/JPG o dibuja y guarda.</span>}
                 </div>
 
-                <div style={styles.actions}>
+                <div className={styles.actions}>
                   <button
-                    style={styles.linkBtn}
+                    className={styles.linkBtn}
                     type="button"
                     onClick={() => {
                       if (!selectedDict) return;
@@ -552,16 +549,15 @@ export default function Usuarios() {
                     Copiar ID
                   </button>
 
-                  <button style={styles.ghostBtn} type="button" onClick={clearSignature} disabled={!selectedDict}>
+                  <button className={styles.ghostBtn} type="button" onClick={clearSignature} disabled={!selectedDict}>
                     Eliminar firma
                   </button>
                 </div>
               </div>
 
-              <div style={styles.signatureBox}>
-                <div style={styles.signatureTitle}>Subir imagen de firma</div>
+              <div className={styles.signatureBox}>
+                <div className={styles.signatureTitle}>Subir imagen de firma</div>
 
-                {/* ✅ input hidden + botón que abre el selector */}
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -570,14 +566,12 @@ export default function Usuarios() {
                   onChange={(e) => {
                     const file = e.target.files?.[0] ?? null;
                     onUploadSignatureImage(file);
-
-                    // ✅ permite volver a seleccionar el mismo archivo
                     e.currentTarget.value = "";
                   }}
                 />
 
                 <button
-                  style={styles.primaryBtn}
+                  className={styles.primaryBtn}
                   type="button"
                   onClick={openFilePicker}
                   disabled={!selectedDictId || savingSignature}
@@ -585,20 +579,20 @@ export default function Usuarios() {
                   {savingSignature ? "Subiendo..." : "Seleccionar archivo"}
                 </button>
 
-                <div style={styles.signatureHint}>
+                <div className={styles.signatureHint}>
                   {selectedDictId ? "Recomendado: PNG con fondo transparente." : "Primero selecciona un dictaminador."}
                 </div>
               </div>
             </div>
 
-            <div style={styles.canvasWrap}>
-              <div style={styles.signatureTitle}>Dibujar firma</div>
+            <div className={styles.canvasWrap}>
+              <div className={styles.signatureTitle}>Dibujar firma</div>
 
               <canvas
                 ref={canvasRef}
                 width={520}
                 height={160}
-                style={styles.canvas}
+                className={styles.canvas}
                 onMouseDown={(e) => {
                   const p = getPos(e);
                   startDraw(p.x, p.y);
@@ -625,12 +619,12 @@ export default function Usuarios() {
                 }}
               />
 
-              <div style={styles.actions}>
-                <button style={styles.linkBtn} type="button" onClick={clearCanvas}>
+              <div className={styles.actions}>
+                <button className={styles.linkBtn} type="button" onClick={clearCanvas}>
                   Limpiar canvas
                 </button>
                 <button
-                  style={styles.primaryBtn}
+                  className={styles.primaryBtn}
                   type="button"
                   onClick={saveCanvasAsSignature}
                   disabled={!selectedDictId || savingSignature}
@@ -639,81 +633,77 @@ export default function Usuarios() {
                 </button>
               </div>
 
-              <div style={styles.note}>Nota: la firma se guarda en backend y se liga al dictaminador.</div>
+              <div className={styles.note}>Nota: la firma se guarda en backend y se liga al dictaminador.</div>
             </div>
           </div>
         </div>
 
         {/* Derecha: Tabla */}
-        <div style={styles.tableCard}>
-          <div style={styles.tableHeader}>
+        <div className={styles.tableCard}>
+          <div className={styles.tableHeader}>
             <div>
-              <div style={styles.tableTitle}>{tab === "DICTAMINADORES" ? "Dictaminadores" : "Autores"}</div>
-              <div style={styles.tableSub}>{loadingList ? "Cargando..." : `${filtered.length} registros`}</div>
+              <div className={styles.tableTitle}>{tab === "DICTAMINADORES" ? "Dictaminadores" : "Autores"}</div>
+              <div className={styles.tableSub}>{loadingList ? "Cargando..." : `${filtered.length} registros`}</div>
             </div>
 
-            <span style={styles.badge}>online</span>
+            <span className={styles.badge}>online</span>
           </div>
 
-          <div style={styles.tableWrap}>
-            <table style={styles.table}>
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
               <thead>
                 <tr>
-                  <th style={styles.th}>Nombre</th>
-                  <th style={styles.th}>Correo</th>
-                  <th style={styles.th}>Rol</th>
+                  <th className={styles.th}>Nombre</th>
+                  <th className={styles.th}>Correo</th>
+                  <th className={styles.th}>Rol</th>
 
-                  {/* ✅ Solo se muestran en dictaminadores (opcional, pero recomendado) */}
-                  {showExtraCols && <th style={styles.th}>Institución</th>}
-                  {showExtraCols && <th style={styles.th}>CVU/SNII</th>}
+                  {showExtraCols && <th className={styles.th}>Institución</th>}
+                  {showExtraCols && <th className={styles.th}>CVU/SNII</th>}
 
-                  <th style={styles.th}>Activo</th>
-                  <th style={styles.th}>Alta</th>
-                  <th style={styles.th}>Acciones</th>
+                  <th className={styles.th}>Activo</th>
+                  <th className={styles.th}>Alta</th>
+                  <th className={styles.th}>Acciones</th>
                 </tr>
               </thead>
 
               <tbody>
                 {filtered.map((u) => (
                   <tr key={u.id}>
-                    <td style={styles.td}>
-                      <div style={styles.cellTitle}>{u.name}</div>
-                      <div style={styles.cellSub}>ID: {u.id}</div>
+                    <td className={styles.td}>
+                      <div className={styles.cellTitle}>{u.name}</div>
+                      <div className={styles.cellSub}>ID: {u.id}</div>
                     </td>
 
-                    <td style={styles.td}>{u.email}</td>
+                    <td className={styles.td}>{u.email}</td>
 
-                    <td style={styles.td}>
-                      <span style={{ ...styles.pill, ...roleTone(u.role) }}>{u.role}</span>
+                    <td className={styles.td}>
+                      <span className={getRolePillClass(u.role)}>{u.role}</span>
                     </td>
 
-                    {showExtraCols && <td style={styles.td}>{u.institution ?? "—"}</td>}
-                    {showExtraCols && <td style={styles.td}>{u.cvoSnii ?? "—"}</td>}
+                    {showExtraCols && <td className={styles.td}>{u.institution ?? "—"}</td>}
+                    {showExtraCols && <td className={styles.td}>{u.cvoSnii ?? "—"}</td>}
 
-                    <td style={styles.td}>
-                      <span style={{ ...styles.pill, ...(u.active ? activeTone() : inactiveTone()) }}>
+                    <td className={styles.td}>
+                      <span className={getActivePillClass(u.active)}>
                         {u.active ? "Sí" : "No"}
                       </span>
                     </td>
 
-                    <td style={styles.td}>{fmtDate(u.createdAt)}</td>
+                    <td className={styles.td}>{fmtDate(u.createdAt)}</td>
 
-                    <td style={styles.td}>
-                      <div style={styles.actions}>
-                        <div style={styles.actions}>
-                            <button style={styles.linkBtn} onClick={() => editUser(u)}>
-                             Editar
-                            </button>
+                    <td className={styles.td}>
+                      <div className={styles.actions}>
+                        <button className={styles.linkBtn} onClick={() => editUser(u)}>
+                          Editar
+                        </button>
 
-                            <button style={styles.ghostBtn} onClick={() => toggleActive(u.id)}>
-                             {u.active ? "Desactivar" : "Activar"}
-                            </button>
+                        <button className={styles.ghostBtn} onClick={() => toggleActive(u.id)}>
+                          {u.active ? "Desactivar" : "Activar"}
+                        </button>
 
-                            <button style={styles.dangerBtn} onClick={() => deleteUser(u)}>
-                             Eliminar
-                            </button>
-                        </div>
-
+                        <button className={styles.dangerBtn} onClick={() => deleteUser(u)}>
+                          Eliminar
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -721,10 +711,7 @@ export default function Usuarios() {
 
                 {!loadingList && filtered.length === 0 && (
                   <tr>
-                    <td
-                      style={styles.td}
-                      colSpan={showExtraCols ? 8 : 6}
-                    >
+                    <td className={styles.td} colSpan={showExtraCols ? 8 : 6}>
                       No hay registros.
                     </td>
                   </tr>
@@ -733,8 +720,8 @@ export default function Usuarios() {
             </table>
           </div>
 
-          <div style={styles.footerHint}>
-            <span style={styles.muted}>
+          <div className={styles.footerHint}>
+            <span className={styles.muted}>
               Roles soportados: <b>editorial</b>, <b>dictaminador</b>, <b>autor</b>.
             </span>
           </div>
@@ -743,136 +730,3 @@ export default function Usuarios() {
     </div>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  wrap: { display: "flex", flexDirection: "column", gap: 14 },
-  top: { display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-end" },
-  h2: { margin: 0, fontSize: 18, color: "#111827" },
-  p: { margin: "6px 0 0 0", fontSize: 13, color: "#6B7280" },
-
-  tabs: { display: "flex", gap: 10, flexWrap: "wrap" },
-  tabBtn: {
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid #D8DEE9",
-    background: "#fff",
-    cursor: "pointer",
-    fontWeight: 1000,
-  },
-  tabActive: { borderColor: "#0F3D3E", boxShadow: "0 10px 30px rgba(15,61,62,0.12)" },
-
-  grid: { display: "grid", gridTemplateColumns: "560px 1fr", gap: 12, alignItems: "start" },
-
-  formCard: { background: "#fff", border: "1px solid #E7EAF0", borderRadius: 16, padding: 14 },
-  h3: { margin: 0, fontSize: 16, color: "#111827" },
-  p2: { margin: "6px 0 0 0", fontSize: 13, color: "#6B7280" },
-
-  form: { marginTop: 12, display: "flex", flexDirection: "column", gap: 10 },
-  field: { display: "flex", flexDirection: "column", gap: 6 },
-  label: { fontSize: 13, fontWeight: 900, color: "#374151" },
-  input: {
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid #D8DEE9",
-    outline: "none",
-    fontSize: 14,
-    background: "#fff",
-  },
-
-
-  dangerBtn: {
-  padding: "8px 10px",
-  borderRadius: 10,
-  border: "1px solid #FECACA",
-  background: "#FEF2F2",
-  color: "#991B1B",
-  cursor: "pointer",
-  fontWeight: 900,
-},
-
-
-  primaryBtn: {
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "none",
-    background: "#0F3D3E",
-    color: "#fff",
-    cursor: "pointer",
-    fontWeight: 1000,
-  },
-  note: { marginTop: 6, fontSize: 12, color: "#6B7280" },
-
-  tableCard: { background: "#fff", border: "1px solid #E7EAF0", borderRadius: 16, overflow: "hidden" },
-  tableHeader: {
-    padding: 12,
-    borderBottom: "1px solid #E7EAF0",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    background: "#F9FAFB",
-  },
-  tableTitle: { fontWeight: 1000, color: "#111827" },
-  tableSub: { fontSize: 12, color: "#6B7280", marginTop: 3 },
-  badge: {
-    fontSize: 12,
-    padding: "4px 10px",
-    borderRadius: 999,
-    border: "1px solid #BFE9CF",
-    background: "#E8F7EE",
-    color: "#0A7A35",
-    fontWeight: 900,
-  },
-
-  tableWrap: { overflowX: "auto" },
-  table: { width: "100%", borderCollapse: "collapse", minWidth: 920 },
-  th: {
-    textAlign: "left",
-    fontSize: 12,
-    padding: "10px 12px",
-    background: "#F9FAFB",
-    borderBottom: "1px solid #E7EAF0",
-    color: "#374151",
-  },
-  td: { padding: "10px 12px", borderBottom: "1px solid #F1F5F9", fontSize: 13, color: "#111827", verticalAlign: "top" },
-
-  cellTitle: { fontWeight: 900 },
-  cellSub: { fontSize: 11, color: "#6B7280", marginTop: 2 },
-
-  pill: {
-    display: "inline-block",
-    fontSize: 12,
-    padding: "4px 10px",
-    borderRadius: 999,
-    border: "1px solid",
-    fontWeight: 900,
-    whiteSpace: "nowrap",
-  },
-
-  actions: { display: "flex", gap: 8, flexWrap: "wrap" },
-  linkBtn: { padding: "8px 10px", borderRadius: 10, border: "1px solid #D8DEE9", background: "#fff", cursor: "pointer", fontWeight: 900 },
-  ghostBtn: { padding: "8px 10px", borderRadius: 10, border: "none", background: "#0F3D3E", color: "#fff", cursor: "pointer", fontWeight: 900 },
-
-  footerHint: { padding: 12, borderTop: "1px solid #E7EAF0", background: "#fff" },
-  muted: { color: "#6B7280", fontSize: 12 },
-
-  // Firma
-  signatureRow: { marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 },
-  signatureBox: { border: "1px solid #E7EAF0", borderRadius: 14, padding: 12, background: "#F9FAFB" },
-  signatureTitle: { fontWeight: 1000, color: "#111827", fontSize: 13, marginBottom: 8 },
-  signaturePreview: { width: "100%", height: 80, objectFit: "contain", background: "#fff", borderRadius: 12, border: "1px solid #E7EAF0" },
-  signatureEmpty: { height: 80, display: "grid", placeItems: "center", borderRadius: 12, border: "1px dashed #D8DEE9", color: "#6B7280", background: "#fff" },
-  signatureHint: { marginTop: 8, fontSize: 12, color: "#6B7280" },
-
-  canvasWrap: { marginTop: 12, border: "1px solid #E7EAF0", borderRadius: 14, padding: 12, background: "#F9FAFB" },
-  canvas: { width: "100%", background: "#fff", borderRadius: 12, border: "1px solid #E7EAF0", touchAction: "none" },
-
-  error: {
-    border: "1px solid #FECACA",
-    background: "#FEF2F2",
-    color: "#991B1B",
-    padding: "10px 12px",
-    borderRadius: 12,
-    fontSize: 13,
-    fontWeight: 700,
-  },
-};

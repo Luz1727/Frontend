@@ -1,19 +1,20 @@
-// src/pages/autor/MisEnviosAutor.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { api } from "../../services/api";
 import brandLogo from "../../assets/brand-logo.jpeg";
+import styles from './MisEnviosAutor.module.css';
+import { alertService } from "../../utils/alerts";
 
 type ChapterStatus =
   | "RECIBIDO"
   | "ASIGNADO_A_DICTAMINADOR"
-  | "ENVIADO_A_DICTAMINADOR"           // ← NUEVO
-  | "EN_REVISION_DICTAMINADOR"          // ← NUEVO
-  | "CORRECCIONES_SOLICITADAS_A_AUTOR"  // ← NUEVO
+  | "ENVIADO_A_DICTAMINADOR"
+  | "EN_REVISION_DICTAMINADOR"
+  | "CORRECCIONES_SOLICITADAS_A_AUTOR"
   | "CORRECCIONES"
   | "REENVIADO_POR_AUTOR"
-  | "REVISADO_POR_EDITORIAL"            // ← NUEVO
-  | "LISTO_PARA_FIRMA"                  // ← NUEVO
-  | "FIRMADO"                           // ← NUEVO
+  | "REVISADO_POR_EDITORIAL"
+  | "LISTO_PARA_FIRMA"
+  | "FIRMADO"
   | "EN_REVISION"
   | "APROBADO"
   | "RECHAZADO";
@@ -91,64 +92,40 @@ function fmtDate(dateStr: string) {
 function statusLabel(s: ChapterStatus) {
   if (s === "RECIBIDO") return "Recibido";
   if (s === "ASIGNADO_A_DICTAMINADOR") return "Asignado";
-  if (s === "ENVIADO_A_DICTAMINADOR") return "Enviado a dictaminador";  // ← NUEVO
-  if (s === "EN_REVISION_DICTAMINADOR") return "En revisión (dictaminador)";  // ← NUEVO
-  if (s === "CORRECCIONES_SOLICITADAS_A_AUTOR") return "Correcciones solicitadas";  // ← NUEVO
+  if (s === "ENVIADO_A_DICTAMINADOR") return "Enviado a dictaminador";
+  if (s === "EN_REVISION_DICTAMINADOR") return "En revisión (dictaminador)";
+  if (s === "CORRECCIONES_SOLICITADAS_A_AUTOR") return "Correcciones solicitadas";
   if (s === "CORRECCIONES") return "Correcciones";
   if (s === "REENVIADO_POR_AUTOR") return "Reenviado";
-  if (s === "REVISADO_POR_EDITORIAL") return "Revisado por editorial";  // ← NUEVO
-  if (s === "LISTO_PARA_FIRMA") return "Listo para firma";  // ← NUEVO
-  if (s === "FIRMADO") return "Firmado";  // ← NUEVO
+  if (s === "REVISADO_POR_EDITORIAL") return "Revisado por editorial";
+  if (s === "LISTO_PARA_FIRMA") return "Listo para firma";
+  if (s === "FIRMADO") return "Firmado";
   if (s === "EN_REVISION") return "En revisión";
   if (s === "APROBADO") return "Aprobado";
   return "Rechazado";
 }
 
-function pillTone(s: ChapterStatus): React.CSSProperties {
-  if (s === "APROBADO")
-    return {
-      background: "rgba(16,185,129,0.12)",
-      color: "#0A7A35",
-      borderColor: "rgba(16,185,129,0.22)",
-    };
-  if (s === "CORRECCIONES" || s === "CORRECCIONES_SOLICITADAS_A_AUTOR")  // ← NUEVO
-    return {
-      background: "rgba(208,176,122,0.18)",
-      color: "#6B4E1E",
-      borderColor: "rgba(208,176,122,0.35)",
-    };
-  if (s === "EN_REVISION" || s === "EN_REVISION_DICTAMINADOR")  // ← NUEVO
-    return {
-      background: "rgba(59,130,246,0.10)",
-      color: "#1447B2",
-      borderColor: "rgba(59,130,246,0.20)",
-    };
-  if (s === "RECHAZADO")
-    return {
-      background: "rgba(239,68,68,0.10)",
-      color: "#B42318",
-      borderColor: "rgba(239,68,68,0.22)",
-    };
-  if (s === "REENVIADO_POR_AUTOR" || s === "ENVIADO_A_DICTAMINADOR" || s === "LISTO_PARA_FIRMA" || s === "FIRMADO")  // ← NUEVOS
-    return {
-      background: "rgba(148,163,184,0.14)",
-      color: "#334155",
-      borderColor: "rgba(148,163,184,0.26)",
-    };
-  if (s === "ASIGNADO_A_DICTAMINADOR" || s === "REVISADO_POR_EDITORIAL")  // ← NUEVO
-    return {
-      background: "rgba(99,102,241,0.10)",
-      color: "#3730A3",
-      borderColor: "rgba(99,102,241,0.20)",
-    };
-  return {
-    background: "rgba(148,163,184,0.14)",
-    color: "#334155",
-    borderColor: "rgba(148,163,184,0.26)",
+function getPillClass(status: ChapterStatus): string {
+  const baseClass = styles.pill;
+  
+  const statusMap: Record<ChapterStatus, string> = {
+    APROBADO: styles.pillApproved,
+    CORRECCIONES: styles.pillCorrections,
+    CORRECCIONES_SOLICITADAS_A_AUTOR: styles.pillCorrections,
+    EN_REVISION: styles.pillRevision,
+    EN_REVISION_DICTAMINADOR: styles.pillRevision,
+    RECHAZADO: styles.pillRejected,
+    RECIBIDO: styles.pillDefault,
+    ASIGNADO_A_DICTAMINADOR: styles.pillAssigned,
+    ENVIADO_A_DICTAMINADOR: styles.pillSent,
+    REENVIADO_POR_AUTOR: styles.pillResent,
+    REVISADO_POR_EDITORIAL: styles.pillEditorial,
+    LISTO_PARA_FIRMA: styles.pillReady,
+    FIRMADO: styles.pillSigned,
   };
+  
+  return `${baseClass} ${statusMap[status] || styles.pillDefault}`;
 }
-
-
 
 function initials(name?: string) {
   const n = (name || "").trim();
@@ -169,12 +146,12 @@ function StatCard({
   hint?: string;
 }) {
   return (
-    <div style={styles.statCard}>
-      <div style={styles.statTop}>
-        <div style={styles.statLabel}>{label}</div>
+    <div className={styles.statCard}>
+      <div className={styles.statTop}>
+        <div className={styles.statLabel}>{label}</div>
       </div>
-      <div style={styles.statValue}>{value}</div>
-      {hint ? <div style={styles.statHint}>{hint}</div> : null}
+      <div className={styles.statValue}>{value}</div>
+      {hint ? <div className={styles.statHint}>{hint}</div> : null}
     </div>
   );
 }
@@ -200,6 +177,7 @@ function Icon({
   const color = tone === "light" ? "rgba(255,247,230,0.92)" : "#64748B";
   const size = 18;
   const common = { width: size, height: size, display: "inline-block" as const };
+  
   switch (name) {
     case "book":
       return (
@@ -287,73 +265,18 @@ function Icon({
   }
 }
 
-function btnFxPrimaryProps() {
-  return {
-    onMouseEnter: (e: React.MouseEvent<HTMLButtonElement>) => {
-      e.currentTarget.style.filter = "brightness(1.05)";
-      e.currentTarget.style.transform = "translateY(-1px)";
-    },
-    onMouseLeave: (e: React.MouseEvent<HTMLButtonElement>) => {
-      e.currentTarget.style.filter = "brightness(1)";
-      e.currentTarget.style.transform = "translateY(0px)";
-    },
-    onMouseDown: (e: React.MouseEvent<HTMLButtonElement>) => {
-      e.currentTarget.style.transform = "translateY(1px)";
-    },
-    onMouseUp: (e: React.MouseEvent<HTMLButtonElement>) => {
-      e.currentTarget.style.transform = "translateY(0px)";
-    },
-  };
-}
-
-function btnFxSecondaryProps() {
-  return {
-    onMouseEnter: (e: React.MouseEvent<HTMLButtonElement>) => {
-      e.currentTarget.style.transform = "translateY(-1px)";
-      e.currentTarget.style.background = "rgba(255,255,255,0.98)";
-    },
-    onMouseLeave: (e: React.MouseEvent<HTMLButtonElement>) => {
-      e.currentTarget.style.transform = "translateY(0px)";
-      e.currentTarget.style.background = "rgba(255,255,255,0.92)";
-    },
-    onMouseDown: (e: React.MouseEvent<HTMLButtonElement>) => {
-      e.currentTarget.style.transform = "translateY(1px)";
-    },
-    onMouseUp: (e: React.MouseEvent<HTMLButtonElement>) => {
-      e.currentTarget.style.transform = "translateY(0px)";
-    },
-  };
-}
-
-function rowHoverProps(active: boolean) {
-  return {
-    onMouseEnter: (e: React.MouseEvent<HTMLButtonElement>) => {
-      if (!active) {
-        e.currentTarget.style.transform = "translateY(-1px)";
-        e.currentTarget.style.boxShadow = "0 18px 50px rgba(2,6,23,0.08)";
-      }
-    },
-    onMouseLeave: (e: React.MouseEvent<HTMLButtonElement>) => {
-      if (!active) {
-        e.currentTarget.style.transform = "translateY(0px)";
-        e.currentTarget.style.boxShadow = "none";
-      }
-    },
-  };
-}
-
 function decisionLabel(d: DictamenDecision) {
   if (d === "APROBADO") return "Aprobado";
   if (d === "CORRECCIONES") return "Correcciones";
   return "Rechazado";
 }
 
-function dictamenTone(decision: DictamenDecision): React.CSSProperties {
-  if (decision === "APROBADO")
-    return { background: "rgba(16,185,129,0.12)", color: "#0A7A35", borderColor: "rgba(16,185,129,0.22)" };
-  if (decision === "RECHAZADO")
-    return { background: "rgba(239,68,68,0.10)", color: "#B42318", borderColor: "rgba(239,68,68,0.22)" };
-  return { background: "rgba(208,176,122,0.18)", color: "#6B4E1E", borderColor: "rgba(208,176,122,0.35)" };
+function getDictamenPillClass(decision: DictamenDecision): string {
+  const baseClass = styles.pill;
+  
+  if (decision === "APROBADO") return `${baseClass} ${styles.pillApproved}`;
+  if (decision === "RECHAZADO") return `${baseClass} ${styles.pillRejected}`;
+  return `${baseClass} ${styles.pillCorrections}`;
 }
 
 export default function MisEnviosAutor() {
@@ -371,7 +294,6 @@ export default function MisEnviosAutor() {
   const [openCreateBook, setOpenCreateBook] = useState(false);
   const [openUploadChapter, setOpenUploadChapter] = useState(false);
 
-  // ✅ Modales Mi Cuenta
   const [openPrefs, setOpenPrefs] = useState(false);
   const [openPrivacy, setOpenPrivacy] = useState(false);
   const [openPwd, setOpenPwd] = useState(false);
@@ -399,13 +321,11 @@ export default function MisEnviosAutor() {
     file: null as File | null,
   });
 
-  // ✅ NUEVO: Correcciones (dictámenes)
   const [openCorrections, setOpenCorrections] = useState(false);
   const [corrChapter, setCorrChapter] = useState<Chapter | null>(null);
   const [dictamenes, setDictamenes] = useState<Dictamen[]>([]);
   const [loadingDictamenes, setLoadingDictamenes] = useState(false);
 
-  // ✅ NUEVO: Re-subir versión corregida
   const [openReupload, setOpenReupload] = useState(false);
   const [reuploadChapter, setReuploadChapter] = useState<Chapter | null>(null);
   const [reuploadFile, setReuploadFile] = useState<File | null>(null);
@@ -453,6 +373,11 @@ export default function MisEnviosAutor() {
 
   const apiMsg = (err: any, fallback: string) => err?.response?.data?.detail || err?.message || fallback;
 
+  const showError = (msg: string) => {
+    alertService.error(msg);
+    setErrorMsg(msg);
+  };
+
   // =========================
   // LOADERS
   // =========================
@@ -496,7 +421,7 @@ export default function MisEnviosAutor() {
       }
       if (!items.length) setSelectedBookId(null);
     } catch (err: any) {
-      setErrorMsg(apiMsg(err, "No se pudieron cargar tus libros."));
+      showError(apiMsg(err, "No se pudieron cargar tus libros."));
     } finally {
       setLoading(false);
     }
@@ -512,7 +437,6 @@ export default function MisEnviosAutor() {
     }
   };
 
-  // ✅ NUEVO: cargar dictámenes (correcciones) de un capítulo
   const loadDictamenes = async (chapterId: number) => {
     setLoadingDictamenes(true);
     try {
@@ -532,12 +456,10 @@ export default function MisEnviosAutor() {
     loadPrefs();
     loadPrivacy();
     loadBooks();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (selectedBookId) loadChapters(selectedBookId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBookId]);
 
   // =========================
@@ -552,8 +474,14 @@ export default function MisEnviosAutor() {
     const name = newBook.name.trim();
     const year = Number(newBook.year);
 
-    if (!name) return alert("Escribe el nombre del libro.");
-    if (!year || year < 1900 || year > 3000) return alert("Año inválido.");
+    if (!name) {
+      alertService.warning("Escribe el nombre del libro.");
+      return;
+    }
+    if (!year || year < 1900 || year > 3000) {
+      alertService.warning("Año inválido.");
+      return;
+    }
 
     try {
       setLoading(true);
@@ -565,10 +493,11 @@ export default function MisEnviosAutor() {
       setSelectedBookId(data.id);
       setOpenCreateBook(false);
       setNav("envios");
+      
+      alertService.success("Libro creado correctamente");
     } catch (err: any) {
       const msg = apiMsg(err, "No se pudo crear el libro.");
-      setErrorMsg(msg);
-      alert(msg);
+      showError(msg);
     } finally {
       setLoading(false);
     }
@@ -586,8 +515,14 @@ export default function MisEnviosAutor() {
     const title = newChapter.title.trim();
     const file = newChapter.file;
 
-    if (!title) return alert("Escribe el título del capítulo.");
-    if (!file) return alert("Selecciona un archivo (PDF o DOCX).");
+    if (!title) {
+      alertService.warning("Escribe el título del capítulo.");
+      return;
+    }
+    if (!file) {
+      alertService.warning("Selecciona un archivo (PDF o DOCX).");
+      return;
+    }
 
     const okTypes = [
       "application/pdf",
@@ -595,7 +530,7 @@ export default function MisEnviosAutor() {
       "application/msword",
     ];
     if (file.type && !okTypes.includes(file.type)) {
-      alert("Formato no permitido. Sube PDF o Word (DOC/DOCX).");
+      alertService.warning("Formato no permitido. Sube PDF o Word (DOC/DOCX).");
       return;
     }
 
@@ -615,10 +550,11 @@ export default function MisEnviosAutor() {
 
       setOpenUploadChapter(false);
       setNav("envios");
+      
+      alertService.success("Capítulo subido correctamente");
     } catch (err: any) {
       const msg = apiMsg(err, "No se pudo subir el capítulo.");
-      setErrorMsg(msg);
-      alert(msg);
+      showError(msg);
     } finally {
       setLoading(false);
     }
@@ -674,16 +610,16 @@ export default function MisEnviosAutor() {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
+      
+      alertService.success("Descarga iniciada");
     } catch (err: any) {
       const msg = apiMsg(err, "No se pudo descargar el archivo.");
-      setErrorMsg(msg);
-      alert(msg);
+      showError(msg);
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ NUEVO: descargar PDF dictamen protegido
   const downloadDictamen = async (d: Dictamen) => {
     try {
       setLoading(true);
@@ -726,16 +662,16 @@ export default function MisEnviosAutor() {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
+      
+      alertService.success("Dictamen descargado");
     } catch (err: any) {
       const msg = apiMsg(err, "No se pudo descargar el dictamen.");
-      setErrorMsg(msg);
-      alert(msg);
+      showError(msg);
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ NUEVO: abrir modal correcciones
   const openCorrectionsModal = async (c: Chapter) => {
     setCorrChapter(c);
     setDictamenes([]);
@@ -743,7 +679,6 @@ export default function MisEnviosAutor() {
     await loadDictamenes(c.id);
   };
 
-  // ✅ NUEVO: abrir modal reupload
   const openReuploadModal = (c: Chapter) => {
     setReuploadChapter(c);
     setReuploadFile(null);
@@ -751,10 +686,12 @@ export default function MisEnviosAutor() {
     setOpenReupload(true);
   };
 
-  // ✅ NUEVO: confirmar reupload
   const confirmReupload = async () => {
     if (!reuploadChapter) return;
-    if (!reuploadFile) return alert("Selecciona el archivo corregido (PDF o Word).");
+    if (!reuploadFile) {
+      alertService.warning("Selecciona el archivo corregido (PDF o Word).");
+      return;
+    }
 
     const okTypes = [
       "application/pdf",
@@ -762,7 +699,7 @@ export default function MisEnviosAutor() {
       "application/msword",
     ];
     if (reuploadFile.type && !okTypes.includes(reuploadFile.type)) {
-      alert("Formato no permitido. Sube PDF o Word (DOC/DOCX).");
+      alertService.warning("Formato no permitido. Sube PDF o Word (DOC/DOCX).");
       return;
     }
 
@@ -780,14 +717,12 @@ export default function MisEnviosAutor() {
 
       setOpenReupload(false);
 
-      // refrescar capítulos del libro actual (para ver status actualizado)
       if (selectedBookId) await loadChapters(selectedBookId);
 
-      alert("Versión corregida enviada ✅");
+      alertService.success("Versión corregida enviada ✅");
     } catch (err: any) {
       const msg = apiMsg(err, "No se pudo enviar la versión corregida.");
-      setErrorMsg(msg);
-      alert(msg);
+      showError(msg);
     } finally {
       setLoading(false);
     }
@@ -803,11 +738,10 @@ export default function MisEnviosAutor() {
       const { data } = await api.patch<Preferences>("/account/preferences", prefs, { headers: authHeaders() });
       setPrefs(data);
       setOpenPrefs(false);
-      alert("Preferencias guardadas ✅");
+      alertService.success("Preferencias guardadas ✅");
     } catch (err: any) {
       const msg = apiMsg(err, "No se pudieron guardar notificaciones.");
-      setErrorMsg(msg);
-      alert(msg);
+      showError(msg);
     } finally {
       setLoading(false);
     }
@@ -820,19 +754,24 @@ export default function MisEnviosAutor() {
       const { data } = await api.patch<Privacy>("/account/privacy", privacy, { headers: authHeaders() });
       setPrivacy(data);
       setOpenPrivacy(false);
-      alert("Privacidad guardada ✅");
+      alertService.success("Privacidad guardada ✅");
     } catch (err: any) {
       const msg = apiMsg(err, "No se pudo guardar privacidad.");
-      setErrorMsg(msg);
-      alert(msg);
+      showError(msg);
     } finally {
       setLoading(false);
     }
   };
 
   const changePassword = async () => {
-    if (!pwd.current_password || !pwd.new_password) return alert("Completa ambos campos.");
-    if (pwd.new_password.length < 8) return alert("La nueva contraseña debe tener mínimo 8 caracteres.");
+    if (!pwd.current_password || !pwd.new_password) {
+      alertService.warning("Completa ambos campos.");
+      return;
+    }
+    if (pwd.new_password.length < 8) {
+      alertService.warning("La nueva contraseña debe tener mínimo 8 caracteres.");
+      return;
+    }
 
     try {
       setLoading(true);
@@ -840,57 +779,57 @@ export default function MisEnviosAutor() {
       await api.post("/account/change-password", pwd, { headers: authHeaders() });
       setPwd({ current_password: "", new_password: "" });
       setOpenPwd(false);
-      alert("Contraseña actualizada ✅");
+      alertService.success("Contraseña actualizada ✅");
     } catch (err: any) {
       const msg = apiMsg(err, "No se pudo cambiar la contraseña.");
-      setErrorMsg(msg);
-      alert(msg);
+      showError(msg);
     } finally {
       setLoading(false);
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    window.location.href = "/login";
+  const logout = async () => {
+    const result = await alertService.confirm("¿Seguro que quieres cerrar sesión?");
+    
+    if (result.isConfirmed) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.location.href = "/login";
+    }
   };
 
   // =========================
   // RENDER
   // =========================
   return (
-    <div style={styles.page}>
+    <div className={styles.page}>
       {/* SIDEBAR */}
-      <aside style={styles.sidebar}>
-        <div style={styles.brand}>
-          <div style={styles.brandLogoWrap}>
-            <img src={brandLogo} alt="Editorial Interpec" style={styles.brandLogoImg} />
+      <aside className={styles.sidebar}>
+        <div className={styles.brand}>
+          <div className={styles.brandLogoWrap}>
+            <img src={brandLogo} alt="Editorial Interpec" className={styles.brandLogoImg} />
           </div>
           <div style={{ minWidth: 0 }}>
-            <div style={styles.brandTitle}>Editorial Interpec</div>
-            <div style={styles.brandSubtitle}>Panel de Autor</div>
+            <div className={styles.brandTitle}>Editorial Interpec</div>
+            <div className={styles.brandSubtitle}>Panel de Autor</div>
           </div>
         </div>
 
-        <div style={styles.profileCard}>
-          <div style={styles.avatar}>{initials(me?.name)}</div>
+        <div className={styles.profileCard}>
+          <div className={styles.avatar}>{initials(me?.name)}</div>
           <div style={{ minWidth: 0 }}>
-            <div style={styles.profileName}>{me?.name || "Autor"}</div>
-            <div style={styles.profileEmail}>{me?.email || "Sesión activa"}</div>
+            <div className={styles.profileName}>{me?.name || "Autor"}</div>
+            <div className={styles.profileEmail}>{me?.email || "Sesión activa"}</div>
           </div>
         </div>
 
-        <nav style={styles.nav}>
+        <nav className={styles.nav}>
           <button
             type="button"
             onClick={() => setNav("envios")}
-            style={{
-              ...styles.navItem,
-              ...(nav === "envios" ? styles.navItemActive : null),
-            }}
+            className={`${styles.navItem} ${nav === "envios" ? styles.navItemActive : ""}`}
           >
-            <span style={styles.navDot} />
+            <span className={styles.navDot} />
             <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
               <Icon name="book" tone="light" /> Mis envíos
             </span>
@@ -899,35 +838,32 @@ export default function MisEnviosAutor() {
           <button
             type="button"
             onClick={() => setNav("cuenta")}
-            style={{
-              ...styles.navItem,
-              ...(nav === "cuenta" ? styles.navItemActive : null),
-            }}
+            className={`${styles.navItem} ${nav === "cuenta" ? styles.navItemActive : ""}`}
           >
-            <span style={styles.navDot} />
+            <span className={styles.navDot} />
             <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
               <Icon name="user" tone="light" /> Mi Cuenta
             </span>
           </button>
         </nav>
 
-        <div style={styles.sidebarFooter}>
-          <button type="button" style={styles.logoutBtn} onClick={logout}>
+        <div className={styles.sidebarFooter}>
+          <button type="button" className={styles.logoutBtn} onClick={logout}>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
               <Icon name="logout" tone="light" /> Cerrar sesión
             </span>
           </button>
-          <div style={styles.sidebarHint}>© {new Date().getFullYear()} Editorial Interpec</div>
+          <div className={styles.sidebarHint}>© {new Date().getFullYear()} Editorial Interpec</div>
         </div>
       </aside>
 
       {/* MAIN */}
-      <main style={styles.main}>
+      <main className={styles.main}>
         {/* HEADER */}
-        <div style={styles.header}>
+        <div className={styles.header}>
           <div>
-            <div style={styles.headerTitle}>{nav === "envios" ? "Mis envíos" : "Mi Cuenta"}</div>
-            <div style={styles.headerSub}>
+            <div className={styles.headerTitle}>{nav === "envios" ? "Mis envíos" : "Mi Cuenta"}</div>
+            <div className={styles.headerSub}>
               {nav === "envios"
                 ? "Crea un libro y sube capítulos para revisión editorial."
                 : "Administra tu información, seguridad y preferencias."}
@@ -935,25 +871,23 @@ export default function MisEnviosAutor() {
           </div>
 
           {nav === "envios" ? (
-            <div style={styles.headerActions}>
+            <div className={styles.headerActions}>
               <button
-                style={styles.primaryBtn}
+                className={styles.primaryBtn}
                 onClick={openCreateBookModal}
                 type="button"
                 disabled={loading}
-                {...btnFxPrimaryProps()}
               >
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
                   <Icon name="book" tone="light" /> Crear libro
                 </span>
               </button>
               <button
-                style={styles.secondaryBtn}
+                className={styles.secondaryBtn}
                 onClick={openUploadChapterModal}
                 type="button"
                 disabled={!selectedBook || loading}
                 title={!selectedBook ? "Selecciona un libro" : "Subir capítulo"}
-                {...btnFxSecondaryProps()}
               >
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
                   <Icon name="upload" /> Subir capítulo
@@ -961,9 +895,9 @@ export default function MisEnviosAutor() {
               </button>
             </div>
           ) : (
-            <div style={styles.headerActions}>
+            <div className={styles.headerActions}>
               <button
-                style={styles.secondaryBtn}
+                className={styles.secondaryBtn}
                 type="button"
                 onClick={() => {
                   loadMe();
@@ -971,7 +905,6 @@ export default function MisEnviosAutor() {
                   loadPrivacy();
                 }}
                 disabled={loading}
-                {...btnFxSecondaryProps()}
               >
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
                   <Icon name="refresh" /> Actualizar datos
@@ -981,24 +914,24 @@ export default function MisEnviosAutor() {
           )}
         </div>
 
-        {errorMsg && <div style={styles.error}>{errorMsg}</div>}
+        {errorMsg && <div className={styles.error}>{errorMsg}</div>}
 
         {/* HERO + STATS (solo envíos) */}
         {nav === "envios" && (
-          <div style={styles.hero}>
-            <div style={styles.heroLeft}>
-              <div style={styles.heroTitle}>Tu panel de envíos</div>
-              <div style={styles.heroSub}>Controla libros, capítulos y revisiones en un solo lugar.</div>
+          <div className={styles.hero}>
+            <div className={styles.heroLeft}>
+              <div className={styles.heroTitle}>Tu panel de envíos</div>
+              <div className={styles.heroSub}>Controla libros, capítulos y revisiones en un solo lugar.</div>
 
-              <div style={styles.heroHintLine}>
-                <span style={styles.heroHintPill}>
+              <div className={styles.heroHintLine}>
+                <span className={styles.heroHintPill}>
                   Sesión: <b style={{ color: "#1B2A24" }}>{me?.email || "—"}</b>
                 </span>
-                <span style={styles.heroHintPill}>Consejo: mantén títulos claros y consistentes.</span>
+                <span className={styles.heroHintPill}>Consejo: mantén títulos claros y consistentes.</span>
               </div>
             </div>
 
-            <div style={styles.statsGrid}>
+            <div className={styles.statsGrid}>
               <StatCard label="Libros" value={stats.totalBooks} hint="Registrados en tu cuenta" />
               <StatCard label="Capítulos" value={stats.totalChapters} hint="Totales cargados" />
               <StatCard label="Pendientes" value={stats.pending} hint="En proceso editorial" />
@@ -1008,79 +941,78 @@ export default function MisEnviosAutor() {
 
         {/* CONTENT */}
         {nav === "cuenta" ? (
-          <div style={styles.contentGrid2}>
+          <div className={styles.contentGrid2}>
             {/* Perfil */}
-            <section style={styles.card}>
-              <div style={styles.cardHead}>
-                <div style={styles.cardTitle}>Perfil</div>
-                <div style={styles.cardHint}>Información básica de tu cuenta</div>
+            <section className={styles.card}>
+              <div className={styles.cardHead}>
+                <div className={styles.cardTitle}>Perfil</div>
+                <div className={styles.cardHint}>Información básica de tu cuenta</div>
               </div>
 
-              <div style={styles.kvList}>
-                <div style={styles.kvRow}>
-                  <div style={styles.kvKey}>Nombre</div>
-                  <div style={styles.kvVal}>{me?.name || "—"}</div>
+              <div className={styles.kvList}>
+                <div className={styles.kvRow}>
+                  <div className={styles.kvKey}>Nombre</div>
+                  <div className={styles.kvVal}>{me?.name || "—"}</div>
                 </div>
-                <div style={styles.kvRow}>
-                  <div style={styles.kvKey}>Correo</div>
-                  <div style={styles.kvVal}>{me?.email || "—"}</div>
+                <div className={styles.kvRow}>
+                  <div className={styles.kvKey}>Correo</div>
+                  <div className={styles.kvVal}>{me?.email || "—"}</div>
                 </div>
-                <div style={styles.kvRow}>
-                  <div style={styles.kvKey}>Rol</div>
-                  <div style={styles.kvVal}>
-                    <span style={styles.rolePill}>{me?.role || "autor"}</span>
+                <div className={styles.kvRow}>
+                  <div className={styles.kvKey}>Rol</div>
+                  <div className={styles.kvVal}>
+                    <span className={styles.rolePill}>{me?.role || "autor"}</span>
                   </div>
                 </div>
               </div>
 
-              <div style={styles.divider} />
+              <div className={styles.divider} />
 
-              <div style={styles.note}>
+              <div className={styles.note}>
                 Las notificaciones se envían al correo con el que te registró la editorial: <b>{me?.email || "—"}</b>
               </div>
             </section>
 
             {/* Seguridad */}
-            <section style={styles.card}>
-              <div style={styles.cardHead}>
-                <div style={styles.cardTitle}>Seguridad</div>
-                <div style={styles.cardHint}>Contraseña y acceso</div>
+            <section className={styles.card}>
+              <div className={styles.cardHead}>
+                <div className={styles.cardTitle}>Seguridad</div>
+                <div className={styles.cardHint}>Contraseña y acceso</div>
               </div>
 
-              <div style={styles.actionList}>
-                <div style={styles.actionRow}>
+              <div className={styles.actionList}>
+                <div className={styles.actionRow}>
                   <div>
-                    <div style={styles.actionTitle}>
+                    <div className={styles.actionTitle}>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
                         <Icon name="shield" /> Cambiar contraseña
                       </span>
                     </div>
-                    <div style={styles.actionSub}>Actualiza tu contraseña para mantener tu cuenta segura.</div>
+                    <div className={styles.actionSub}>Actualiza tu contraseña para mantener tu cuenta segura.</div>
                   </div>
                   <button
                     type="button"
-                    style={styles.secondaryBtn}
+                    className={styles.secondaryBtn}
                     onClick={() => {
                       setPwd({ current_password: "", new_password: "" });
                       setOpenPwd(true);
                     }}
                     disabled={loading}
-                    {...btnFxSecondaryProps()}
                   >
                     Cambiar
                   </button>
                 </div>
 
-                <div style={styles.actionRow}>
+                <div className={styles.actionRow}>
                   <div>
-                    <div style={styles.actionTitle}>
+                    <div className={styles.actionTitle}>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
                         <Icon name="logout" /> Sesión
                       </span>
                     </div>
-                    <div style={styles.actionSub}>Cierra sesión en este dispositivo si ya terminaste.</div>
+                    <div className={styles.actionSub}>Cierra sesión en este dispositivo si ya terminaste.</div>
                   </div>
-                  <button type="button" style={styles.dangerBtn} onClick={logout}>
+                  <button type="button" className={styles.dangerBtn} onClick={logout}>
                     Cerrar
                   </button>
                 </div>
@@ -1088,49 +1020,47 @@ export default function MisEnviosAutor() {
             </section>
 
             {/* Preferencias */}
-            <section style={styles.card}>
-              <div style={styles.cardHead}>
-                <div style={styles.cardTitle}>Preferencias</div>
-                <div style={styles.cardHint}>Ajustes del panel</div>
+            <section className={styles.card}>
+              <div className={styles.cardHead}>
+                <div className={styles.cardTitle}>Preferencias</div>
+                <div className={styles.cardHint}>Ajustes del panel</div>
               </div>
 
-              <div style={styles.prefRow}>
+              <div className={styles.prefRow}>
                 <div>
-                  <div style={styles.actionTitle}>
+                  <div className={styles.actionTitle}>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
                       <Icon name="bell" /> Notificaciones por correo
                     </span>
                   </div>
-                  <div style={styles.actionSub}>
+                  <div className={styles.actionSub}>
                     Recibir avisos cuando tu capítulo cambie de estado o te pidan correcciones.
                   </div>
                 </div>
                 <button
                   type="button"
-                  style={styles.secondaryBtn}
+                  className={styles.secondaryBtn}
                   onClick={() => setOpenPrefs(true)}
                   disabled={loading}
-                  {...btnFxSecondaryProps()}
                 >
                   Configurar
                 </button>
               </div>
 
-              <div style={styles.prefRow}>
+              <div className={styles.prefRow}>
                 <div>
-                  <div style={styles.actionTitle}>
+                  <div className={styles.actionTitle}>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
                       <Icon name="privacy" /> Privacidad
                     </span>
                   </div>
-                  <div style={styles.actionSub}>Controla qué datos se muestran en tu perfil.</div>
+                  <div className={styles.actionSub}>Controla qué datos se muestran en tu perfil.</div>
                 </div>
                 <button
                   type="button"
-                  style={styles.secondaryBtn}
+                  className={styles.secondaryBtn}
                   onClick={() => setOpenPrivacy(true)}
                   disabled={loading}
-                  {...btnFxSecondaryProps()}
                 >
                   Ajustar
                 </button>
@@ -1138,22 +1068,21 @@ export default function MisEnviosAutor() {
             </section>
 
             {/* Ayuda */}
-            <section style={styles.card}>
-              <div style={styles.cardHead}>
-                <div style={styles.cardTitle}>Soporte</div>
-                <div style={styles.cardHint}>¿Necesitas ayuda?</div>
+            <section className={styles.card}>
+              <div className={styles.cardHead}>
+                <div className={styles.cardTitle}>Soporte</div>
+                <div className={styles.cardHint}>¿Necesitas ayuda?</div>
               </div>
 
-              <div style={styles.note}>
+              <div className={styles.note}>
                 Si tienes problemas con tus envíos, contacta al área editorial o revisa “Mis envíos” para ver el estado.
               </div>
 
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 10, padding: 14 }}>
                 <button
                   type="button"
-                  style={styles.secondaryBtn}
+                  className={styles.secondaryBtn}
                   onClick={() => setNav("envios")}
-                  {...btnFxSecondaryProps()}
                 >
                   Ir a Mis envíos
                 </button>
@@ -1161,18 +1090,18 @@ export default function MisEnviosAutor() {
             </section>
           </div>
         ) : (
-          <div style={styles.contentGrid}>
+          <div className={styles.contentGrid}>
             {/* LEFT: libros */}
-            <section style={styles.card}>
-              <div style={styles.cardHeadRow}>
+            <section className={styles.card}>
+              <div className={styles.cardHeadRow}>
                 <div>
-                  <div style={styles.cardTitle}>Mis Libros</div>
-                  <div style={styles.cardHint}>{loading ? "Cargando..." : `${books.length} libro(s)`}</div>
+                  <div className={styles.cardTitle}>Mis Libros</div>
+                  <div className={styles.cardHint}>{loading ? "Cargando..." : `${books.length} libro(s)`}</div>
                 </div>
 
-                <div style={styles.searchBox}>
+                <div className={styles.searchBox}>
                   <input
-                    style={styles.searchInput}
+                    className={styles.searchInput}
                     value={q}
                     onChange={(e) => setQ(e.target.value)}
                     placeholder="Buscar por nombre o año..."
@@ -1180,9 +1109,9 @@ export default function MisEnviosAutor() {
                 </div>
               </div>
 
-              <div style={styles.list}>
+              <div className={styles.list}>
                 {!loading && filteredBooks.length === 0 ? (
-                  <div style={styles.empty}>Aún no tienes libros. Crea uno con “Crear libro”.</div>
+                  <div className={styles.empty}>Aún no tienes libros. Crea uno con “Crear libro”.</div>
                 ) : (
                   filteredBooks.map((b) => {
                     const active = b.id === selectedBookId;
@@ -1191,24 +1120,20 @@ export default function MisEnviosAutor() {
                     return (
                       <button
                         key={b.id}
-                        style={{
-                          ...styles.rowBtn,
-                          ...(active ? styles.rowBtnActive : null),
-                        }}
+                        className={`${styles.rowBtn} ${active ? styles.rowBtnActive : ""}`}
                         onClick={() => setSelectedBookId(b.id)}
                         type="button"
-                        {...rowHoverProps(active)}
                       >
                         <div style={{ minWidth: 0 }}>
-                          <div style={styles.rowTitle}>
-                            {b.name} <span style={styles.rowMuted}>({b.year})</span>
+                          <div className={styles.rowTitle}>
+                            {b.name} <span className={styles.rowMuted}>({b.year})</span>
                           </div>
-                          <div style={styles.rowSub}>
+                          <div className={styles.rowSub}>
                             {chapCount} capítulo(s) • creado {fmtDate(b.created_at)}
                           </div>
                         </div>
 
-                        <span style={styles.rowChip}>{chapCount}/12</span>
+                        <span className={styles.rowChip}>{chapCount}/12</span>
                       </button>
                     );
                   })
@@ -1217,25 +1142,24 @@ export default function MisEnviosAutor() {
             </section>
 
             {/* RIGHT: detalle */}
-            <section style={styles.card}>
+            <section className={styles.card}>
               {!selectedBook ? (
-                <div style={styles.empty}>Selecciona un libro para ver capítulos.</div>
+                <div className={styles.empty}>Selecciona un libro para ver capítulos.</div>
               ) : (
                 <>
-                  <div style={styles.detailHeader}>
+                  <div className={styles.detailHeader}>
                     <div style={{ minWidth: 0 }}>
-                      <div style={styles.detailTitle}>{selectedBook.name}</div>
-                      <div style={styles.detailSub}>
+                      <div className={styles.detailTitle}>{selectedBook.name}</div>
+                      <div className={styles.detailSub}>
                         Año {selectedBook.year} • {(selectedBook.chapters ?? []).length} capítulo(s)
                       </div>
                     </div>
 
                     <button
-                      style={styles.secondaryBtn}
+                      className={styles.secondaryBtn}
                       onClick={openUploadChapterModal}
                       type="button"
                       disabled={loading}
-                      {...btnFxSecondaryProps()}
                     >
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
                         <Icon name="upload" /> Subir capítulo
@@ -1243,16 +1167,16 @@ export default function MisEnviosAutor() {
                     </button>
                   </div>
 
-                  <div style={styles.tableCard}>
-                    <table style={styles.table}>
+                  <div className={styles.tableCard}>
+                    <table className={styles.table}>
                       <thead>
                         <tr>
-                          <th style={styles.th}>#</th>
-                          <th style={styles.th}>Título</th>
-                          <th style={styles.th}>Estado</th>
-                          <th style={styles.th}>Actualizado</th>
-                          <th style={styles.th}>Archivo</th>
-                          <th style={styles.th}>Correcciones</th>
+                          <th className={styles.th}>#</th>
+                          <th className={styles.th}>Título</th>
+                          <th className={styles.th}>Estado</th>
+                          <th className={styles.th}>Actualizado</th>
+                          <th className={styles.th}>Archivo</th>
+                          <th className={styles.th}>Correcciones</th>
                         </tr>
                       </thead>
 
@@ -1264,64 +1188,59 @@ export default function MisEnviosAutor() {
                               background: idx % 2 === 0 ? "rgba(251,248,242,0.35)" : "transparent",
                             }}
                           >
-                            <td style={styles.td}>{idx + 1}</td>
-                            <td style={styles.td}>
-                              <div style={styles.cellTitle}>{c.title}</div>
-                              <div style={styles.cellSub}>ID: {c.id}</div>
+                            <td className={styles.td}>{idx + 1}</td>
+                            <td className={styles.td}>
+                              <div className={styles.cellTitle}>{c.title}</div>
+                              <div className={styles.cellSub}>ID: {c.id}</div>
                             </td>
-                            <td style={styles.td}>
-                              <span style={{ ...styles.pill, ...pillTone(c.status) }}>{statusLabel(c.status)}</span>
+                            <td className={styles.td}>
+                              <span className={getPillClass(c.status)}>{statusLabel(c.status)}</span>
                             </td>
-                            <td style={styles.td}>{fmtDate(c.updated_at)}</td>
-                            <td style={styles.td}>
+                            <td className={styles.td}>{fmtDate(c.updated_at)}</td>
+                            <td className={styles.td}>
                               <button
                                 type="button"
-                                style={styles.secondaryBtn}
+                                className={styles.secondaryBtn}
                                 onClick={() => downloadChapter(c)}
                                 disabled={loading}
                                 title="Descargar archivo protegido"
-                                {...btnFxSecondaryProps()}
                               >
                                 <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
                                   <Icon name="download" /> Ver / Descargar
                                 </span>
                               </button>
                             </td>
-                            <td style={styles.td}>
+                            <td className={styles.td}>
                               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                                 <button
                                   type="button"
-                                  style={styles.secondaryBtn}
+                                  className={styles.secondaryBtn}
                                   onClick={() => openCorrectionsModal(c)}
                                   disabled={loading}
                                   title="Ver dictámenes/correcciones"
-                                  {...btnFxSecondaryProps()}
                                 >
                                   <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
                                     <Icon name="eye" /> Ver correcciones
                                   </span>
                                 </button>
 
- <button
-  type="button"
-  style={{
-    ...styles.secondaryBtn,
-    opacity: c.status === "CORRECCIONES" || c.status === "CORRECCIONES_SOLICITADAS_A_AUTOR" ? 1 : 0.55,
-    cursor: c.status === "CORRECCIONES" || c.status === "CORRECCIONES_SOLICITADAS_A_AUTOR" ? "pointer" : "not-allowed",
-  }}
-  onClick={() => {
-    if (c.status !== "CORRECCIONES" && c.status !== "CORRECCIONES_SOLICITADAS_A_AUTOR") return;
-    openReuploadModal(c);
-  }}
-  disabled={loading}
-  title={
-    c.status === "CORRECCIONES" || c.status === "CORRECCIONES_SOLICITADAS_A_AUTOR"
-      ? "Subir versión corregida"
-      : "Disponible cuando el estado sea Correcciones"
-  }
-  {...btnFxSecondaryProps()}
->
-                                
+                                <button
+                                  type="button"
+                                  className={styles.secondaryBtn}
+                                  style={{
+                                    opacity: c.status === "CORRECCIONES" || c.status === "CORRECCIONES_SOLICITADAS_A_AUTOR" ? 1 : 0.55,
+                                  }}
+                                  onClick={() => {
+                                    if (c.status !== "CORRECCIONES" && c.status !== "CORRECCIONES_SOLICITADAS_A_AUTOR") return;
+                                    openReuploadModal(c);
+                                  }}
+                                  disabled={loading}
+                                  title={
+                                    c.status === "CORRECCIONES" || c.status === "CORRECCIONES_SOLICITADAS_A_AUTOR"
+                                      ? "Subir versión corregida"
+                                      : "Disponible cuando el estado sea Correcciones"
+                                  }
+                                >
                                   <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
                                     <Icon name="edit" /> Subir versión
                                   </span>
@@ -1333,7 +1252,7 @@ export default function MisEnviosAutor() {
 
                         {selectedChapters.length === 0 && (
                           <tr>
-                            <td style={styles.td} colSpan={6}>
+                            <td className={styles.td} colSpan={6}>
                               Este libro aún no tiene capítulos. Usa “Subir capítulo”.
                             </td>
                           </tr>
@@ -1342,8 +1261,8 @@ export default function MisEnviosAutor() {
                     </table>
                   </div>
 
-                  <div style={styles.hintRow}>
-                    <span style={styles.muted}>Recomendación: máximo 10–12 capítulos por libro.</span>
+                  <div className={styles.hintRow}>
+                    <span className={styles.muted}>Recomendación: máximo 10–12 capítulos por libro.</span>
                   </div>
                 </>
               )}
@@ -1353,42 +1272,40 @@ export default function MisEnviosAutor() {
 
         {/* MODAL: crear libro */}
         {openCreateBook && (
-          <div style={styles.modalOverlay} onClick={() => setOpenCreateBook(false)}>
-            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-              <div style={styles.modalTitle}>Crear libro</div>
+          <div className={styles.modalOverlay} onClick={() => setOpenCreateBook(false)}>
+            <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+              <div className={styles.modalTitle}>Crear libro</div>
 
-              <label style={styles.modalLabel}>Nombre</label>
+              <label className={styles.modalLabel}>Nombre</label>
               <input
-                style={styles.modalInput}
+                className={styles.modalInput}
                 value={newBook.name}
                 onChange={(e) => setNewBook((s) => ({ ...s, name: e.target.value }))}
                 placeholder="Ej: Libro 3"
               />
 
-              <label style={styles.modalLabel}>Año</label>
+              <label className={styles.modalLabel}>Año</label>
               <input
-                style={styles.modalInput}
+                className={styles.modalInput}
                 type="number"
                 value={newBook.year}
                 onChange={(e) => setNewBook((s) => ({ ...s, year: Number(e.target.value) }))}
                 placeholder="2026"
               />
 
-              <div style={styles.modalActions}>
+              <div className={styles.modalActions}>
                 <button
-                  style={styles.secondaryBtn}
+                  className={styles.secondaryBtn}
                   type="button"
                   onClick={() => setOpenCreateBook(false)}
-                  {...btnFxSecondaryProps()}
                 >
                   Cancelar
                 </button>
                 <button
-                  style={styles.primaryBtn}
+                  className={styles.primaryBtn}
                   type="button"
                   onClick={confirmCreateBook}
                   disabled={loading}
-                  {...btnFxPrimaryProps()}
                 >
                   {loading ? "Creando..." : "Crear"}
                 </button>
@@ -1399,47 +1316,45 @@ export default function MisEnviosAutor() {
 
         {/* MODAL: subir capítulo */}
         {openUploadChapter && selectedBook && (
-          <div style={styles.modalOverlay} onClick={() => setOpenUploadChapter(false)}>
-            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-              <div style={styles.modalTitle}>Subir capítulo</div>
-              <div style={styles.modalHint}>
+          <div className={styles.modalOverlay} onClick={() => setOpenUploadChapter(false)}>
+            <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+              <div className={styles.modalTitle}>Subir capítulo</div>
+              <div className={styles.modalHint}>
                 Libro: <b>{selectedBook.name}</b> ({selectedBook.year})
               </div>
 
-              <label style={styles.modalLabel}>Título del capítulo</label>
+              <label className={styles.modalLabel}>Título del capítulo</label>
               <input
-                style={styles.modalInput}
+                className={styles.modalInput}
                 value={newChapter.title}
                 onChange={(e) => setNewChapter((s) => ({ ...s, title: e.target.value }))}
                 placeholder="Ej: Educación y talento"
               />
 
-              <label style={styles.modalLabel}>Archivo (PDF o Word)</label>
+              <label className={styles.modalLabel}>Archivo (PDF o Word)</label>
               <input
-                style={styles.modalInput}
+                className={styles.modalInput}
                 type="file"
                 accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 onChange={(e) => setNewChapter((s) => ({ ...s, file: e.target.files?.[0] ?? null }))}
               />
-              <div style={styles.fileMeta}>
+              <div className={styles.fileMeta}>
                 {newChapter.file ? `Seleccionado: ${newChapter.file.name}` : "Ningún archivo seleccionado"}
               </div>
 
-              <div style={styles.modalActions}>
+              <div className={styles.modalActions}>
                 <button
-                  style={styles.secondaryBtn}
+                  className={styles.secondaryBtn}
                   type="button"
                   onClick={() => setOpenUploadChapter(false)}
-                  {...btnFxSecondaryProps()}
                 >
                   Cancelar
                 </button>
                 <button
-                  style={styles.primaryBtn}
+                  className={styles.primaryBtn}
                   type="button"
                   onClick={confirmUploadChapter}
                   disabled={loading}
-                  {...btnFxPrimaryProps()}
                 >
                   {loading ? "Subiendo..." : "Subir"}
                 </button>
@@ -1448,147 +1363,189 @@ export default function MisEnviosAutor() {
           </div>
         )}
 
-        {/* MODAL: ver correcciones */}
+        {/* MODAL: ver correcciones - VERSIÓN MEJORADA */}
         {openCorrections && corrChapter && (
           <div
-            style={styles.modalOverlay}
+            className={styles.modalOverlay}
             onClick={() => {
               setOpenCorrections(false);
               setCorrChapter(null);
               setDictamenes([]);
             }}
           >
-            <div style={styles.modalWide} onClick={(e) => e.stopPropagation()}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
-                <div>
-                  <div style={styles.modalTitle}>Correcciones / Dictámenes</div>
-                  <div style={styles.modalHint}>
-                    Capítulo: <b>{corrChapter.title}</b> • ID: <b>{corrChapter.id}</b> • Estado:{" "}
-                    <span style={{ ...styles.pill, ...pillTone(corrChapter.status) }}>
-                      {statusLabel(corrChapter.status)}
+            <div className={styles.modalWide} onClick={(e) => e.stopPropagation()}>
+              {/* Header mejorado */}
+              <div className={styles.dictamenHeader}>
+                <div className={styles.dictamenHeaderInfo}>
+                  <div className={styles.dictamenHeaderTitle}>
+                    📋 Correcciones y Dictámenes
+                    <span className={styles.dictamenHeaderBadge}>
+                      {dictamenes.length} {dictamenes.length === 1 ? 'resultado' : 'resultados'}
                     </span>
+                  </div>
+                  <div className={styles.dictamenHeaderMeta}>
+                    <span><strong>Capítulo:</strong> {corrChapter.title}</span>
+                    <span>•</span>
+                    <span><strong>ID:</strong> {corrChapter.id}</span>
+                    <span>•</span>
+                    <span><strong>Estado:</strong> <span className={getPillClass(corrChapter.status)}>{statusLabel(corrChapter.status)}</span></span>
                   </div>
                 </div>
 
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                <div className={styles.dictamenCardHeaderRight}>
                   <button
                     type="button"
-                    style={styles.secondaryBtn}
+                    className={styles.dictamenActionBtn}
                     onClick={() => openCorrectionsModal(corrChapter)}
                     disabled={loadingDictamenes || loading}
-                    {...btnFxSecondaryProps()}
                     title="Recargar correcciones"
                   >
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-                      <Icon name="refresh" /> Recargar
-                    </span>
-                  </button>
-
-  <button
-  type="button"
-  style={{
-    ...styles.secondaryBtn,
-    opacity: corrChapter.status === "CORRECCIONES" || corrChapter.status === "CORRECCIONES_SOLICITADAS_A_AUTOR" ? 1 : 0.55,
-    cursor: corrChapter.status === "CORRECCIONES" || corrChapter.status === "CORRECCIONES_SOLICITADAS_A_AUTOR" ? "pointer" : "not-allowed",
-  }}
-  onClick={() => {
-    if (corrChapter.status !== "CORRECCIONES" && corrChapter.status !== "CORRECCIONES_SOLICITADAS_A_AUTOR") return;
-    setOpenCorrections(false);
-    openReuploadModal(corrChapter);
-  }}
-  disabled={loading}
-  {...btnFxSecondaryProps()}
-  title={
-    corrChapter.status === "CORRECCIONES" || corrChapter.status === "CORRECCIONES_SOLICITADAS_A_AUTOR"
-      ? "Subir versión corregida"
-      : "Disponible cuando el estado sea Correcciones"
-  }
->
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-                      <Icon name="edit" /> Subir versión corregida
-                    </span>
+                    <Icon name="refresh" /> Recargar
                   </button>
 
                   <button
                     type="button"
-                    style={styles.secondaryBtn}
+                    className={`${styles.dictamenActionBtn} ${styles.primary}`}
+                    style={{
+                      opacity: corrChapter.status === "CORRECCIONES" || corrChapter.status === "CORRECCIONES_SOLICITADAS_A_AUTOR" ? 1 : 0.55,
+                    }}
+                    onClick={() => {
+                      if (corrChapter.status !== "CORRECCIONES" && corrChapter.status !== "CORRECCIONES_SOLICITADAS_A_AUTOR") return;
+                      setOpenCorrections(false);
+                      openReuploadModal(corrChapter);
+                    }}
+                    disabled={loading}
+                    title={
+                      corrChapter.status === "CORRECCIONES" || corrChapter.status === "CORRECCIONES_SOLICITADAS_A_AUTOR"
+                        ? "Subir versión corregida"
+                        : "Disponible cuando el estado sea Correcciones"
+                    }
+                  >
+                    <Icon name="edit" /> Subir versión
+                  </button>
+
+                  <button
+                    type="button"
+                    className={styles.dictamenActionBtn}
                     onClick={() => {
                       setOpenCorrections(false);
                       setCorrChapter(null);
                       setDictamenes([]);
                     }}
-                    {...btnFxSecondaryProps()}
                   >
-                    Cerrar
+                    ✕ Cerrar
                   </button>
                 </div>
               </div>
 
-              <div style={styles.divider} />
+              <div className={styles.divider} />
 
               {loadingDictamenes ? (
-                <div style={styles.empty}>Cargando correcciones...</div>
+                <div className={styles.dictamenEmpty}>
+                  <div className={styles.dictamenEmptyIcon}>⏳</div>
+                  <div className={styles.dictamenEmptyTitle}>Cargando correcciones...</div>
+                  <div className={styles.dictamenEmptyText}>Estamos obteniendo la información de los dictámenes.</div>
+                </div>
               ) : dictamenes.length === 0 ? (
-                <div style={styles.empty}>Aún no hay correcciones registradas para este capítulo.</div>
+                <div className={styles.dictamenEmpty}>
+                  <div className={styles.dictamenEmptyIcon}>📭</div>
+                  <div className={styles.dictamenEmptyTitle}>No hay correcciones</div>
+                  <div className={styles.dictamenEmptyText}>
+                    Este capítulo aún no tiene correcciones o dictámenes registrados.
+                  </div>
+                </div>
               ) : (
-                <div style={styles.dictamenList}>
+                <div className={styles.dictamenList}>
                   {dictamenes.map((d) => (
-                    <div key={d.id} style={styles.dictamenCard}>
-                      <div style={styles.dictamenTopRow}>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={styles.dictamenTitle}>
-                            Folio: <b>{d.folio}</b>
-                          </div>
-                          <div style={styles.dictamenMeta}>
-                            Tipo: <b>{d.tipo}</b> • Estado: <b>{d.status}</b> • Creado:{" "}
-                            <b>{d.created_at ? fmtDate(d.created_at) : "—"}</b>
+                    <div key={d.id} className={styles.dictamenCard}>
+                      {/* Cabecera de la tarjeta */}
+                      <div className={styles.dictamenCardHeader}>
+                        <div className={styles.dictamenCardHeaderLeft}>
+                          <span className={styles.dictamenFolio}>{d.folio}</span>
+                          <div className={styles.dictamenMetaPills}>
+                            <span className={`${styles.dictamenMetaPill} ${styles.tipo}`}>
+                              📌 {d.tipo}
+                            </span>
+                            <span className={`${styles.dictamenMetaPill} ${styles.estado}`}>
+                              ⚡ {d.status}
+                            </span>
+                            <span className={`${styles.dictamenMetaPill} ${styles.fecha}`}>
+                              📅 {d.created_at ? fmtDate(d.created_at) : '—'}
+                            </span>
                           </div>
                         </div>
 
-                        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                          <span style={{ ...styles.pill, ...dictamenTone(d.decision) }}>{decisionLabel(d.decision)}</span>
-
-                          <button
-                            type="button"
-                            style={{
-                              ...styles.secondaryBtn,
-                              opacity: d.pdf_path ? 1 : 0.55,
-                              cursor: d.pdf_path ? "pointer" : "not-allowed",
-                            }}
-                            onClick={() => {
-                              if (!d.pdf_path) return;
-                              downloadDictamen(d);
-                            }}
-                            disabled={loading}
-                            {...btnFxSecondaryProps()}
-                            title={d.pdf_path ? "Descargar dictamen (PDF)" : "Este dictamen no tiene PDF"}
-                          >
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-                              <Icon name="download" /> PDF dictamen
-                            </span>
-                          </button>
+                        <div className={styles.dictamenCardHeaderRight}>
+                          <span className={`${styles.dictamenDecisionBadge} ${
+                            d.decision === 'APROBADO' ? styles.aprobado : 
+                            d.decision === 'CORRECCIONES' ? styles.correcciones : 
+                            styles.rechazado
+                          }`}>
+                            {d.decision === 'APROBADO' && '✅ Aprobado'}
+                            {d.decision === 'CORRECCIONES' && '✏️ Correcciones'}
+                            {d.decision === 'RECHAZADO' && '❌ Rechazado'}
+                          </span>
                         </div>
                       </div>
 
-                      <div style={styles.dictamenGrid}>
-                        <div style={styles.dictamenBox}>
-                          <div style={styles.dictamenBoxTitle}>Comentarios / Correcciones</div>
-                          <div style={styles.dictamenBoxText}>{d.comentarios?.trim() ? d.comentarios : "—"}</div>
-                        </div>
+                      {/* Cuerpo de la tarjeta */}
+                      <div className={styles.dictamenCardBody}>
+                        <div className={styles.dictamenInfoGrid}>
+                          {/* Comentarios */}
+                          <div className={styles.dictamenInfoItem}>
+                            <div className={styles.dictamenInfoLabel}>
+                              <span>💬</span> Comentarios
+                            </div>
+                            <div className={`${styles.dictamenInfoValue} ${!d.comentarios?.trim() ? styles.empty : ''}`}>
+                              {d.comentarios?.trim() || 'Sin comentarios'}
+                            </div>
+                          </div>
 
-                        <div style={styles.dictamenBox}>
-                          <div style={styles.dictamenBoxTitle}>Conflicto de interés</div>
-                          <div style={styles.dictamenBoxText}>
-                            {d.conflicto_interes?.trim() ? d.conflicto_interes : "—"}
+                          {/* Conflicto de interés */}
+                          <div className={styles.dictamenInfoItem}>
+                            <div className={styles.dictamenInfoLabel}>
+                              <span>⚠️</span> Conflicto de interés
+                            </div>
+                            <div className={`${styles.dictamenInfoValue} ${!d.conflicto_interes?.trim() ? styles.empty : ''}`}>
+                              {d.conflicto_interes?.trim() || 'No especificado'}
+                            </div>
+                          </div>
+
+                          {/* Promedio y firma */}
+                          <div className={styles.dictamenInfoItem}>
+                            <div className={styles.dictamenInfoLabel}>
+                              <span>📊</span> Promedio
+                            </div>
+                            <div className={styles.dictamenInfoValue}>
+                              <strong style={{ fontSize: '20px' }}>{d.promedio ?? '—'}</strong>
+                              <div style={{ marginTop: '8px', fontSize: '12px', color: '#64748b' }}>
+                                {d.signed_at ? `Firmado: ${fmtDate(d.signed_at)}` : 'No firmado'}
+                              </div>
+                            </div>
                           </div>
                         </div>
+                      </div>
 
-                        <div style={styles.dictamenBox}>
-                          <div style={styles.dictamenBoxTitle}>Promedio</div>
-                          <div style={styles.dictamenBoxText}>{d.promedio ?? "—"}</div>
-                          <div style={{ height: 8 }} />
-                          <div style={styles.dictamenBoxTitle}>Firmado</div>
-                          <div style={styles.dictamenBoxText}>{d.signed_at ? fmtDate(d.signed_at) : "—"}</div>
+                      {/* Footer de la tarjeta */}
+                      <div className={styles.dictamenCardFooter}>
+                        <div className={styles.dictamenFooterLeft}>
+                          <span className={`${styles.dictamenFirmaInfo} ${d.signed_at ? styles.firmado : styles.noFirmado}`}>
+                            {d.signed_at ? '✅ Firmado' : '⏳ Pendiente de firma'}
+                          </span>
+                        </div>
+
+                        <div className={styles.dictamenFooterRight}>
+                          {d.pdf_path && (
+                            <button
+                              type="button"
+                              className={`${styles.dictamenActionBtn} ${styles.download}`}
+                              onClick={() => downloadDictamen(d)}
+                              disabled={loading}
+                              title="Descargar dictamen PDF"
+                            >
+                              <Icon name="download" /> Descargar PDF
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1602,7 +1559,7 @@ export default function MisEnviosAutor() {
         {/* MODAL: reupload versión corregida */}
         {openReupload && reuploadChapter && (
           <div
-            style={styles.modalOverlay}
+            className={styles.modalOverlay}
             onClick={() => {
               setOpenReupload(false);
               setReuploadChapter(null);
@@ -1610,38 +1567,38 @@ export default function MisEnviosAutor() {
               setReuploadNote("");
             }}
           >
-            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-              <div style={styles.modalTitle}>Subir versión corregida</div>
-              <div style={styles.modalHint}>
+            <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+              <div className={styles.modalTitle}>Subir versión corregida</div>
+              <div className={styles.modalHint}>
                 Capítulo: <b>{reuploadChapter.title}</b> • ID: <b>{reuploadChapter.id}</b>
               </div>
 
-              <div style={styles.note}>
+              <div className={styles.note}>
                 Sube tu archivo corregido. Al enviarlo, el estado pasará automáticamente a <b>REENVIADO_POR_AUTOR</b>.
               </div>
 
-              <label style={styles.modalLabel}>Archivo corregido (PDF o Word)</label>
+              <label className={styles.modalLabel}>Archivo corregido (PDF o Word)</label>
               <input
-                style={styles.modalInput}
+                className={styles.modalInput}
                 type="file"
                 accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 onChange={(e) => setReuploadFile(e.target.files?.[0] ?? null)}
               />
-              <div style={styles.fileMeta}>
+              <div className={styles.fileMeta}>
                 {reuploadFile ? `Seleccionado: ${reuploadFile.name}` : "Ningún archivo seleccionado"}
               </div>
 
-              <label style={styles.modalLabel}>Nota (opcional)</label>
+              <label className={styles.modalLabel}>Nota (opcional)</label>
               <input
-                style={styles.modalInput}
+                className={styles.modalInput}
                 value={reuploadNote}
                 onChange={(e) => setReuploadNote(e.target.value)}
                 placeholder="Ej: Corregí ortografía y referencias según observaciones."
               />
 
-              <div style={styles.modalActions}>
+              <div className={styles.modalActions}>
                 <button
-                  style={styles.secondaryBtn}
+                  className={styles.secondaryBtn}
                   type="button"
                   onClick={() => {
                     setOpenReupload(false);
@@ -1649,16 +1606,14 @@ export default function MisEnviosAutor() {
                     setReuploadFile(null);
                     setReuploadNote("");
                   }}
-                  {...btnFxSecondaryProps()}
                 >
                   Cancelar
                 </button>
                 <button
-                  style={styles.primaryBtn}
+                  className={styles.primaryBtn}
                   type="button"
                   onClick={confirmReupload}
                   disabled={loading}
-                  {...btnFxPrimaryProps()}
                 >
                   {loading ? "Enviando..." : "Enviar versión"}
                 </button>
@@ -1669,14 +1624,14 @@ export default function MisEnviosAutor() {
 
         {/* MODAL: preferencias */}
         {openPrefs && (
-          <div style={styles.modalOverlay} onClick={() => setOpenPrefs(false)}>
-            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-              <div style={styles.modalTitle}>Notificaciones por correo</div>
-              <div style={styles.modalHint}>
+          <div className={styles.modalOverlay} onClick={() => setOpenPrefs(false)}>
+            <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+              <div className={styles.modalTitle}>Notificaciones por correo</div>
+              <div className={styles.modalHint}>
                 Se enviarán al correo: <b>{me?.email || "—"}</b>
               </div>
 
-              <label style={styles.checkRow}>
+              <label className={styles.checkRow}>
                 <input
                   type="checkbox"
                   checked={prefs.email_notify_enabled}
@@ -1684,13 +1639,13 @@ export default function MisEnviosAutor() {
                 />
                 <span>
                   <b>Activar notificaciones</b>
-                  <div style={styles.checkSub}>Recibir avisos oficiales del proceso editorial.</div>
+                  <div className={styles.checkSub}>Recibir avisos oficiales del proceso editorial.</div>
                 </span>
               </label>
 
               <div style={{ height: 10 }} />
 
-              <label style={styles.checkRow}>
+              <label className={styles.checkRow}>
                 <input
                   type="checkbox"
                   checked={prefs.notify_status_changes}
@@ -1700,7 +1655,7 @@ export default function MisEnviosAutor() {
                 <span>Cuando cambie el estado del capítulo</span>
               </label>
 
-              <label style={styles.checkRow}>
+              <label className={styles.checkRow}>
                 <input
                   type="checkbox"
                   checked={prefs.notify_corrections}
@@ -1710,7 +1665,7 @@ export default function MisEnviosAutor() {
                 <span>Cuando pidan correcciones (observaciones)</span>
               </label>
 
-              <label style={styles.checkRow}>
+              <label className={styles.checkRow}>
                 <input
                   type="checkbox"
                   checked={prefs.notify_approved_rejected}
@@ -1720,11 +1675,11 @@ export default function MisEnviosAutor() {
                 <span>Cuando sea aprobado o rechazado</span>
               </label>
 
-              <div style={styles.modalActions}>
-                <button style={styles.secondaryBtn} type="button" onClick={() => setOpenPrefs(false)} {...btnFxSecondaryProps()}>
+              <div className={styles.modalActions}>
+                <button className={styles.secondaryBtn} type="button" onClick={() => setOpenPrefs(false)}>
                   Cancelar
                 </button>
-                <button style={styles.primaryBtn} type="button" onClick={savePrefs} disabled={loading} {...btnFxPrimaryProps()}>
+                <button className={styles.primaryBtn} type="button" onClick={savePrefs} disabled={loading}>
                   {loading ? "Guardando..." : "Guardar"}
                 </button>
               </div>
@@ -1734,12 +1689,12 @@ export default function MisEnviosAutor() {
 
         {/* MODAL: privacidad */}
         {openPrivacy && (
-          <div style={styles.modalOverlay} onClick={() => setOpenPrivacy(false)}>
-            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-              <div style={styles.modalTitle}>Privacidad</div>
-              <div style={styles.modalHint}>Controla lo que se muestra en tu perfil dentro del sistema.</div>
+          <div className={styles.modalOverlay} onClick={() => setOpenPrivacy(false)}>
+            <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+              <div className={styles.modalTitle}>Privacidad</div>
+              <div className={styles.modalHint}>Controla lo que se muestra en tu perfil dentro del sistema.</div>
 
-              <label style={styles.checkRow}>
+              <label className={styles.checkRow}>
                 <input
                   type="checkbox"
                   checked={privacy.show_name}
@@ -1748,7 +1703,7 @@ export default function MisEnviosAutor() {
                 <span>Mostrar mi nombre</span>
               </label>
 
-              <label style={styles.checkRow}>
+              <label className={styles.checkRow}>
                 <input
                   type="checkbox"
                   checked={privacy.show_email}
@@ -1757,21 +1712,19 @@ export default function MisEnviosAutor() {
                 <span>Mostrar mi correo</span>
               </label>
 
-              <div style={styles.modalActions}>
+              <div className={styles.modalActions}>
                 <button
-                  style={styles.secondaryBtn}
+                  className={styles.secondaryBtn}
                   type="button"
                   onClick={() => setOpenPrivacy(false)}
-                  {...btnFxSecondaryProps()}
                 >
                   Cancelar
                 </button>
                 <button
-                  style={styles.primaryBtn}
+                  className={styles.primaryBtn}
                   type="button"
                   onClick={savePrivacy}
                   disabled={loading}
-                  {...btnFxPrimaryProps()}
                 >
                   {loading ? "Guardando..." : "Guardar"}
                 </button>
@@ -1782,32 +1735,32 @@ export default function MisEnviosAutor() {
 
         {/* MODAL: cambiar contraseña */}
         {openPwd && (
-          <div style={styles.modalOverlay} onClick={() => setOpenPwd(false)}>
-            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-              <div style={styles.modalTitle}>Cambiar contraseña</div>
-              <div style={styles.modalHint}>Tu contraseña debe tener al menos 8 caracteres.</div>
+          <div className={styles.modalOverlay} onClick={() => setOpenPwd(false)}>
+            <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+              <div className={styles.modalTitle}>Cambiar contraseña</div>
+              <div className={styles.modalHint}>Tu contraseña debe tener al menos 8 caracteres.</div>
 
-              <label style={styles.modalLabel}>Contraseña actual</label>
+              <label className={styles.modalLabel}>Contraseña actual</label>
               <input
-                style={styles.modalInput}
+                className={styles.modalInput}
                 type="password"
                 value={pwd.current_password}
                 onChange={(e) => setPwd((s) => ({ ...s, current_password: e.target.value }))}
               />
 
-              <label style={styles.modalLabel}>Nueva contraseña</label>
+              <label className={styles.modalLabel}>Nueva contraseña</label>
               <input
-                style={styles.modalInput}
+                className={styles.modalInput}
                 type="password"
                 value={pwd.new_password}
                 onChange={(e) => setPwd((s) => ({ ...s, new_password: e.target.value }))}
               />
 
-              <div style={styles.modalActions}>
-                <button style={styles.secondaryBtn} type="button" onClick={() => setOpenPwd(false)} {...btnFxSecondaryProps()}>
+              <div className={styles.modalActions}>
+                <button className={styles.secondaryBtn} type="button" onClick={() => setOpenPwd(false)}>
                   Cancelar
                 </button>
-                <button style={styles.primaryBtn} type="button" onClick={changePassword} disabled={loading} {...btnFxPrimaryProps()}>
+                <button className={styles.primaryBtn} type="button" onClick={changePassword} disabled={loading}>
                   {loading ? "Actualizando..." : "Guardar"}
                 </button>
               </div>
@@ -1818,595 +1771,3 @@ export default function MisEnviosAutor() {
     </div>
   );
 }
-
-// ✅ Estilos Editorial (verde + dorado + papel)
-// ✅ FIX: evitar mezclar `border` (shorthand) con `borderColor` (no-shorthand)
-const styles: Record<string, React.CSSProperties> = {
-  page: {
-    minHeight: "100vh",
-    display: "grid",
-    gridTemplateColumns: "320px 1fr",
-    gap: 18,
-    padding: 18,
-    background: "#FFFFFF",
-    fontFamily:
-      "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, 'Apple Color Emoji','Segoe UI Emoji'",
-    color: "#0d83ab",
-  },
-
-  sidebar: {
-    position: "sticky",
-    top: 18,
-    alignSelf: "start",
-    height: "calc(100vh - 36px)",
-    borderRadius: 22,
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: "rgba(255,255,255,0.16)",
-    background: "linear-gradient(180deg, rgba(11, 123, 171, 0.98) 0%, rgba(6,36,27,0.98) 100%)",
-    color: "#FFF7E6",
-    boxShadow: "0 22px 70px rgba(2,6,23,0.28), inset 0 1px 0 rgba(255,255,255,0.08)",
-    padding: 14,
-    display: "flex",
-    flexDirection: "column",
-    overflow: "hidden",
-    backdropFilter: "blur(10px)",
-  },
-
-  profileCard: {
-    marginTop: 10,
-    padding: 12,
-    borderRadius: 18,
-    background: "rgba(255, 255, 255, 0)",
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: "rgba(28, 209, 222, 0.78)",
-    display: "flex",
-    gap: 10,
-    alignItems: "center",
-    boxShadow: "inset 0 1px 0 rgb(9, 145, 183)",
-  },
-
-  brand: {
-    display: "flex",
-    gap: 12,
-    alignItems: "center",
-    padding: "10px 10px 14px 10px",
-  },
-
-  brandLogoWrap: {
-    width: 54,
-    height: 54,
-    borderRadius: 16,
-    display: "grid",
-    placeItems: "center",
-    background: "radial-gradient(circle at 30% 30%, rgba(255,255,255,0.18), rgba(255,255,255,0.08))",
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: "rgba(208,176,122,0.30)",
-    boxShadow: "0 18px 40px rgba(0,0,0,0.28)",
-    overflow: "hidden",
-  },
-  brandLogoImg: { width: "100%", height: "100%", objectFit: "cover" },
-
-  brandTitle: {
-    fontWeight: 1000,
-    letterSpacing: 0.2,
-    lineHeight: 1.05,
-    fontSize: 14,
-    color: "#FFF7E6",
-  },
-  brandSubtitle: {
-    fontSize: 12,
-    opacity: 0.85,
-    marginTop: 3,
-    color: "rgba(255,247,230,0.82)",
-  },
-
-  avatar: {
-    width: 46,
-    height: 46,
-    borderRadius: 999,
-    display: "grid",
-    placeItems: "center",
-    background: "radial-gradient(circle at 30% 30%, rgba(198, 170, 121, 0.61), rgba(255,255,255,0.08))",
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: "rgba(208,176,122,0.26)",
-    fontWeight: 1000,
-    color: "#FFF7E6",
-  },
-  profileName: {
-    fontWeight: 1000,
-    fontSize: 13,
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    color: "#FFF7E6",
-  },
-  profileEmail: {
-    fontSize: 12,
-    opacity: 0.82,
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    color: "rgba(255,247,230,0.82)",
-  },
-
-  nav: { marginTop: 14, display: "flex", flexDirection: "column", gap: 10 },
-  navItem: {
-    width: "100%",
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: "rgba(230, 248, 255, 0.07)",
-    background: "rgba(255, 255, 255, 0.28)",
-    color: "#FFF7E6",
-    borderRadius: 16,
-    padding: "12px 12px",
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    fontWeight: 950,
-    textAlign: "left",
-    transition: "transform 120ms ease, background 120ms ease, border-color 120ms ease",
-  },
-  navItemActive: {
-    background: "linear-gradient(180deg, rgba(208,176,122,0.24), rgba(255,255,255,0.08))",
-    borderColor: "rgba(208,176,122,0.42)",
-    boxShadow: "0 18px 48px rgba(0,0,0,0.22)",
-    transform: "translateY(-1px)",
-  },
-  navDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 999,
-    background: "rgba(208,176,122,0.95)",
-    boxShadow: "0 0 0 4px rgba(208,176,122,0.14)",
-  },
-
-  sidebarFooter: {
-    marginTop: "auto",
-    paddingTop: 12,
-    display: "flex",
-    flexDirection: "column",
-    gap: 10,
-  },
-  logoutBtn: {
-    width: "100%",
-    borderRadius: 16,
-    padding: "12px 12px",
-    cursor: "pointer",
-    fontWeight: 1000,
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: "rgba(255,247,230,0.16)",
-    background: "rgba(255,255,255,0.08)",
-    color: "#FFF7E6",
-    transition: "transform 120ms ease, background 120ms ease",
-  },
-  sidebarHint: {
-    fontSize: 12,
-    opacity: 0.78,
-    paddingLeft: 4,
-    color: "rgba(255,247,230,0.75)",
-  },
-
-  main: {
-    borderRadius: 22,
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: "rgba(226,232,240,0.9)",
-    background: "#FFFFFF",
-    boxShadow: "0 18px 60px rgba(2,6,23,0.08)",
-    overflow: "hidden",
-    display: "flex",
-    flexDirection: "column",
-  },
-
-  header: {
-    padding: 18,
-    borderBottomWidth: 1,
-    borderBottomStyle: "solid",
-    borderBottomColor: "rgba(6, 45, 96, 0.9)",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-    gap: 12,
-    background: "#439ad4",
-  },
-  headerTitle: { fontSize: 20, fontWeight: 1000, color: "#242f2bfe" },
-  headerSub: { marginTop: 4, fontSize: 13, color: "#242f2bfe", maxWidth: 760 },
-  headerActions: { display: "flex", gap: 10, flexWrap: "wrap" },
-
-  hero: {
-    padding: "16px 18px 0 18px",
-    display: "grid",
-    gridTemplateColumns: "1.15fr 1fr",
-    gap: 14,
-    alignItems: "stretch",
-  },
-  heroLeft: {
-    borderRadius: 18,
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: "rgba(145, 148, 113, 0.14)",
-    background: "linear-gradient(180deg, rgba(115, 214, 151, 0.44) 0%, rgba(208,176,122,0.08) 100%)",
-    padding: 16,
-    boxShadow: "0 18px 55px rgba(2,6,23,0.10)",
-  },
-  heroTitle: { fontSize: 16, fontWeight: 1000, color: "#1B2A24" },
-  heroSub: { marginTop: 6, fontSize: 13, color: "#677971ae", lineHeight: 1.45 },
-
-  heroHintLine: { marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" },
-  heroHintPill: {
-    fontSize: 12,
-    color: "#2b3a337c",
-    background: "rgba(255, 255, 255, 0.06)",
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: "rgba(208,176,122,0.20)",
-    padding: "6px 10px",
-    borderRadius: 999,
-    boxShadow: "0 10px 24px rgba(2,6,23,0.08)",
-  },
-
-  statsGrid: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 },
-  statCard: {
-    borderRadius: 18,
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: "rgba(208,176,122,0.18)",
-    background: "rgba(255,255,255,0.88)",
-    padding: 14,
-    boxShadow: "0 14px 40px rgba(2,6,23,0.06)",
-  },
-  statTop: { display: "flex", justifyContent: "space-between", alignItems: "center" },
-  statLabel: { fontSize: 12, color: "rgba(27,42,36,0.62)", fontWeight: 900 },
-  statValue: { marginTop: 8, fontSize: 22, fontWeight: 1000, color: "#1B2A24", letterSpacing: -0.2 },
-  statHint: { marginTop: 6, fontSize: 12, color: "rgba(27,42,36,0.62)" },
-
-  contentGrid: {
-    padding: 18,
-    display: "grid",
-    gridTemplateColumns: "420px 1fr",
-    gap: 14,
-    alignItems: "start",
-  },
-  contentGrid2: {
-    padding: 18,
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 14,
-    alignItems: "start",
-  },
-
-  card: {
-    background: "rgba(255,255,255,0.92)",
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: "rgba(208,176,122,0.18)",
-    borderRadius: 18,
-    overflow: "hidden",
-    boxShadow: "0 14px 42px rgba(2,6,23,0.06)",
-  },
-  cardHead: {
-    padding: 14,
-    borderBottomWidth: 1,
-    borderBottomStyle: "solid",
-    borderBottomColor: "rgba(208,176,122,0.16)",
-    background: "rgba(251,248,242,0.88)",
-  },
-  cardHeadRow: {
-    padding: 14,
-    borderBottomWidth: 1,
-    borderBottomStyle: "solid",
-    borderBottomColor: "rgba(208,176,122,0.16)",
-    background: "rgba(251,248,242,0.88)",
-    display: "flex",
-    justifyContent: "space-between",
-    gap: 12,
-    alignItems: "flex-start",
-  },
-  cardTitle: { fontWeight: 1000, color: "#1B2A24" },
-  cardHint: { marginTop: 4, fontSize: 12, color: "rgba(27,42,36,0.62)" },
-
-  primaryBtn: {
-    padding: "10px 12px",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: "rgba(208,176,122,0.35)",
-    background: "linear-gradient(180deg, rgba(17,96,71,1) 0%, rgba(11,59,44,1) 100%)",
-    color: "#FFF7E6",
-    cursor: "pointer",
-    fontWeight: 1000,
-    boxShadow: "0 16px 44px rgba(11,59,44,0.20)",
-    transition: "transform 120ms ease, filter 120ms ease",
-  },
-  secondaryBtn: {
-    padding: "10px 12px",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: "rgba(208,176,122,0.26)",
-    background: "rgba(255,255,255,0.92)",
-    cursor: "pointer",
-    fontWeight: 1000,
-    transition: "transform 120ms ease, background 120ms ease",
-  },
-  dangerBtn: {
-    padding: "10px 12px",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: "rgba(239,68,68,0.22)",
-    background: "rgba(254,242,242,0.90)",
-    color: "#991B1B",
-    cursor: "pointer",
-    fontWeight: 1000,
-  },
-
-  error: {
-    margin: 18,
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: "rgba(239,68,68,0.22)",
-    background: "rgba(254,242,242,0.90)",
-    color: "#991B1B",
-    padding: "10px 12px",
-    borderRadius: 14,
-    fontSize: 13,
-    fontWeight: 900,
-  },
-
-  searchBox: { flex: "0 0 240px", display: "flex", justifyContent: "flex-end" },
-  searchInput: {
-    width: "100%",
-    padding: "10px 12px",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: "rgba(208,176,122,0.26)",
-    outline: "none",
-    fontSize: 13,
-    background: "rgba(255,255,255,0.94)",
-  },
-
-  list: { padding: 12, display: "flex", flexDirection: "column", gap: 10 },
-  empty: { padding: 14, color: "rgba(27,42,36,0.62)", fontSize: 13 },
-
-  rowBtn: {
-    width: "100%",
-    textAlign: "left",
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: "rgba(208,176,122,0.16)",
-    background: "rgba(255,255,255,0.94)",
-    borderRadius: 16,
-    padding: 12,
-    cursor: "pointer",
-    display: "flex",
-    justifyContent: "space-between",
-    gap: 10,
-    alignItems: "center",
-    transition: "transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease",
-  },
-  rowBtnActive: {
-    borderColor: "rgba(17,96,71,0.30)",
-    boxShadow: "0 18px 50px rgba(11,59,44,0.12)",
-    transform: "translateY(-1px)",
-  },
-  rowTitle: {
-    fontWeight: 1000,
-    color: "#1B2A24",
-    fontSize: 14,
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-  },
-  rowMuted: { fontWeight: 800, color: "rgba(27,42,36,0.55)" },
-  rowSub: { marginTop: 4, fontSize: 12, color: "rgba(27,42,36,0.55)" },
-  rowChip: {
-    fontSize: 12,
-    color: "#2B3A33",
-    background: "rgba(251,248,242,0.85)",
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: "rgba(208,176,122,0.16)",
-    borderRadius: 999,
-    padding: "4px 10px",
-    whiteSpace: "nowrap",
-    fontWeight: 1000,
-  },
-
-  detailHeader: { padding: 14, display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" },
-  detailTitle: {
-    fontWeight: 1000,
-    color: "#1B2A24",
-    fontSize: 16,
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-  },
-  detailSub: { marginTop: 4, fontSize: 12, color: "rgba(27,42,36,0.55)" },
-
-  tableCard: {
-    margin: "0 14px 14px 14px",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: "rgba(208,176,122,0.16)",
-    overflow: "hidden",
-    background: "rgba(255,255,255,0.92)",
-  },
-  table: { width: "100%", borderCollapse: "collapse" },
-  th: {
-    textAlign: "left",
-    fontSize: 12,
-    padding: "10px 12px",
-    background: "rgba(251,248,242,0.88)",
-    borderBottomWidth: 1,
-    borderBottomStyle: "solid",
-    borderBottomColor: "rgba(208,176,122,0.18)",
-    color: "#2B3A33",
-  },
-  td: {
-    padding: "10px 12px",
-    borderBottomWidth: 1,
-    borderBottomStyle: "solid",
-    borderBottomColor: "rgba(226,232,240,0.85)",
-    fontSize: 13,
-    color: "#0F172A",
-    verticalAlign: "top",
-  },
-  cellTitle: { fontWeight: 1000 },
-  cellSub: { fontSize: 11, color: "rgba(27,42,36,0.55)", marginTop: 2 },
-
-  pill: {
-    display: "inline-block",
-    fontSize: 12,
-    padding: "4px 10px",
-    borderRadius: 999,
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: "rgba(148,163,184,0.26)", // default
-    fontWeight: 1000,
-    whiteSpace: "nowrap",
-  },
-
-  hintRow: { padding: "0 14px 14px 14px", display: "flex", justifyContent: "space-between" },
-  muted: { color: "rgba(27,42,36,0.55)", fontSize: 12 },
-
-  kvList: { padding: 14, display: "flex", flexDirection: "column", gap: 10 },
-  kvRow: { display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" },
-  kvKey: { fontSize: 12, color: "rgba(27,42,36,0.55)", fontWeight: 900 },
-  kvVal: { fontSize: 13, color: "#1B2A24", fontWeight: 1000, textAlign: "right" },
-
-  rolePill: {
-    fontSize: 12,
-    padding: "4px 10px",
-    borderRadius: 999,
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: "rgba(208,176,122,0.35)",
-    background: "rgba(208,176,122,0.18)",
-    color: "#6B4E1E",
-    fontWeight: 1000,
-    textTransform: "capitalize",
-  },
-
-  divider: { height: 1, background: "rgba(208,176,122,0.16)", margin: "0 14px" },
-  note: { padding: 14, fontSize: 13, color: "rgba(27,42,36,0.70)", lineHeight: 1.5 },
-
-  actionList: { padding: 14, display: "flex", flexDirection: "column", gap: 12 },
-  actionRow: {
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: "rgba(208,176,122,0.16)",
-    borderRadius: 16,
-    padding: 12,
-    display: "flex",
-    justifyContent: "space-between",
-    gap: 12,
-    alignItems: "center",
-    background: "rgba(255,255,255,0.94)",
-  },
-  actionTitle: { fontWeight: 1000, color: "#1B2A24" },
-  actionSub: { marginTop: 4, fontSize: 12, color: "rgba(27,42,36,0.55)", maxWidth: 520 },
-
-  prefRow: {
-    padding: 14,
-    borderTopWidth: 1,
-    borderTopStyle: "solid",
-    borderTopColor: "rgba(208,176,122,0.14)",
-    display: "flex",
-    justifyContent: "space-between",
-    gap: 12,
-    alignItems: "center",
-  },
-
-  modalOverlay: {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(2,6,23,0.45)",
-    display: "grid",
-    placeItems: "center",
-    padding: 16,
-    zIndex: 999,
-  },
-  modal: {
-    width: "100%",
-    maxWidth: 560,
-    background: "rgba(255,255,255,0.96)",
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: "rgba(208,176,122,0.18)",
-    borderRadius: 18,
-    padding: 14,
-    boxShadow: "0 26px 80px rgba(2,6,23,0.28)",
-  },
-
-  modalWide: {
-    width: "100%",
-    maxWidth: 980,
-    background: "rgba(255,255,255,0.96)",
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: "rgba(208,176,122,0.18)",
-    borderRadius: 18,
-    padding: 14,
-    boxShadow: "0 26px 80px rgba(2,6,23,0.28)",
-  },
-
-  modalTitle: { fontWeight: 1000, color: "#1B2A24", fontSize: 16, marginBottom: 10 },
-  modalHint: { fontSize: 12, color: "rgba(27,42,36,0.62)", marginBottom: 8 },
-  modalLabel: { fontSize: 12, fontWeight: 1000, color: "#2B3A33", marginTop: 10, display: "block" },
-  modalInput: {
-    width: "100%",
-    padding: "10px 12px",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: "rgba(208,176,122,0.26)",
-    outline: "none",
-    fontSize: 14,
-    marginTop: 6,
-    background: "rgba(255,255,255,0.98)",
-  },
-  fileMeta: { marginTop: 6, fontSize: 12, color: "rgba(27,42,36,0.55)" },
-  modalActions: { marginTop: 14, display: "flex", justifyContent: "flex-end", gap: 10 },
-
-  checkRow: { display: "flex", gap: 10, alignItems: "flex-start", padding: "8px 0", fontSize: 13, color: "#1B2A24" },
-  checkSub: { marginTop: 4, fontSize: 12, color: "rgba(27,42,36,0.55)" },
-
-  dictamenList: { marginTop: 12, display: "flex", flexDirection: "column", gap: 12 },
-  dictamenCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: "rgba(208,176,122,0.18)",
-    background: "rgba(255,255,255,0.94)",
-    padding: 12,
-    boxShadow: "0 14px 42px rgba(2,6,23,0.06)",
-  },
-  dictamenTopRow: { display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" },
-  dictamenTitle: { fontWeight: 1000, color: "#1B2A24", fontSize: 14 },
-  dictamenMeta: { marginTop: 4, fontSize: 12, color: "rgba(27,42,36,0.62)" },
-  dictamenGrid: {
-    marginTop: 10,
-    display: "grid",
-    gridTemplateColumns: "1.2fr 1.2fr 0.6fr",
-    gap: 10,
-  },
-  dictamenBox: {
-    borderRadius: 14,
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: "rgba(208,176,122,0.16)",
-    background: "rgba(251,248,242,0.65)",
-    padding: 10,
-  },
-  dictamenBoxTitle: { fontSize: 12, fontWeight: 1000, color: "#2B3A33" },
-  dictamenBoxText: { marginTop: 6, fontSize: 13, color: "rgba(27,42,36,0.80)", whiteSpace: "pre-wrap" },
-};

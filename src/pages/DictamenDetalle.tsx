@@ -1,5 +1,6 @@
 import React, { useMemo, useState, type CSSProperties, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import styles from './DictamenDetalle.module.css';
 
 type Decision = "APROBADO" | "CORRECCIONES" | "RECHAZADO";
 type DictamenStatus = "BORRADOR" | "GENERADO" | "FIRMADO";
@@ -30,6 +31,24 @@ type User = {
   email: string;
   role: "editorial" | "dictaminador" | "autor";
 };
+
+// ✅ Función para obtener la clase del pill según el estado del dictamen
+function getStatusPillClass(status: DictamenStatus): string {
+  const baseClass = styles.pill;
+  
+  if (status === "FIRMADO") return `${baseClass} ${styles.pillFirmado}`;
+  if (status === "GENERADO") return `${baseClass} ${styles.pillGenerado}`;
+  return `${baseClass} ${styles.pillBorrador}`;
+}
+
+// ✅ Función para obtener la clase del pill según la decisión
+function getDecisionPillClass(decision: Decision): string {
+  const baseClass = styles.pill;
+  
+  if (decision === "APROBADO") return `${baseClass} ${styles.pillApproved}`;
+  if (decision === "CORRECCIONES") return `${baseClass} ${styles.pillCorrections}`;
+  return `${baseClass} ${styles.pillRejected}`;
+}
 
 export default function DictamenDetalle() {
   const nav = useNavigate();
@@ -89,7 +108,7 @@ export default function DictamenDetalle() {
     alert("Después: visor PDF (embed) con archivo real.");
   };
 
-  // ✅ Tipado correcto (ya no 'any')
+  // ✅ Tipado correcto
   const validarParaFirmar: boolean =
     status === "GENERADO" &&
     decision !== "CORRECCIONES" &&
@@ -123,77 +142,77 @@ export default function DictamenDetalle() {
   };
 
   return (
-    <div style={styles.wrap}>
-      <div style={styles.topBar}>
-        <div style={styles.leftTop}>
-          <button style={styles.backBtn} onClick={() => nav("/dictamenes")}>
+    <div className={styles.wrap}>
+      <div className={styles.topBar}>
+        <div className={styles.leftTop}>
+          <button className={styles.backBtn} onClick={() => nav("/dictamenes")}>
             ← Volver
           </button>
 
-          <div style={styles.titleBlock}>
-            <h2 style={styles.h2}>Dictamen {base.folio}</h2>
-            <div style={styles.metaRow}>
-              <span style={styles.metaItem}>
+          <div className={styles.titleBlock}>
+            <h2 className={styles.h2}>Dictamen {base.folio}</h2>
+            <div className={styles.metaRow}>
+              <span className={styles.metaItem}>
                 <b>Capítulo:</b> {base.capitulo}
               </span>
-              <span style={styles.metaDot}>•</span>
-              <span style={styles.metaItem}>
+              <span className={styles.metaDot}>•</span>
+              <span className={styles.metaItem}>
                 <b>Evaluador:</b> {base.evaluador}
               </span>
             </div>
           </div>
         </div>
 
-        <div style={styles.rightTop}>
-          <div style={styles.kpiBox}>
-            <div style={styles.kpiLabel}>Promedio</div>
-            <div style={styles.kpiValue}>{promedio.toFixed(1)}</div>
+        <div className={styles.rightTop}>
+          <div className={styles.kpiBox}>
+            <div className={styles.kpiLabel}>Promedio</div>
+            <div className={styles.kpiValue}>{promedio.toFixed(1)}</div>
           </div>
 
-          <div style={styles.kpiBox}>
-            <div style={styles.kpiLabel}>Estatus</div>
-            <span style={{ ...styles.pill, ...statusTone(status) }}>{statusLabel(status)}</span>
+          <div className={styles.kpiBox}>
+            <div className={styles.kpiLabel}>Estatus</div>
+            <span className={getStatusPillClass(status)}>{statusLabel(status)}</span>
           </div>
 
-          <div style={styles.kpiBox}>
-            <div style={styles.kpiLabel}>Dictamen</div>
-            <span style={{ ...styles.pill, ...decisionTone(decision) }}>{decisionLabel(decision)}</span>
+          <div className={styles.kpiBox}>
+            <div className={styles.kpiLabel}>Dictamen</div>
+            <span className={getDecisionPillClass(decision)}>{decisionLabel(decision)}</span>
           </div>
         </div>
       </div>
 
-      <div style={styles.grid}>
+      <div className={styles.grid}>
         {/* Formulario */}
-        <div style={styles.formCard}>
-          <div style={styles.sectionTop}>
+        <div className={styles.formCard}>
+          <div className={styles.sectionTop}>
             <div>
-              <h3 style={styles.h3}>Formulario</h3>
-              <p style={styles.p}>Criterios en escala 1 a 5. (demo)</p>
+              <h3 className={styles.h3}>Formulario</h3>
+              <p className={styles.p}>Criterios en escala 1 a 5. (demo)</p>
             </div>
 
-            <button style={styles.secondaryBtn} onClick={guardar}>
+            <button className={styles.secondaryBtn} onClick={guardar}>
               Guardar
             </button>
           </div>
 
-          <div style={styles.formGrid}>
-            <div style={styles.field}>
-              <label style={styles.label}>Tipo</label>
-              <input style={styles.input} value={base.tipo === "INVESTIGACION" ? "Investigación" : "Docencia"} readOnly />
+          <div className={styles.formGrid}>
+            <div className={styles.field}>
+              <label className={styles.label}>Tipo</label>
+              <input className={styles.input} value={base.tipo === "INVESTIGACION" ? "Investigación" : "Docencia"} readOnly />
             </div>
 
-            <div style={styles.field}>
-              <label style={styles.label}>Libro</label>
-              <input style={styles.input} value={base.libro} readOnly />
+            <div className={styles.field}>
+              <label className={styles.label}>Libro</label>
+              <input className={styles.input} value={base.libro} readOnly />
             </div>
 
-            <div style={styles.fieldWide}>
-              <label style={styles.label}>Criterios (1–5)</label>
+            <div className={styles.fieldWide}>
+              <label className={styles.label}>Criterios (1–5)</label>
 
-              <div style={styles.criteriaList}>
+              <div className={styles.criteriaList}>
                 {criterios.map((c) => (
-                  <div key={c.key} style={styles.criteriaRow}>
-                    <div style={styles.criteriaLabel}>{c.label}</div>
+                  <div key={c.key} className={styles.criteriaRow}>
+                    <div className={styles.criteriaLabel}>{c.label}</div>
                     <input
                       type="range"
                       min={1}
@@ -201,47 +220,47 @@ export default function DictamenDetalle() {
                       step={1}
                       value={c.value}
                       onChange={(e) => setCriterio(c.key, Number(e.target.value))}
-                      style={styles.range}
+                      className={styles.range}
                     />
-                    <div style={styles.criteriaValue}>{c.value}</div>
+                    <div className={styles.criteriaValue}>{c.value}</div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div style={styles.fieldWide}>
-              <label style={styles.label}>Decisión</label>
-              <select style={styles.input} value={decision} onChange={(e) => setDecision(e.target.value as Decision)}>
+            <div className={styles.fieldWide}>
+              <label className={styles.label}>Decisión</label>
+              <select className={styles.input} value={decision} onChange={(e) => setDecision(e.target.value as Decision)}>
                 <option value="APROBADO">Aprobado</option>
                 <option value="CORRECCIONES">Correcciones</option>
                 <option value="RECHAZADO">Rechazado</option>
               </select>
             </div>
 
-            <div style={styles.fieldWide}>
-              <label style={styles.label}>Comentarios</label>
-              <textarea style={styles.textarea} value={comentarios} onChange={(e) => setComentarios(e.target.value)} rows={7} />
+            <div className={styles.fieldWide}>
+              <label className={styles.label}>Comentarios</label>
+              <textarea className={styles.textarea} value={comentarios} onChange={(e) => setComentarios(e.target.value)} rows={7} />
             </div>
 
-            <div style={styles.fieldWide}>
-              <label style={styles.label}>Conflictos de interés</label>
-              <textarea style={styles.textarea} value={conflicto} onChange={(e) => setConflicto(e.target.value)} rows={3} />
+            <div className={styles.fieldWide}>
+              <label className={styles.label}>Conflictos de interés</label>
+              <textarea className={styles.textarea} value={conflicto} onChange={(e) => setConflicto(e.target.value)} rows={3} />
             </div>
           </div>
         </div>
 
         {/* Acciones / PDF / Firma */}
-        <div style={styles.sideCard}>
-          <h3 style={styles.h3}>PDF / Firma</h3>
-          <p style={styles.p}>Generación y firmado dentro de la plataforma.</p>
+        <div className={styles.sideCard}>
+          <h3 className={styles.h3}>PDF / Firma</h3>
+          <p className={styles.p}>Generación y firmado dentro de la plataforma.</p>
 
-          <div style={styles.actionBox}>
-            <div style={styles.actionTitle}>Generar dictamen PDF</div>
-            <button style={styles.primaryBtn} onClick={generarPDF}>
+          <div className={styles.actionBox}>
+            <div className={styles.actionTitle}>Generar dictamen PDF</div>
+            <button className={styles.primaryBtn} onClick={generarPDF}>
               Generar PDF
             </button>
             <button
-              style={styles.secondaryBtnFull}
+              className={styles.secondaryBtnFull}
               onClick={verPDF}
               disabled={status === "BORRADOR"}
               title={status === "BORRADOR" ? "Primero genera el PDF" : "Ver PDF"}
@@ -250,9 +269,9 @@ export default function DictamenDetalle() {
             </button>
           </div>
 
-          <div style={styles.actionBox}>
-            <div style={styles.actionTitle}>Firma del dictaminador (imagen)</div>
-            <div style={styles.mutedSmall}>
+          <div className={styles.actionBox}>
+            <div className={styles.actionTitle}>Firma del dictaminador (imagen)</div>
+            <div className={styles.mutedSmall}>
               Se guarda por usuario (demo). En backend: se guardará ruta/archivo y auditoría.
             </div>
 
@@ -260,35 +279,35 @@ export default function DictamenDetalle() {
               type="file"
               accept="image/png,image/jpeg"
               onChange={(e) => onUploadSignature(e.target.files?.[0] ?? null)}
-              style={styles.fileInput}
+              className={styles.fileInput}
             />
 
             {signatureDataUrl ? (
-              <div style={styles.sigPreviewWrap}>
-                <div style={styles.mutedSmall}>Vista previa:</div>
-                <img src={signatureDataUrl} alt="Firma" style={styles.sigPreview} />
-                <button style={styles.ghostBtnFull} onClick={clearSignature}>
+              <div className={styles.sigPreviewWrap}>
+                <div className={styles.mutedSmall}>Vista previa:</div>
+                <img src={signatureDataUrl} alt="Firma" className={styles.sigPreview} />
+                <button className={styles.ghostBtnFull} onClick={clearSignature}>
                   Quitar firma
                 </button>
               </div>
             ) : (
-              <div style={styles.mutedSmall}>Aún no has cargado firma.</div>
+              <div className={styles.mutedSmall}>Aún no has cargado firma.</div>
             )}
 
-            <button style={styles.approveBtn} onClick={firmar} disabled={!validarParaFirmar}>
+            <button className={styles.approveBtn} onClick={firmar} disabled={!validarParaFirmar}>
               Firmar dictamen (UI)
             </button>
 
             {!validarParaFirmar && (
-              <div style={styles.mutedSmall}>
+              <div className={styles.mutedSmall}>
                 Para firmar: PDF generado + decisión final (no “Correcciones”) + firma cargada.
               </div>
             )}
           </div>
 
-          <div style={styles.actionBox}>
-            <div style={styles.actionTitle}>Estado actual</div>
-            <span style={{ ...styles.pill, ...statusTone(status) }}>{statusLabel(status)}</span>
+          <div className={styles.actionBox}>
+            <div className={styles.actionTitle}>Estado actual</div>
+            <span className={getStatusPillClass(status)}>{statusLabel(status)}</span>
           </div>
         </div>
       </div>
@@ -301,20 +320,11 @@ function decisionLabel(d: Decision) {
   if (d === "CORRECCIONES") return "Correcciones";
   return "Rechazado";
 }
+
 function statusLabel(s: DictamenStatus) {
   if (s === "BORRADOR") return "Borrador";
   if (s === "GENERADO") return "PDF generado";
   return "Firmado";
-}
-function decisionTone(d: Decision): CSSProperties {
-  if (d === "APROBADO") return { background: "#E8F7EE", color: "#0A7A35", borderColor: "#BFE9CF" };
-  if (d === "CORRECCIONES") return { background: "#FFF6E5", color: "#9A5B00", borderColor: "#FFE0A3" };
-  return { background: "#FEECEC", color: "#B42318", borderColor: "#F9CACA" };
-}
-function statusTone(s: DictamenStatus): CSSProperties {
-  if (s === "FIRMADO") return { background: "#E8F7EE", color: "#0A7A35", borderColor: "#BFE9CF" };
-  if (s === "GENERADO") return { background: "#E9F2FF", color: "#1447B2", borderColor: "#C9DDFF" };
-  return { background: "#F3F4F6", color: "#374151", borderColor: "#E5E7EB" };
 }
 
 function seedDictamen(id: string): Dictamen {
@@ -348,60 +358,3 @@ function readFileAsDataURL(file: File): Promise<string> {
     r.readAsDataURL(file);
   });
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  wrap: { display: "flex", flexDirection: "column", gap: 12 },
-  topBar: { background: "#fff", border: "1px solid #E7EAF0", borderRadius: 16, padding: 14, display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" },
-  leftTop: { display: "flex", gap: 12, alignItems: "flex-start", minWidth: 0 },
-  backBtn: { padding: "10px 12px", borderRadius: 12, border: "1px solid #D8DEE9", background: "#fff", cursor: "pointer", fontWeight: 900, whiteSpace: "nowrap" },
-  titleBlock: { minWidth: 0 },
-  h2: { margin: 0, fontSize: 18, color: "#111827" },
-  metaRow: { marginTop: 6, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" },
-  metaItem: { fontSize: 13, color: "#374151" },
-  metaDot: { color: "#9CA3AF" },
-
-  rightTop: { display: "flex", gap: 10, alignItems: "stretch", flexWrap: "wrap" },
-  kpiBox: { border: "1px solid #E7EAF0", borderRadius: 14, padding: 10, minWidth: 160, background: "#F9FAFB" },
-  kpiLabel: { fontSize: 12, color: "#6B7280", fontWeight: 900 },
-  kpiValue: { marginTop: 4, fontSize: 18, fontWeight: 1000, color: "#111827" },
-
-  grid: { display: "grid", gridTemplateColumns: "1fr 340px", gap: 12, alignItems: "start" },
-
-  formCard: { background: "#fff", border: "1px solid #E7EAF0", borderRadius: 16, padding: 14 },
-  sideCard: { background: "#fff", border: "1px solid #E7EAF0", borderRadius: 16, padding: 14, display: "flex", flexDirection: "column", gap: 12 },
-
-  sectionTop: { display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap" },
-  h3: { margin: 0, fontSize: 16, color: "#111827" },
-  p: { margin: "6px 0 0 0", fontSize: 13, color: "#6B7280" },
-
-  formGrid: { marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 },
-  field: { display: "flex", flexDirection: "column", gap: 6 },
-  fieldWide: { gridColumn: "1 / -1", display: "flex", flexDirection: "column", gap: 6 },
-
-  label: { fontSize: 13, fontWeight: 900, color: "#374151" },
-  input: { padding: "10px 12px", borderRadius: 12, border: "1px solid #D8DEE9", outline: "none", fontSize: 14, background: "#fff" },
-  textarea: { padding: "10px 12px", borderRadius: 12, border: "1px solid #D8DEE9", outline: "none", fontSize: 14, resize: "vertical" },
-
-  criteriaList: { display: "flex", flexDirection: "column", gap: 10, padding: 12, border: "1px solid #E7EAF0", borderRadius: 14, background: "#F9FAFB" },
-  criteriaRow: { display: "grid", gridTemplateColumns: "1fr 180px 30px", gap: 10, alignItems: "center" },
-  criteriaLabel: { fontSize: 13, fontWeight: 900, color: "#111827" },
-  range: { width: "100%" },
-  criteriaValue: { fontWeight: 1000, textAlign: "right" },
-
-  actionBox: { border: "1px solid #E7EAF0", borderRadius: 14, padding: 12, background: "#F9FAFB", display: "flex", flexDirection: "column", gap: 8 },
-  actionTitle: { fontWeight: 1000, color: "#111827", fontSize: 13 },
-  mutedSmall: { color: "#6B7280", fontSize: 12 },
-
-  fileInput: { width: "100%" },
-  sigPreviewWrap: { display: "flex", flexDirection: "column", gap: 8, marginTop: 6 },
-  sigPreview: { width: "100%", maxHeight: 120, objectFit: "contain", background: "#fff", border: "1px dashed #D8DEE9", borderRadius: 12, padding: 8 },
-
-  primaryBtn: { padding: "10px 12px", borderRadius: 12, border: "none", background: "#0F3D3E", color: "#fff", cursor: "pointer", fontWeight: 1000 },
-  secondaryBtn: { padding: "10px 12px", borderRadius: 12, border: "1px solid #D8DEE9", background: "#fff", cursor: "pointer", fontWeight: 1000 },
-  secondaryBtnFull: { padding: "10px 12px", borderRadius: 12, border: "1px solid #D8DEE9", background: "#fff", cursor: "pointer", fontWeight: 1000, width: "100%" },
-
-  approveBtn: { padding: "10px 12px", borderRadius: 12, border: "none", background: "#0A7A35", color: "#fff", cursor: "pointer", fontWeight: 1000 },
-  ghostBtnFull: { padding: "10px 12px", borderRadius: 12, border: "1px solid #D8DEE9", background: "#fff", cursor: "pointer", fontWeight: 1000, width: "100%" },
-
-  pill: { display: "inline-block", fontSize: 12, padding: "4px 10px", borderRadius: 999, border: "1px solid", fontWeight: 900, whiteSpace: "nowrap" },
-};

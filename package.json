@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -16,6 +16,7 @@
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.13.0",
     "remark-gfm": "^4.0.1",
+    "sweetalert2": "^11.26.20",
     "zustand": "^5.0.11"
   },
   "devDependencies": {
