@@ -1,5 +1,6 @@
 // src/App.tsx
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Convocatorias from "./pages/Convocatorias";
@@ -8,16 +9,15 @@ import Capitulos from "./pages/Capitulos";
 import CapituloDetalle from "./pages/CapituloDetalle";
 import Dictamenes from "./pages/Dictamenes";
 import DictamenDetalle from "./pages/DictamenDetalle";
+import DictamenDocumento from "./pages/DictamenDocumento";
 import Constancias from "./pages/Constancias";
 import Usuarios from "./pages/Usuarios";
 import Comunicaciones from "./pages/Comunicaciones";
-import MisEnviosAutor from "./pages/autor/MisEnviosAutor"; // ✅ AUTOR (sin PrivateLayout)
+
+import MisEnviosAutor from "./pages/autor/MisEnviosAutor";
+import MisAsignacionesDictaminador from "./pages/dictaminador/MisAsignacionesDictaminador";
 
 import PrivateLayout from "./layout/PrivateLayout";
-import MisAsignacionesDictaminador from "./pages/dictaminador/MisAsignacionesDictaminador";
-import DictamenDocumento from "./pages/DictamenDocumento";
-
-
 
 export default function App() {
   return (
@@ -26,26 +26,29 @@ export default function App() {
         {/* Público */}
         <Route path="/login" element={<Login />} />
 
-        {/* AUTOR (sin PrivateLayout de admin) */}
+        {/* AUTOR */}
         <Route path="/autor/mis-envios" element={<MisEnviosAutor />} />
+
+        {/* DICTAMINADOR */}
         <Route path="/dictaminador" element={<MisAsignacionesDictaminador />} />
 
+        {/* ADMIN (EDITORIAL) - TODO protegido por PrivateLayout (Outlet) */}
+        <Route element={<PrivateLayout />}>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/convocatorias" element={<Convocatorias />} />
+          <Route path="/libros" element={<Libros />} />
+          <Route path="/capitulos" element={<Capitulos />} />
+          <Route path="/capitulos/:id" element={<CapituloDetalle />} />
 
+          <Route path="/dictamenes" element={<Dictamenes />} />
+          <Route path="/dictamenes/:id" element={<DictamenDetalle />} />
+          <Route path="/dictamenes/:id/documento" element={<DictamenDocumento />} />
 
-        {/* ADMIN (editorial) - todo protegido por PrivateLayout */}
-        <Route path="/" element={<PrivateLayout><Dashboard /></PrivateLayout>} />
-        <Route path="/convocatorias" element={<PrivateLayout><Convocatorias /></PrivateLayout>} />
-        <Route path="/libros" element={<PrivateLayout><Libros /></PrivateLayout>} />
-        <Route path="/capitulos" element={<PrivateLayout><Capitulos /></PrivateLayout>} />
-        <Route path="/capitulos/:id" element={<PrivateLayout><CapituloDetalle /></PrivateLayout>} />
+          <Route path="/constancias" element={<Constancias />} />
+          <Route path="/usuarios" element={<Usuarios />} />
+          <Route path="/comunicaciones" element={<Comunicaciones />} />
+        </Route>
 
-        <Route path="/dictamenes/:id" element={<PrivateLayout><DictamenDetalle /></PrivateLayout>} />
-
-        <Route path="/constancias" element={<PrivateLayout><Constancias /></PrivateLayout>} />
-        <Route path="/usuarios" element={<PrivateLayout><Usuarios /></PrivateLayout>} />
-        <Route path="/dictamenes" element={<PrivateLayout><Dictamenes /></PrivateLayout>} />
-        <Route path="/dictamenes/:id/documento" element={<PrivateLayout><DictamenDocumento /></PrivateLayout>} />
-        <Route path="/comunicaciones" element={<PrivateLayout><Comunicaciones /></PrivateLayout>} />
         {/* 404 */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

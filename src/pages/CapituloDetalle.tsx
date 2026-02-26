@@ -1,11 +1,7 @@
-// CapituloDetalle.tsx - (FULL) Con TAB "EVALUACIÓN" mejorado para guardar EVALUACIÓN (no dictamen)
-// ✅ No toco lo demás: solo ajusto el TAB de EVALUACIÓN y agrego handler/endpoints mínimos.
-// ⚠️ Nota: este archivo es largo. Pégalo completo y compila.
-// ⚠️ Backend pendiente: usa POST /admin/chapters/{id}/evaluacion/upsert (te lo doy cuando me indiques).
-
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../services/api";
+import styles from './CapituloDetalle.module.css';
 
 type Status =
   | "RECIBIDO"
@@ -113,36 +109,28 @@ type Chapter = {
 const endpoints = {
   chapterDetail: (chapterId: string) => `/admin/chapters/${chapterId}`,
   chapterStatus: (chapterId: string) => `/admin/chapters/${chapterId}/status`,
-
   assignEvaluator: (chapterId: string) => `/admin/chapters/${chapterId}/assign`,
   sendToEvaluator: (chapterId: string) => `/admin/chapters/${chapterId}/send-to-evaluator`,
   requestCorrections: (chapterId: string) => `/admin/chapters/${chapterId}/request-corrections`,
-
   markEditorialReview: (chapterId: string) => `/admin/chapters/${chapterId}/mark-editorial-review`,
   sendForSignature: (chapterId: string) => `/admin/chapters/${chapterId}/send-for-signature`,
   markSigned: (chapterId: string) => `/admin/chapters/${chapterId}/mark-signed`,
-
   versions: (chapterId: string) => `/admin/chapters/${chapterId}/versions`,
   downloadVersion: (chapterId: string, versionId: string) =>
     `/admin/chapters/${chapterId}/versions/${versionId}/download`,
-
   history: (chapterId: string) => `/admin/chapters/${chapterId}/history`,
-
   viewDictamenPdf: (dictamenId: string) => `/dictamenes/${dictamenId}/pdf`,
   viewDictamenPdfSigned: (dictamenId: string) => `/dictamenes/${dictamenId}/pdf-signed`,
-
   subirDictamenFirmado: (dictamenId: string) => `/dictaminador/dictamenes/${dictamenId}/upload-signed`,
   crearDictamen: (chapterId: string) => `/admin/chapters/${chapterId}/dictamen`,
   guardarDictamen: (dictamenId: string) => `/dictamenes/${dictamenId}`,
   upsertDictamen: (chapterId: string) => `/admin/chapters/${chapterId}/dictamen/upsert`,
-
   uploadVersion: (chapterId: string) => `/admin/chapters/${chapterId}/versions/upload`,
   generarConstancia: (chapterId: string) => `/admin/chapters/${chapterId}/constancias/generate`,
   markResentByAuthor: (chapterId: string) => `/admin/chapters/${chapterId}/mark-resent`,
   findDictaminadorByEmail: (email: string) =>
     `/admin/users/dictaminador/by-email?email=${encodeURIComponent(email)}`,
-
-  // ✅ NUEVO: evaluación (no dictamen)
+  // ✅ NUEVO: evaluación (añadido por tu compañera)
   upsertEvaluacion: (chapterId: string) => `/admin/chapters/${chapterId}/evaluacion/upsert`,
 };
 
@@ -154,7 +142,7 @@ function toStatus(v: any): Status {
   return v as Status;
 }
 
-// Generador de folio para dictamen (formato: DICT-YYYY-MM-DD-XXXXX)
+// Generador de folio para dictamen
 function generarFolioDictamen(): string {
   const now = new Date();
   const year = now.getFullYear();
@@ -164,7 +152,7 @@ function generarFolioDictamen(): string {
   return `DICT-${year}-${month}-${day}-${random}`;
 }
 
-// Generador de folio para constancia (formato: CONST-YYYY-MM-DD-XXXXX)
+// Generador de folio para constancia
 function generarFolioConstancia(): string {
   const now = new Date();
   const year = now.getFullYear();
@@ -279,6 +267,37 @@ function mapChapterResponseToChapter(payload: any): Chapter {
   };
 }
 
+// ✅ FUNCIONES PARA OBTENER CLASES CSS (agregadas por ti)
+function getPillClass(status: Status): string {
+  const baseClass = styles.pill;
+  
+  if (status === "APROBADO" || status === "FIRMADO") {
+    return `${baseClass} ${styles.pillApproved}`;
+  }
+  if (status.includes("CORRECCIONES")) {
+    return `${baseClass} ${styles.pillCorrections}`;
+  }
+  if (status.includes("REVISION") || status.includes("ENVIADO") || status.includes("ASIGNADO")) {
+    return `${baseClass} ${styles.pillRevision}`;
+  }
+  if (status === "RECHAZADO") {
+    return `${baseClass} ${styles.pillRejected}`;
+  }
+  return `${baseClass} ${styles.pillDefault}`;
+}
+
+function getDictamenPillClass(decision: "APROBADO" | "CORRECCIONES" | "RECHAZADO"): string {
+  const baseClass = styles.pill;
+  
+  if (decision === "APROBADO") {
+    return `${baseClass} ${styles.pillApproved}`;
+  }
+  if (decision === "CORRECCIONES") {
+    return `${baseClass} ${styles.pillCorrections}`;
+  }
+  return `${baseClass} ${styles.pillRejected}`;
+}
+
 export default function CapituloDetalle() {
   const nav = useNavigate();
   const { id } = useParams();
@@ -319,7 +338,7 @@ export default function CapituloDetalle() {
   const [evaluatorCvu, setEvaluatorCvu] = useState<string>("");
 
   // ============================
-  // ✅ EVALUACIÓN (nuevo)
+  // ✅ EVALUACIÓN (nuevo) - AGREGADO POR TU COMPAÑERA (NO BORRAR)
   // ============================
   const [evalTipo, setEvalTipo] = useState<string>("");
   const [evalCriterios, setEvalCriterios] = useState<CriterioEvaluacion[]>(
@@ -335,7 +354,7 @@ export default function CapituloDetalle() {
     return Number((suma / evalCriterios.length).toFixed(1));
   }, [evalCriterios]);
 
-  // Estados existentes (NO los muevo, los de dictamen los dejo porque tu flujo los usa)
+  // ✅ Estado para el dictamen actual (tuyo)
   const [dictamenTipo, setDictamenTipo] = useState<string>("");
   const [criterios, setCriterios] = useState<CriterioEvaluacion[]>(
     CRITERIOS_PREDEFINIDOS.map((c) => ({ ...c, puntaje: 3 }))
@@ -362,7 +381,7 @@ export default function CapituloDetalle() {
     setEvaluatorEmail(c.evaluatorEmail ?? "");
     setEvaluatorCvu(c.evaluatorCvu ?? "");
 
-    // Mantengo tu parte de dictamenActual intacta (no la rompo)
+    // TU PARTE: dictamenActual
     if (c.dictamenActual) {
       setDictamenTipo(c.dictamenActual.tipo || "");
       setCriterios(c.dictamenActual.criterios);
@@ -379,9 +398,7 @@ export default function CapituloDetalle() {
       setDictamenFolio(generarFolioDictamen());
     }
 
-    // ✅ Precarga EVALUACIÓN desde backend si existe:
-    // Ideal: payload.evaluacion_actual → map a evaluacionActual en respuesta
-    // Fallback: si aún no existe, usa dictamenActual como fuente para prellenar UI
+    // ✅ PARTE DE TU COMPAÑERA: Precarga EVALUACIÓN desde backend si existe
     const src = (c as any).evaluacionActual ?? (c as any).dictamenActual ?? null;
 
     if (src) {
@@ -506,7 +523,7 @@ export default function CapituloDetalle() {
   };
 
   // ============================================================
-  // GUARDAR DICTAMEN (tu flujo existente - lo dejo intacto)
+  // GUARDAR DICTAMEN (tuyo)
   // ============================================================
   const guardarDictamen = async () => {
     if (!chapter.evaluatorEmail) return alert("Primero asigna un dictaminador.");
@@ -552,7 +569,7 @@ export default function CapituloDetalle() {
   };
 
   // ============================================================
-  // ✅ GUARDAR EVALUACIÓN (NUEVO)
+  // ✅ GUARDAR EVALUACIÓN (NUEVO) - AGREGADO POR TU COMPAÑERA (NO BORRAR)
   // ============================================================
   const guardarEvaluacion = async () => {
     if (!chapterId) return;
@@ -829,57 +846,57 @@ export default function CapituloDetalle() {
   };
 
   const renderTopInfo = () => {
-    if (loading) return <div style={styles.mutedSmall}>Cargando…</div>;
-    if (errMsg) return <div style={{ ...styles.mutedSmall, color: "#B42318" }}>{errMsg}</div>;
-    if (successMsg) return <div style={{ ...styles.mutedSmall, color: "#0A7A35" }}>{successMsg}</div>;
+    if (loading) return <div className={styles.mutedSmall}>Cargando…</div>;
+    if (errMsg) return <div className={styles.mutedSmall} style={{ color: "#B42318" }}>{errMsg}</div>;
+    if (successMsg) return <div className={styles.mutedSmall} style={{ color: "#0A7A35" }}>{successMsg}</div>;
     return null;
   };
 
   return (
-    <div style={styles.wrap}>
+    <div className={styles.wrap}>
       {renderTopInfo()}
 
       {/* BARRA SUPERIOR */}
-      <div style={styles.topBar}>
-        <div style={styles.topLeft}>
-          <button style={styles.backBtn} onClick={() => nav("/capitulos")} type="button">
+      <div className={styles.topBar}>
+        <div className={styles.topLeft}>
+          <button className={styles.backBtn} onClick={() => nav("/capitulos")} type="button">
             ← Volver
           </button>
 
-          <div style={styles.titleBlock}>
-            <h2 style={styles.h2}>{chapterSeed.title}</h2>
-            <div style={styles.metaRow}>
-              <span style={styles.metaItem}>
+          <div className={styles.titleBlock}>
+            <h2 className={styles.h2}>{chapterSeed.title}</h2>
+            <div className={styles.metaRow}>
+              <span className={styles.metaItem}>
                 <b>Libro:</b> {chapterSeed.book}
               </span>
-              <span style={styles.metaDot}>•</span>
-              <span style={styles.metaItem}>
+              <span className={styles.metaDot}>•</span>
+              <span className={styles.metaItem}>
                 <b>Autor:</b> {chapterSeed.author}
               </span>
             </div>
           </div>
         </div>
 
-        <div style={styles.topRight}>
-          <div style={styles.folioBox}>
-            <div style={styles.folioLabel}>Folio Capítulo</div>
-            <div style={styles.folioValue}>{chapterSeed.folio}</div>
+        <div className={styles.topRight}>
+          <div className={styles.folioBox}>
+            <div className={styles.folioLabel}>Folio Capítulo</div>
+            <div className={styles.folioValue}>{chapterSeed.folio}</div>
           </div>
 
-          <div style={styles.statusBox}>
-            <div style={styles.statusLabel}>Estado</div>
-            <span style={{ ...styles.pill, ...pillTone(chapter.status) }}>{statusLabel(chapter.status)}</span>
+          <div className={styles.statusBox}>
+            <div className={styles.statusLabel}>Estado</div>
+            <span className={getPillClass(chapter.status)}>{statusLabel(chapter.status)}</span>
           </div>
         </div>
       </div>
 
       {/* CUERPO */}
-      <div style={styles.bodyGrid}>
+      <div className={styles.bodyGrid}>
         {/* CENTRO - TABS */}
-        <div style={styles.centerCard}>
-          <div style={styles.tabs}>
+        <div className={styles.centerCard}>
+          <div className={styles.tabs}>
             <button
-              style={{ ...styles.tabBtn, ...(tab === "VERSIONES" ? styles.tabActive : null) }}
+              className={`${styles.tabBtn} ${tab === "VERSIONES" ? styles.tabActive : ""}`}
               onClick={() => setTab("VERSIONES")}
               type="button"
               disabled={saving}
@@ -888,7 +905,7 @@ export default function CapituloDetalle() {
             </button>
 
             <button
-              style={{ ...styles.tabBtn, ...(tab === "DICTAMENES" ? styles.tabActive : null) }}
+              className={`${styles.tabBtn} ${tab === "DICTAMENES" ? styles.tabActive : ""}`}
               onClick={() => setTab("DICTAMENES")}
               type="button"
               disabled={saving}
@@ -897,7 +914,7 @@ export default function CapituloDetalle() {
             </button>
 
             <button
-              style={{ ...styles.tabBtn, ...(tab === "EVALUACION" ? styles.tabActive : null) }}
+              className={`${styles.tabBtn} ${tab === "EVALUACION" ? styles.tabActive : ""}`}
               onClick={() => setTab("EVALUACION")}
               type="button"
               disabled={saving}
@@ -906,7 +923,7 @@ export default function CapituloDetalle() {
             </button>
 
             <button
-              style={{ ...styles.tabBtn, ...(tab === "CONSTANCIAS" ? styles.tabActive : null) }}
+              className={`${styles.tabBtn} ${tab === "CONSTANCIAS" ? styles.tabActive : ""}`}
               onClick={() => setTab("CONSTANCIAS")}
               type="button"
               disabled={saving}
@@ -915,7 +932,7 @@ export default function CapituloDetalle() {
             </button>
 
             <button
-              style={{ ...styles.tabBtn, ...(tab === "HISTORIAL" ? styles.tabActive : null) }}
+              className={`${styles.tabBtn} ${tab === "HISTORIAL" ? styles.tabActive : ""}`}
               onClick={() => setTab("HISTORIAL")}
               type="button"
               disabled={saving}
@@ -924,17 +941,17 @@ export default function CapituloDetalle() {
             </button>
           </div>
 
-          <div style={styles.tabContent}>
+          <div className={styles.tabContent}>
             {/* TAB: VERSIONES */}
             {tab === "VERSIONES" && (
-              <div style={styles.section}>
-                <div style={styles.sectionTop}>
+              <div className={styles.section}>
+                <div className={styles.sectionTop}>
                   <div>
-                    <h3 style={styles.h3}>Versiones del capítulo</h3>
-                    <p style={styles.p}>Archivos subidos por autor, dictaminador o editorial.</p>
+                    <h3 className={styles.h3}>Versiones del capítulo</h3>
+                    <p className={styles.p}>Archivos subidos por autor, dictaminador o editorial.</p>
                   </div>
                   <button
-                    style={styles.secondaryBtn}
+                    className={styles.secondaryBtn}
                     onClick={() => fileInputRef.current?.click()}
                     type="button"
                     disabled={saving}
@@ -954,29 +971,29 @@ export default function CapituloDetalle() {
                   />
                 </div>
 
-                <div style={styles.tableCard}>
-                  <table style={styles.table}>
+                <div className={styles.tableCard}>
+                  <table className={styles.table}>
                     <thead>
                       <tr>
-                        <th style={styles.th}>Versión</th>
-                        <th style={styles.th}>Archivo</th>
-                        <th style={styles.th}>Subido por</th>
-                        <th style={styles.th}>Fecha</th>
-                        <th style={styles.th}>Nota</th>
-                        <th style={styles.th}>Acción</th>
+                        <th className={styles.th}>Versión</th>
+                        <th className={styles.th}>Archivo</th>
+                        <th className={styles.th}>Subido por</th>
+                        <th className={styles.th}>Fecha</th>
+                        <th className={styles.th}>Nota</th>
+                        <th className={styles.th}>Acción</th>
                       </tr>
                     </thead>
                     <tbody>
                       {chapter.versions.map((v) => (
                         <tr key={v.id}>
-                          <td style={styles.td}>{v.versionLabel}</td>
-                          <td style={styles.td}>
-                            <div style={styles.cellTitle}>{v.fileName}</div>
+                          <td className={styles.td}>{v.versionLabel}</td>
+                          <td className={styles.td}>
+                            <div className={styles.cellTitle}>{v.fileName}</div>
                           </td>
-                          <td style={styles.td}>
+                          <td className={styles.td}>
                             <span
+                              className={styles.miniPill}
                               style={{
-                                ...styles.miniPill,
                                 background:
                                   v.uploadedBy === "autor"
                                     ? "#E9F2FF"
@@ -992,11 +1009,11 @@ export default function CapituloDetalle() {
                                 : "Editorial"}
                             </span>
                           </td>
-                          <td style={styles.td}>{fmtDate(v.uploadedAt)}</td>
-                          <td style={styles.td}>{v.note}</td>
-                          <td style={styles.td}>
+                          <td className={styles.td}>{fmtDate(v.uploadedAt)}</td>
+                          <td className={styles.td}>{v.note}</td>
+                          <td className={styles.td}>
                             <button
-                              style={styles.linkBtn}
+                              className={styles.linkBtn}
                               onClick={() => downloadVersion({ id: v.id, fileName: v.fileName })}
                               type="button"
                               disabled={saving}
@@ -1008,7 +1025,7 @@ export default function CapituloDetalle() {
                       ))}
                       {chapter.versions.length === 0 && (
                         <tr>
-                          <td style={styles.td} colSpan={6}>
+                          <td className={styles.td} colSpan={6}>
                             No hay versiones aún.
                           </td>
                         </tr>
@@ -1021,58 +1038,50 @@ export default function CapituloDetalle() {
 
             {/* TAB: DICTAMENES (HISTÓRICO) */}
             {tab === "DICTAMENES" && (
-              <div style={styles.section}>
-                <div style={styles.sectionTop}>
+              <div className={styles.section}>
+                <div className={styles.sectionTop}>
                   <div>
-                    <h3 style={styles.h3}>Historial de dictámenes</h3>
-                    <p style={styles.p}>Todas las evaluaciones realizadas.</p>
+                    <h3 className={styles.h3}>Historial de dictámenes</h3>
+                    <p className={styles.p}>Todas las evaluaciones realizadas.</p>
                   </div>
                 </div>
 
-                <div style={styles.tableCard}>
-                  <table style={styles.table}>
+                <div className={styles.tableCard}>
+                  <table className={styles.table}>
                     <thead>
                       <tr>
-                        <th style={styles.th}>Folio</th>
-                        <th style={styles.th}>Evaluador</th>
-                        <th style={styles.th}>Tipo</th>
-                        <th style={styles.th}>Promedio</th>
-                        <th style={styles.th}>Dictamen</th>
-                        <th style={styles.th}>Firmado</th>
-                        <th style={styles.th}>Fecha</th>
-                        <th style={styles.th}>Acción</th>
+                        <th className={styles.th}>Folio</th>
+                        <th className={styles.th}>Evaluador</th>
+                        <th className={styles.th}>Tipo</th>
+                        <th className={styles.th}>Promedio</th>
+                        <th className={styles.th}>Dictamen</th>
+                        <th className={styles.th}>Firmado</th>
+                        <th className={styles.th}>Fecha</th>
+                        <th className={styles.th}>Acción</th>
                       </tr>
                     </thead>
                     <tbody>
                       {chapter.dictamenes.map((d) => (
                         <tr key={d.id}>
-                          <td style={styles.td}>
+                          <td className={styles.td}>
                             <b>{d.folio}</b>
                           </td>
-                          <td style={styles.td}>{d.evaluador}</td>
-                          <td style={styles.td}>{d.type || "—"}</td>
-                          <td style={styles.td}>
-                            {Number.isFinite(d.scoreAvg) ? d.scoreAvg.toFixed(1) : "—"}
+                          <td className={styles.td}>{d.evaluador}</td>
+                          <td className={styles.td}>{d.type || "—"}</td>
+                          <td className={styles.td}>{Number.isFinite(d.scoreAvg) ? d.scoreAvg.toFixed(1) : "—"}</td>
+                          <td className={styles.td}>
+                            <span className={getDictamenPillClass(d.decision)}>{dictamenLabel(d.decision)}</span>
                           </td>
-                          <td style={styles.td}>
-                            <span style={{ ...styles.pill, ...dictamenTone(d.decision) }}>
-                              {dictamenLabel(d.decision)}
-                            </span>
-                          </td>
-                          <td style={styles.td}>{d.firmado ? "✅ Sí" : "❌ No"}</td>
-                          <td style={styles.td}>{fmtDate(d.createdAt)}</td>
-                          <td style={styles.td}>
-                            <button
-                              style={styles.linkBtn}
-                              onClick={() => viewDictamenPdf(d.id)}
-                              type="button"
-                              disabled={saving}
-                            >
+                          <td className={styles.td}>{d.firmado ? "✅ Sí" : "❌ No"}</td>
+                          <td className={styles.td}>{fmtDate(d.createdAt)}</td>
+                          <td className={styles.td}>
+                            <button className={styles.linkBtn} onClick={() => viewDictamenPdf(d.id)} type="button" disabled={saving}>
                               Ver PDF
                             </button>
 
                             <button
-                              style={{ ...styles.linkBtn, marginLeft: 8 }}
+                              className={styles.linkBtn}
+                              style={{ marginLeft: 8 }}
                               onClick={async () => {
                                 setSaving(true);
                                 setErrMsg(null);
@@ -1102,7 +1111,7 @@ export default function CapituloDetalle() {
                       ))}
                       {chapter.dictamenes.length === 0 && (
                         <tr>
-                          <td style={styles.td} colSpan={8}>
+                          <td className={styles.td} colSpan={8}>
                             Aún no hay dictámenes.
                           </td>
                         </tr>
@@ -1113,54 +1122,54 @@ export default function CapituloDetalle() {
               </div>
             )}
 
-            {/* ✅ TAB: EVALUACIÓN (MEJORADO) */}
+            {/* ✅ TAB: EVALUACIÓN (con funcionalidad de tu compañera + tus estilos) */}
             {tab === "EVALUACION" && (
-              <div style={styles.section}>
-                <div style={styles.sectionTop}>
+              <div className={styles.section}>
+                <div className={styles.sectionTop}>
                   <div>
-                    <h3 style={styles.h3}>Evaluación</h3>
-                    <p style={styles.p}>
+                    <h3 className={styles.h3}>Evaluación</h3>
+                    <p className={styles.p}>
                       Captura criterios (1–5), decisión y observaciones. El promedio se calcula automáticamente.
                     </p>
                   </div>
 
-                  <button style={styles.primaryBtn} onClick={guardarEvaluacion} type="button" disabled={saving}>
+                  <button className={styles.primaryBtn} onClick={guardarEvaluacion} type="button" disabled={saving}>
                     {saving ? "Guardando..." : "💾 Guardar evaluación"}
                   </button>
                 </div>
 
-                <div style={styles.evaluacionGrid}>
+                <div className={styles.evaluacionGrid}>
                   {/* Información básica */}
-                  <div style={styles.evaluacionSection}>
-                    <h4 style={styles.h4}>Información de la evaluación</h4>
+                  <div className={styles.evaluacionSection}>
+                    <h4 className={styles.h4}>Información de la evaluación</h4>
 
-                    <div style={styles.formRow}>
-                      <div style={styles.formField}>
-                        <label style={styles.label}>Tipo</label>
+                    <div className={styles.formRow}>
+                      <div className={styles.formField}>
+                        <label className={styles.label}>Tipo</label>
                         <input
-                          style={styles.input}
+                          className={styles.input}
                           value={evalTipo}
                           onChange={(e) => setEvalTipo(e.target.value)}
                           placeholder='Ej: "Investigación", "Docencia", "Revisión técnica"...'
                           disabled={saving}
                           maxLength={80}
                         />
-                        <div style={styles.mutedSmall}>Texto libre (máx. 80 caracteres).</div>
+                        <div className={styles.mutedSmall}>Texto libre (máx. 80 caracteres).</div>
                       </div>
                     </div>
                   </div>
 
                   {/* Criterios */}
-                  <div style={styles.evaluacionSection}>
-                    <h4 style={styles.h4}>Criterios de evaluación (1-5)</h4>
+                  <div className={styles.evaluacionSection}>
+                    <h4 className={styles.h4}>Criterios de evaluación (1-5)</h4>
 
                     {evalCriterios.map((c, idx) => (
-                      <div key={c.id} style={styles.criterioRow}>
-                        <div style={styles.criterioNombre}>{c.nombre}</div>
+                      <div key={c.id} className={styles.criterioRow}>
+                        <div className={styles.criterioNombre}>{c.nombre}</div>
 
-                        <div style={styles.criterioOpciones}>
+                        <div className={styles.criterioOpciones}>
                           {[1, 2, 3, 4, 5].map((p) => (
-                            <label key={p} style={styles.criterioOption}>
+                            <label key={p} className={styles.criterioOption}>
                               <input
                                 type="radio"
                                 name={`eval-criterio-${c.id}`}
@@ -1180,17 +1189,17 @@ export default function CapituloDetalle() {
                       </div>
                     ))}
 
-                    <div style={styles.promedioBox}>
+                    <div className={styles.promedioBox}>
                       <b>Promedio:</b> {promedioEvaluacion}
                     </div>
                   </div>
 
                   {/* Decisión + comentarios */}
-                  <div style={styles.evaluacionSection}>
-                    <h4 style={styles.h4}>Decisión</h4>
+                  <div className={styles.evaluacionSection}>
+                    <h4 className={styles.h4}>Decisión</h4>
 
-                    <div style={styles.decisionRow}>
-                      <label style={styles.radioLabel}>
+                    <div className={styles.decisionRow}>
+                      <label className={styles.radioLabel}>
                         <input
                           type="radio"
                           name="eval-decision"
@@ -1199,10 +1208,10 @@ export default function CapituloDetalle() {
                           onChange={() => setEvalDecision("APROBADO")}
                           disabled={saving}
                         />
-                        <span style={{ ...styles.decisionTag, ...dictamenTone("APROBADO") }}>Aprobado</span>
+                        <span className={`${styles.decisionTag} ${getDictamenPillClass("APROBADO")}`}>Aprobado</span>
                       </label>
 
-                      <label style={styles.radioLabel}>
+                      <label className={styles.radioLabel}>
                         <input
                           type="radio"
                           name="eval-decision"
@@ -1211,10 +1220,10 @@ export default function CapituloDetalle() {
                           onChange={() => setEvalDecision("CORRECCIONES")}
                           disabled={saving}
                         />
-                        <span style={{ ...styles.decisionTag, ...dictamenTone("CORRECCIONES") }}>Correcciones</span>
+                        <span className={`${styles.decisionTag} ${getDictamenPillClass("CORRECCIONES")}`}>Correcciones</span>
                       </label>
 
-                      <label style={styles.radioLabel}>
+                      <label className={styles.radioLabel}>
                         <input
                           type="radio"
                           name="eval-decision"
@@ -1223,14 +1232,14 @@ export default function CapituloDetalle() {
                           onChange={() => setEvalDecision("RECHAZADO")}
                           disabled={saving}
                         />
-                        <span style={{ ...styles.decisionTag, ...dictamenTone("RECHAZADO") }}>Rechazado</span>
+                        <span className={`${styles.decisionTag} ${getDictamenPillClass("RECHAZADO")}`}>Rechazado</span>
                       </label>
                     </div>
 
-                    <div style={styles.formField}>
-                      <label style={styles.label}>Comentarios / Observaciones</label>
+                    <div className={styles.formField}>
+                      <label className={styles.label}>Comentarios / Observaciones</label>
                       <textarea
-                        style={styles.textarea}
+                        className={styles.textarea}
                         value={evalComentarios}
                         onChange={(e) => setEvalComentarios(e.target.value)}
                         placeholder="Escribe aquí tus comentarios sobre el capítulo..."
@@ -1239,10 +1248,10 @@ export default function CapituloDetalle() {
                       />
                     </div>
 
-                    <div style={styles.formField}>
-                      <label style={styles.label}>Conflictos de interés</label>
+                    <div className={styles.formField}>
+                      <label className={styles.label}>Conflictos de interés</label>
                       <input
-                        style={styles.input}
+                        className={styles.input}
                         value={evalConflictosInteres}
                         onChange={(e) => setEvalConflictosInteres(e.target.value)}
                         placeholder="NO o SÍ: explicación"
@@ -1251,18 +1260,18 @@ export default function CapituloDetalle() {
                     </div>
                   </div>
 
-                  {/* Firma (la dejo intacta porque es parte de tu flujo dictamen) */}
-                  <div style={styles.evaluacionSection}>
-                    <h4 style={styles.h4}>Firma del dictamen</h4>
+                  {/* Firma (tu parte) */}
+                  <div className={styles.evaluacionSection}>
+                    <h4 className={styles.h4}>Firma del dictamen</h4>
                     {chapter.dictamenActual?.firmado ? (
-                      <div style={styles.successBox}>
+                      <div className={styles.successBox}>
                         ✅ Dictamen firmado el {fmtDate(chapter.dictamenActual.fechaFirma || "")}
                       </div>
                     ) : (
                       <>
-                        <p style={styles.p}>Sube el dictamen firmado en PDF</p>
+                        <p className={styles.p}>Sube el dictamen firmado en PDF</p>
                         <button
-                          style={styles.secondaryBtn}
+                          className={styles.secondaryBtn}
                           onClick={() => firmaInputRef.current?.click()}
                           type="button"
                           disabled={saving || !chapter.dictamenActual}
@@ -1280,7 +1289,7 @@ export default function CapituloDetalle() {
                             firmarDictamen(f);
                           }}
                         />
-                        {!chapter.dictamenActual && <div style={styles.mutedSmall}>Primero guarda el dictamen</div>}
+                        {!chapter.dictamenActual && <div className={styles.mutedSmall}>Primero guarda el dictamen</div>}
                       </>
                     )}
                   </div>
@@ -1290,51 +1299,41 @@ export default function CapituloDetalle() {
 
             {/* TAB: CONSTANCIAS */}
             {tab === "CONSTANCIAS" && (
-              <div style={styles.section}>
-                <div style={styles.sectionTop}>
+              <div className={styles.section}>
+                <div className={styles.sectionTop}>
                   <div>
-                    <h3 style={styles.h3}>Constancias</h3>
-                    <p style={styles.p}>Documentos de reconocimiento para dictaminadores.</p>
+                    <h3 className={styles.h3}>Constancias</h3>
+                    <p className={styles.p}>Documentos de reconocimiento para dictaminadores.</p>
                   </div>
-                  <button
-                    style={styles.primaryBtn}
-                    onClick={generateConstancia}
-                    type="button"
-                    disabled={saving || !chapter.dictamenActual?.firmado}
-                  >
+                  <button className={styles.primaryBtn} onClick={generateConstancia} type="button" disabled={saving || !chapter.dictamenActual?.firmado}>
                     🏆 Generar constancia
                   </button>
                 </div>
 
-                <div style={styles.tableCard}>
-                  <table style={styles.table}>
+                <div className={styles.tableCard}>
+                  <table className={styles.table}>
                     <thead>
                       <tr>
-                        <th style={styles.th}>Folio</th>
-                        <th style={styles.th}>Dictaminador</th>
-                        <th style={styles.th}>CVU SNII</th>
-                        <th style={styles.th}>Capítulo</th>
-                        <th style={styles.th}>Fecha emisión</th>
-                        <th style={styles.th}>Acción</th>
+                        <th className={styles.th}>Folio</th>
+                        <th className={styles.th}>Dictaminador</th>
+                        <th className={styles.th}>CVU SNII</th>
+                        <th className={styles.th}>Capítulo</th>
+                        <th className={styles.th}>Fecha emisión</th>
+                        <th className={styles.th}>Acción</th>
                       </tr>
                     </thead>
                     <tbody>
                       {chapter.constancias.map((c) => (
                         <tr key={c.id}>
-                          <td style={styles.td}>
+                          <td className={styles.td}>
                             <b>{c.folio}</b>
                           </td>
-                          <td style={styles.td}>{c.evaluadorNombre}</td>
-                          <td style={styles.td}>{c.evaluadorCvu}</td>
-                          <td style={styles.td}>{c.capituloTitulo}</td>
-                          <td style={styles.td}>{fmtDate(c.fechaEmision)}</td>
-                          <td style={styles.td}>
-                            <button
-                              style={styles.linkBtn}
-                              onClick={() => window.open(c.pdfUrl, "_blank")}
-                              type="button"
-                              disabled={!c.pdfUrl}
-                            >
+                          <td className={styles.td}>{c.evaluadorNombre}</td>
+                          <td className={styles.td}>{c.evaluadorCvu}</td>
+                          <td className={styles.td}>{c.capituloTitulo}</td>
+                          <td className={styles.td}>{fmtDate(c.fechaEmision)}</td>
+                          <td className={styles.td}>
+                            <button className={styles.linkBtn} onClick={() => window.open(c.pdfUrl, "_blank")} type="button" disabled={!c.pdfUrl}>
                               Ver PDF
                             </button>
                           </td>
@@ -1342,7 +1341,7 @@ export default function CapituloDetalle() {
                       ))}
                       {chapter.constancias.length === 0 && (
                         <tr>
-                          <td style={styles.td} colSpan={6}>
+                          <td className={styles.td} colSpan={6}>
                             No hay constancias generadas aún.
                           </td>
                         </tr>
@@ -1351,39 +1350,35 @@ export default function CapituloDetalle() {
                   </table>
                 </div>
 
-                {!chapter.dictamenActual?.firmado && (
-                  <div style={styles.warningBox}>
-                    ⚠️ Las constancias solo se pueden generar cuando el dictamen está FIRMADO.
-                  </div>
-                )}
+                {!chapter.dictamenActual?.firmado && <div className={styles.warningBox}>⚠️ Las constancias solo se pueden generar cuando el dictamen está FIRMADO.</div>}
               </div>
             )}
 
             {/* TAB: HISTORIAL */}
             {tab === "HISTORIAL" && (
-              <div style={styles.section}>
-                <div style={styles.sectionTop}>
+              <div className={styles.section}>
+                <div className={styles.sectionTop}>
                   <div>
-                    <h3 style={styles.h3}>Historial de actividades</h3>
-                    <p style={styles.p}>Todos los eventos del proceso.</p>
+                    <h3 className={styles.h3}>Historial de actividades</h3>
+                    <p className={styles.p}>Todos los eventos del proceso.</p>
                   </div>
                 </div>
 
-                <div style={styles.timeline}>
+                <div className={styles.timeline}>
                   {chapter.history.map((h) => (
-                    <div key={h.id} style={styles.timelineItem}>
-                      <div style={styles.timelineDot} />
-                      <div style={styles.timelineBody}>
-                        <div style={styles.timelineTop}>
-                          <span style={styles.timelineAction}>{h.action}</span>
-                          <span style={styles.timelineAt}>{fmtDateTime(h.at)}</span>
+                    <div key={h.id} className={styles.timelineItem}>
+                      <div className={styles.timelineDot} />
+                      <div className={styles.timelineBody}>
+                        <div className={styles.timelineTop}>
+                          <span className={styles.timelineAction}>{h.action}</span>
+                          <span className={styles.timelineAt}>{fmtDateTime(h.at)}</span>
                         </div>
-                        <div style={styles.timelineDetail}>{h.detail}</div>
-                        <div style={styles.timelineBy}>Por: {h.by}</div>
+                        <div className={styles.timelineDetail}>{h.detail}</div>
+                        <div className={styles.timelineBy}>Por: {h.by}</div>
                       </div>
                     </div>
                   ))}
-                  {chapter.history.length === 0 && <div style={styles.mutedSmall}>Sin eventos registrados.</div>}
+                  {chapter.history.length === 0 && <div className={styles.mutedSmall}>Sin eventos registrados.</div>}
                 </div>
               </div>
             )}
@@ -1391,57 +1386,37 @@ export default function CapituloDetalle() {
         </div>
 
         {/* DERECHA: Acciones rápidas */}
-        <div style={styles.rightCard}>
-          <h3 style={styles.h3}>Acciones rápidas</h3>
-          <p style={styles.p}>Flujo editorial simplificado</p>
+        <div className={styles.rightCard}>
+          <h3 className={styles.h3}>Acciones rápidas</h3>
+          <p className={styles.p}>Flujo editorial simplificado</p>
 
-          <div style={styles.actionBox}>
-            <div style={styles.actionTitle}>👤 Asignar dictaminador</div>
-            <input
-              style={styles.input}
-              value={evaluatorName}
-              onChange={(e) => setEvaluatorName(e.target.value)}
-              placeholder="Nombre completo"
-              disabled={saving}
-            />
-            <input
-              style={styles.input}
-              value={evaluatorEmail}
-              onChange={(e) => setEvaluatorEmail(e.target.value)}
-              placeholder="Correo electrónico"
-              disabled={saving}
-            />
-            <input
-              style={styles.input}
-              value={evaluatorCvu}
-              onChange={(e) => setEvaluatorCvu(e.target.value)}
-              placeholder="CVU SNII"
-              disabled={saving}
-            />
-            <button style={styles.primaryBtn} onClick={assignEvaluator} type="button" disabled={saving || loading}>
+          {/* Asignar dictaminador */}
+          <div className={styles.actionBox}>
+            <div className={styles.actionTitle}>👤 Asignar dictaminador</div>
+            <input className={styles.input} value={evaluatorName} onChange={(e) => setEvaluatorName(e.target.value)} placeholder="Nombre completo" disabled={saving} />
+            <input className={styles.input} value={evaluatorEmail} onChange={(e) => setEvaluatorEmail(e.target.value)} placeholder="Correo electrónico" disabled={saving} />
+            <input className={styles.input} value={evaluatorCvu} onChange={(e) => setEvaluatorCvu(e.target.value)} placeholder="CVU SNII" disabled={saving} />
+            <button className={styles.primaryBtn} onClick={assignEvaluator} type="button" disabled={saving || loading}>
               Asignar dictaminador
             </button>
           </div>
 
-          <div style={styles.actionBox}>
-            <div style={styles.actionTitle}>📧 Envíos</div>
-            <button style={styles.secondaryBtnFull} onClick={sendToEvaluator} type="button" disabled={saving || loading}>
+          {/* Envíos */}
+          <div className={styles.actionBox}>
+            <div className={styles.actionTitle}>📧 Envíos</div>
+            <button className={styles.secondaryBtnFull} onClick={sendToEvaluator} type="button" disabled={saving || loading}>
               Enviar a dictaminador
             </button>
-            <button
-              style={styles.secondaryBtnFull}
-              onClick={requestCorrectionsToAuthor}
-              type="button"
-              disabled={saving || loading}
-            >
+            <button className={styles.secondaryBtnFull} onClick={requestCorrectionsToAuthor} type="button" disabled={saving || loading}>
               Solicitar correcciones al autor
             </button>
           </div>
 
-          <div style={styles.actionBox}>
-            <div style={styles.actionTitle}>🔄 Flujo automático</div>
+          {/* Flujo automático */}
+          <div className={styles.actionBox}>
+            <div className={styles.actionTitle}>🔄 Flujo automático</div>
             <button
-              style={styles.primaryBtn}
+              className={styles.primaryBtn}
               onClick={() => alert("Luego lo revisamos (flujo automático).")}
               type="button"
               disabled={saving || loading}
@@ -1450,29 +1425,26 @@ export default function CapituloDetalle() {
               Avanzar al siguiente estado
             </button>
 
-            <div style={styles.mutedSmall}>Estados: Reenviado → Revisado editorial → Listo para firma → Firmado</div>
+            <div className={styles.mutedSmall}>Estados: Reenviado → Revisado editorial → Listo para firma → Firmado</div>
           </div>
 
-          <div style={styles.actionBox}>
-            <div style={styles.actionTitle}>✅ Decisión final</div>
-            <div style={styles.actionRow}>
-              <button style={styles.approveBtn} onClick={() => setNewStatus("APROBADO")} type="button" disabled={saving || loading}>
+          {/* Decisión final */}
+          <div className={styles.actionBox}>
+            <div className={styles.actionTitle}>✅ Decisión final</div>
+            <div className={styles.actionRow}>
+              <button className={styles.approveBtn} onClick={() => setNewStatus("APROBADO")} type="button" disabled={saving || loading}>
                 Aprobar
               </button>
-              <button style={styles.rejectBtn} onClick={() => setNewStatus("RECHAZADO")} type="button" disabled={saving || loading}>
+              <button className={styles.rejectBtn} onClick={() => setNewStatus("RECHAZADO")} type="button" disabled={saving || loading}>
                 Rechazar
               </button>
             </div>
           </div>
 
-          <div style={styles.actionBox}>
-            <div style={styles.actionTitle}>🔄 Cambiar estado</div>
-            <select
-              style={styles.input}
-              value={chapter.status}
-              onChange={(e) => setNewStatus(e.target.value as Status)}
-              disabled={saving || loading}
-            >
+          {/* Cambiar estado manual */}
+          <div className={styles.actionBox}>
+            <div className={styles.actionTitle}>🔄 Cambiar estado</div>
+            <select className={styles.input} value={chapter.status} onChange={(e) => setNewStatus(e.target.value as Status)} disabled={saving || loading}>
               {statusOptions().map((s) => (
                 <option key={s} value={s}>
                   {statusLabel(s)}
@@ -1481,7 +1453,7 @@ export default function CapituloDetalle() {
             </select>
           </div>
 
-          {(saving || loading) && <div style={styles.mutedSmall}>{loading ? "Cargando…" : "Guardando…"}</div>}
+          {(saving || loading) && <div className={styles.mutedSmall}>{loading ? "Cargando…" : "Guardando…"}</div>}
         </div>
       </div>
     </div>
@@ -1524,28 +1496,10 @@ function statusLabel(s: Status): string {
   return map[s];
 }
 
-function pillTone(s: Status): React.CSSProperties {
-  if (s === "APROBADO" || s === "FIRMADO")
-    return { background: "#E8F7EE", color: "#0A7A35", borderColor: "#BFE9CF" };
-  if (s.includes("CORRECCIONES"))
-    return { background: "#FFF6E5", color: "#9A5B00", borderColor: "#FFE0A3" };
-  if (s.includes("REVISION") || s.includes("ENVIADO") || s.includes("ASIGNADO"))
-    return { background: "#E9F2FF", color: "#1447B2", borderColor: "#C9DDFF" };
-  if (s === "RECHAZADO")
-    return { background: "#FEECEC", color: "#B42318", borderColor: "#F9CACA" };
-  return { background: "#F3F4F6", color: "#374151", borderColor: "#E5E7EB" };
-}
-
 function dictamenLabel(d: "APROBADO" | "CORRECCIONES" | "RECHAZADO") {
   if (d === "APROBADO") return "✅ Aprobado";
   if (d === "CORRECCIONES") return "✏️ Correcciones";
   return "❌ Rechazado";
-}
-
-function dictamenTone(d: "APROBADO" | "CORRECCIONES" | "RECHAZADO"): React.CSSProperties {
-  if (d === "APROBADO") return { background: "#E8F7EE", color: "#0A7A35", borderColor: "#BFE9CF" };
-  if (d === "CORRECCIONES") return { background: "#FFF6E5", color: "#9A5B00", borderColor: "#FFE0A3" };
-  return { background: "#FEECEC", color: "#B42318", borderColor: "#F9CACA" };
 }
 
 function fmtDate(dateStr: string) {
@@ -1564,125 +1518,3 @@ function fmtDateTime(iso: string) {
   const mi = String(d.getMinutes()).padStart(2, "0");
   return `${dd}/${mm}/${yy} ${hh}:${mi}`;
 }
-
-// ============================================================
-// ESTILOS (tal cual los tuyos)
-// ============================================================
-const styles: Record<string, React.CSSProperties> = {
-  wrap: { display: "flex", flexDirection: "column", gap: 12 },
-  topBar: {
-    background: "#fff",
-    border: "1px solid #E7EAF0",
-    borderRadius: 16,
-    padding: 14,
-    display: "flex",
-    justifyContent: "space-between",
-    gap: 12,
-    alignItems: "flex-start",
-  },
-  topLeft: { display: "flex", gap: 12, alignItems: "flex-start", minWidth: 0 },
-  backBtn: {
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid #D8DEE9",
-    background: "#fff",
-    cursor: "pointer",
-    fontWeight: 900,
-    whiteSpace: "nowrap",
-  },
-  titleBlock: { minWidth: 0 },
-  h2: { margin: 0, fontSize: 18, color: "#111827" },
-  metaRow: { marginTop: 6, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" },
-  metaItem: { fontSize: 13, color: "#374151" },
-  metaDot: { color: "#9CA3AF" },
-
-  topRight: { display: "flex", gap: 10, alignItems: "stretch", flexWrap: "wrap" },
-  folioBox: { border: "1px solid #E7EAF0", borderRadius: 14, padding: 10, minWidth: 180, background: "#F9FAFB" },
-  folioLabel: { fontSize: 12, color: "#6B7280", fontWeight: 900 },
-  folioValue: { marginTop: 4, fontSize: 14, fontWeight: 1000, color: "#111827" },
-
-  statusBox: { border: "1px solid #E7EAF0", borderRadius: 14, padding: 10, minWidth: 240, background: "#F9FAFB" },
-  statusLabel: { fontSize: 12, color: "#6B7280", fontWeight: 900 },
-
-  bodyGrid: { display: "grid", gridTemplateColumns: "1fr 360px", gap: 12, alignItems: "start" },
-
-  centerCard: { background: "#fff", border: "1px solid #E7EAF0", borderRadius: 16, overflow: "hidden" },
-  tabs: { display: "flex", gap: 8, padding: 12, borderBottom: "1px solid #E7EAF0", background: "#F9FAFB", flexWrap: "wrap" },
-  tabBtn: { padding: "10px 12px", borderRadius: 12, border: "1px solid #D8DEE9", background: "#fff", cursor: "pointer", fontWeight: 900 },
-  tabActive: { borderColor: "#0F3D3E", boxShadow: "0 10px 30px rgba(15,61,62,0.12)" },
-  tabContent: { padding: 14 },
-
-  section: { display: "flex", flexDirection: "column", gap: 12 },
-  sectionTop: { display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap" },
-  h3: { margin: 0, fontSize: 16, color: "#111827" },
-  h4: { margin: "8px 0 4px 0", fontSize: 14, color: "#374151" },
-  p: { margin: "6px 0 0 0", fontSize: 13, color: "#6B7280" },
-
-  tableCard: { border: "1px solid #E7EAF0", borderRadius: 14, overflow: "hidden" },
-  table: { width: "100%", borderCollapse: "collapse" },
-  th: { textAlign: "left", fontSize: 12, padding: "10px 12px", background: "#F9FAFB", borderBottom: "1px solid #E7EAF0", color: "#374151" },
-  td: { padding: "10px 12px", borderBottom: "1px solid #F1F5F9", fontSize: 13, color: "#111827", verticalAlign: "top" },
-  cellTitle: { fontWeight: 900 },
-
-  rightCard: {
-    background: "#fff",
-    border: "1px solid #E7EAF0",
-    borderRadius: 16,
-    padding: 14,
-    boxShadow: "0 10px 30px rgba(0,0,0,0.04)",
-    display: "flex",
-    flexDirection: "column",
-    gap: 12,
-  },
-
-  actionBox: { border: "1px solid #E7EAF0", borderRadius: 14, padding: 12, background: "#F9FAFB", display: "flex", flexDirection: "column", gap: 8 },
-  actionTitle: { fontWeight: 1000, color: "#111827", fontSize: 13 },
-
-  input: { padding: "10px 12px", borderRadius: 12, border: "1px solid #D8DEE9", outline: "none", fontSize: 14, background: "#fff" },
-  textarea: { padding: "10px 12px", borderRadius: 12, border: "1px solid #D8DEE9", outline: "none", fontSize: 14, background: "#fff", width: "100%" },
-
-  primaryBtn: { padding: "10px 12px", borderRadius: 12, border: "none", background: "#0F3D3E", color: "#fff", cursor: "pointer", fontWeight: 1000 },
-  secondaryBtn: { padding: "10px 12px", borderRadius: 12, border: "1px solid #D8DEE9", background: "#fff", cursor: "pointer", fontWeight: 1000 },
-  secondaryBtnFull: { padding: "10px 12px", borderRadius: 12, border: "1px solid #D8DEE9", background: "#fff", cursor: "pointer", fontWeight: 1000, width: "100%" },
-
-  actionRow: { display: "flex", gap: 10 },
-  approveBtn: { flex: 1, padding: "10px 12px", borderRadius: 12, border: "none", background: "#0A7A35", color: "#fff", cursor: "pointer", fontWeight: 1000 },
-  rejectBtn: { flex: 1, padding: "10px 12px", borderRadius: 12, border: "none", background: "#B42318", color: "#fff", cursor: "pointer", fontWeight: 1000 },
-
-  pill: { display: "inline-block", fontSize: 12, padding: "4px 10px", borderRadius: 999, border: "1px solid", fontWeight: 1000, whiteSpace: "nowrap" },
-  miniPill: { display: "inline-block", fontSize: 11, padding: "2px 8px", borderRadius: 999, border: "1px solid #E7EAF0", fontWeight: 900 },
-
-  linkBtn: { padding: "8px 10px", borderRadius: 10, border: "1px solid #D8DEE9", background: "#fff", cursor: "pointer", fontWeight: 1000 },
-
-  mutedSmall: { color: "#6B7280", fontSize: 12 },
-
-  evaluacionGrid: { display: "flex", flexDirection: "column", gap: 16 },
-  evaluacionSection: { border: "1px solid #E7EAF0", borderRadius: 14, padding: 12, background: "#F9FAFB" },
-  formRow: { display: "flex", gap: 12, flexWrap: "wrap" },
-  formField: { flex: 1, display: "flex", flexDirection: "column", gap: 4 },
-  label: { fontSize: 12, fontWeight: 900, color: "#374151" },
-
-  criterioRow: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #E7EAF0" },
-  criterioNombre: { fontSize: 13, color: "#111827" },
-  criterioOpciones: { display: "flex", gap: 12 },
-  criterioOption: { display: "flex", alignItems: "center", gap: 2, fontSize: 12 },
-
-  promedioBox: { marginTop: 8, padding: "8px 12px", background: "#E9F2FF", borderRadius: 8, fontSize: 14 },
-
-  decisionRow: { display: "flex", gap: 16, marginBottom: 12 },
-  radioLabel: { display: "flex", alignItems: "center", gap: 4, cursor: "pointer" },
-  decisionTag: { padding: "4px 8px", borderRadius: 12, fontSize: 12, border: "1px solid" },
-
-  successBox: { padding: "10px 12px", background: "#E8F7EE", color: "#0A7A35", borderRadius: 12, border: "1px solid #BFE9CF" },
-  warningBox: { padding: "10px 12px", background: "#FFF6E5", color: "#9A5B00", borderRadius: 12, border: "1px solid #FFE0A3" },
-
-  timeline: { display: "flex", flexDirection: "column", gap: 12 },
-  timelineItem: { display: "grid", gridTemplateColumns: "16px 1fr", gap: 10, alignItems: "start" },
-  timelineDot: { width: 10, height: 10, borderRadius: 999, background: "#0F3D3E", marginTop: 6 },
-  timelineBody: { background: "#F9FAFB", border: "1px solid #E7EAF0", borderRadius: 14, padding: 12 },
-  timelineTop: { display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" },
-  timelineAction: { fontWeight: 1000, color: "#111827" },
-  timelineAt: { fontSize: 12, color: "#6B7280" },
-  timelineDetail: { marginTop: 6, color: "#374151", fontSize: 13 },
-  timelineBy: { marginTop: 6, fontSize: 12, color: "#6B7280" },
-};

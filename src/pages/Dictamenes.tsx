@@ -1,20 +1,17 @@
-// src/pages/Dictamenes.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
+import styles from './Dictamenes.module.css';
 
 type Decision = "APROBADO" | "CORRECCIONES" | "RECHAZADO";
 type DictamenStatus = "BORRADOR" | "GENERADO" | "FIRMADO";
 
 type Row = {
   id: string;
-
   // ✅ folio que se muestra como principal (folio del capítulo)
   folio: string;
-
   // ✅ folio real del dictamen (para referencia/descargas)
   dictamenFolio: string;
-
   capituloId: string;
   capitulo: string;
   libro: string;
@@ -22,16 +19,14 @@ type Row = {
   decision: Decision;
   promedio: number;
   status: DictamenStatus;
-  updatedAt: string; // YYYY-MM-DD
+  updatedAt: string;
 };
 
 type AdminDictamenApi = {
   id: number;
   folio: string; // folio del dictamen (dictamenes.folio)
-
   // ✅ folio del capítulo (chapters.folio) agregado desde backend
   chapterFolio?: string | null;
-
   capituloId: number;
   capitulo: string;
   libro: string;
@@ -41,6 +36,24 @@ type AdminDictamenApi = {
   status: DictamenStatus;
   updatedAt?: string | null;
 };
+
+// ✅ Función para obtener la clase del pill según la decisión
+function getDecisionPillClass(decision: Decision): string {
+  const baseClass = styles.pill;
+  
+  if (decision === "APROBADO") return `${baseClass} ${styles.pillApproved}`;
+  if (decision === "CORRECCIONES") return `${baseClass} ${styles.pillCorrections}`;
+  return `${baseClass} ${styles.pillRejected}`;
+}
+
+// ✅ Función para obtener la clase del pill según el estado
+function getStatusPillClass(status: DictamenStatus): string {
+  const baseClass = styles.pill;
+  
+  if (status === "FIRMADO") return `${baseClass} ${styles.pillFirmado}`;
+  if (status === "GENERADO") return `${baseClass} ${styles.pillGenerado}`;
+  return `${baseClass} ${styles.pillBorrador}`;
+}
 
 export default function Dictamenes() {
   const nav = useNavigate();
@@ -61,14 +74,10 @@ export default function Dictamenes() {
 
       return {
         id: String(d.id),
-
-        // ✅ Folio que se muestra en la tabla:
-        // Prioriza folio del capítulo, si no hay, cae al folio del dictamen
+        // ✅ Folio que se muestra en la tabla: prioriza folio del capítulo
         folio: chapterFolio || dictamenFolio || "—",
-
         // ✅ Folio real del dictamen siempre guardado aparte
         dictamenFolio: dictamenFolio || "—",
-
         capituloId: String(d.capituloId ?? ""),
         capitulo: d.capitulo ?? "—",
         libro: d.libro ?? "—",
@@ -116,7 +125,7 @@ export default function Dictamenes() {
 
       if (!qq) return true;
 
-      // ✅ Buscar por folio capitulo + folio dictamen + texto
+      // ✅ Buscar por folio capitulo + folio dictamen + texto (mejora de tu compañera)
       const blob = `${x.folio} ${x.dictamenFolio} ${x.capitulo} ${x.evaluador} ${x.libro}`.toLowerCase();
       return blob.includes(qq);
     });
@@ -157,7 +166,7 @@ export default function Dictamenes() {
       const cd = res.headers?.["content-disposition"] as string | undefined;
       const fromHeader = cd ? /filename="?([^"]+)"?/i.exec(cd)?.[1] : undefined;
 
-      // ✅ Nombre: preferir folio del capítulo (row.folio) y si no, el del dictamen
+      // ✅ Nombre: preferir folio del capítulo (row.folio) y si no, el del dictamen (mejora de tu compañera)
       const baseFolio = (row.folio && row.folio !== "—") ? row.folio : row.dictamenFolio;
       const fallback = `dictamen-${baseFolio || row.id}.${format}`;
       const filename = sanitizeFilename(fromHeader || fallback);
@@ -178,41 +187,39 @@ export default function Dictamenes() {
   };
 
   return (
-    <div style={styles.wrap}>
-      <style>{responsiveCss}</style>
-
-      <div style={styles.top}>
+    <div className={styles.wrap}>
+      <div className={styles.top}>
         <div style={{ minWidth: 0 }}>
-          <h2 style={styles.h2}>Dictámenes</h2>
-          <p style={styles.p}>
+          <h2 className={styles.h2}>Dictámenes</h2>
+          <p className={styles.p}>
             Emite el documento con plantilla Word: editar datos, generar DOCX/PDF y descargar (con token).
           </p>
         </div>
 
-        <button style={styles.refreshBtn} onClick={load} disabled={loading}>
+        <button className={styles.refreshBtn} onClick={load} disabled={loading}>
           {loading ? "..." : "Recargar"}
         </button>
       </div>
 
-      {loading ? <div style={styles.muted}>Cargando dictámenes...</div> : null}
-      {errorMsg ? <div style={styles.errorBox}>{errorMsg}</div> : null}
+      {loading ? <div className={styles.muted}>Cargando dictámenes...</div> : null}
+      {errorMsg ? <div className={styles.errorBox}>{errorMsg}</div> : null}
 
-      <div style={styles.filtersCard}>
-        <div className="d-grid" style={styles.filtersGrid}>
-          <div style={styles.field}>
-            <label style={styles.label}>Buscar</label>
+      <div className={styles.filtersCard}>
+        <div className={styles.filtersGrid}>
+          <div className={styles.field}>
+            <label className={styles.label}>Buscar</label>
             <input
-              style={styles.input}
+              className={styles.input}
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Folio capítulo, folio dictamen, capítulo, evaluador..."
             />
           </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>Estatus</label>
+          <div className={styles.field}>
+            <label className={styles.label}>Estatus</label>
             <select
-              style={styles.input}
+              className={styles.input}
               value={status}
               onChange={(e) => setStatus(e.target.value as "ALL" | DictamenStatus)}
             >
@@ -223,10 +230,10 @@ export default function Dictamenes() {
             </select>
           </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>Decisión</label>
+          <div className={styles.field}>
+            <label className={styles.label}>Decisión</label>
             <select
-              style={styles.input}
+              className={styles.input}
               value={decision}
               onChange={(e) => setDecision(e.target.value as "ALL" | Decision)}
             >
@@ -238,65 +245,65 @@ export default function Dictamenes() {
           </div>
         </div>
 
-        <div style={styles.resultsRow}>
-          <span style={styles.muted}>
+        <div className={styles.resultsRow}>
+          <span className={styles.muted}>
             Mostrando <b>{filtered.length}</b> de {rows.length}
           </span>
         </div>
       </div>
 
-      <div style={styles.tableCard}>
-        <div style={styles.tableScroll}>
-          <table style={styles.table}>
+      <div className={styles.tableCard}>
+        <div className={styles.tableScroll}>
+          <table className={styles.table}>
             <thead>
               <tr>
-                <th style={styles.th}>Folio (Capítulo)</th>
-                <th style={styles.th}>Capítulo</th>
-                <th style={styles.th}>Libro</th>
-                <th style={styles.th}>Evaluador</th>
-                <th style={styles.th}>Promedio</th>
-                <th style={styles.th}>Decisión</th>
-                <th style={styles.th}>Estatus</th>
-                <th style={styles.th}>Actualizado</th>
-                <th style={styles.th}>Acciones</th>
+                <th className={styles.th}>Folio (Capítulo)</th>
+                <th className={styles.th}>Capítulo</th>
+                <th className={styles.th}>Libro</th>
+                <th className={styles.th}>Evaluador</th>
+                <th className={styles.th}>Promedio</th>
+                <th className={styles.th}>Decisión</th>
+                <th className={styles.th}>Estatus</th>
+                <th className={styles.th}>Actualizado</th>
+                <th className={styles.th}>Acciones</th>
               </tr>
             </thead>
 
             <tbody>
               {filtered.map((x) => (
                 <tr key={x.id}>
-                  <td style={styles.td}>
-                    <div style={styles.cellTitle}>{x.folio}</div>
-                    <div style={styles.cellSub}>Dictamen: {x.dictamenFolio} • ID: {x.id}</div>
+                  <td className={styles.td}>
+                    <div className={styles.cellTitle}>{x.folio}</div>
+                    <div className={styles.cellSub}>Dictamen: {x.dictamenFolio} • ID: {x.id}</div>
                   </td>
 
-                  <td style={styles.td}>
-                    <div style={styles.cellTitle}>{x.capitulo}</div>
-                    <div style={styles.cellSub}>Capítulo ID: {x.capituloId}</div>
+                  <td className={styles.td}>
+                    <div className={styles.cellTitle}>{x.capitulo}</div>
+                    <div className={styles.cellSub}>Capítulo ID: {x.capituloId}</div>
                   </td>
 
-                  <td style={styles.td}>{x.libro}</td>
-                  <td style={styles.td}>{x.evaluador}</td>
-                  <td style={styles.td}>{x.promedio.toFixed(1)}</td>
+                  <td className={styles.td}>{x.libro}</td>
+                  <td className={styles.td}>{x.evaluador}</td>
+                  <td className={styles.td}>{x.promedio.toFixed(1)}</td>
 
-                  <td style={styles.td}>
-                    <span style={{ ...styles.pill, ...decisionTone(x.decision) }}>
+                  <td className={styles.td}>
+                    <span className={getDecisionPillClass(x.decision)}>
                       {decisionLabel(x.decision)}
                     </span>
                   </td>
 
-                  <td style={styles.td}>
-                    <span style={{ ...styles.pill, ...statusTone(x.status) }}>
+                  <td className={styles.td}>
+                    <span className={getStatusPillClass(x.status)}>
                       {statusLabel(x.status)}
                     </span>
                   </td>
 
-                  <td style={styles.td}>{fmtDate(x.updatedAt)}</td>
+                  <td className={styles.td}>{fmtDate(x.updatedAt)}</td>
 
-                  <td style={styles.td}>
-                    <div style={styles.inlineActions}>
+                  <td className={styles.td}>
+                    <div className={styles.inlineActions}>
                       <button
-                        style={styles.miniBtn}
+                        className={styles.miniBtn}
                         type="button"
                         onClick={() => nav(`/dictamenes/${x.id}/documento`)}
                         title="Subir plantilla, editar datos y generar documento"
@@ -305,7 +312,7 @@ export default function Dictamenes() {
                       </button>
 
                       <button
-                        style={styles.miniBtn}
+                        className={styles.miniBtn}
                         type="button"
                         onClick={() => renderDoc(x.id)}
                         disabled={busyId === x.id}
@@ -315,7 +322,7 @@ export default function Dictamenes() {
                       </button>
 
                       <button
-                        style={styles.miniBtn}
+                        className={styles.miniBtn}
                         type="button"
                         onClick={() => download(x, "pdf")}
                         disabled={x.status === "BORRADOR" || busyId === x.id}
@@ -325,7 +332,7 @@ export default function Dictamenes() {
                       </button>
 
                       <button
-                        style={styles.miniBtn}
+                        className={styles.miniBtn}
                         type="button"
                         onClick={() => download(x, "docx")}
                         disabled={x.status === "BORRADOR" || busyId === x.id}
@@ -336,7 +343,7 @@ export default function Dictamenes() {
                     </div>
 
                     {x.status === "BORRADOR" ? (
-                      <div style={styles.cellSub}>Primero sube plantilla y genera.</div>
+                      <div className={styles.cellSub}>Primero sube plantilla y genera.</div>
                     ) : null}
                   </td>
                 </tr>
@@ -344,7 +351,7 @@ export default function Dictamenes() {
 
               {filtered.length === 0 && (
                 <tr>
-                  <td style={styles.td} colSpan={9}>
+                  <td className={styles.td} colSpan={9}>
                     No hay resultados.
                   </td>
                 </tr>
@@ -362,21 +369,11 @@ function decisionLabel(d: Decision) {
   if (d === "CORRECCIONES") return "Correcciones";
   return "Rechazado";
 }
+
 function statusLabel(s: DictamenStatus) {
   if (s === "BORRADOR") return "Borrador";
   if (s === "GENERADO") return "Generado";
   return "Firmado";
-}
-
-function decisionTone(d: Decision): React.CSSProperties {
-  if (d === "APROBADO") return { background: "#E8F7EE", color: "#0A7A35", borderColor: "#BFE9CF" };
-  if (d === "CORRECCIONES") return { background: "#FFF6E5", color: "#9A5B00", borderColor: "#FFE0A3" };
-  return { background: "#FEECEC", color: "#B42318", borderColor: "#F9CACA" };
-}
-function statusTone(s: DictamenStatus): React.CSSProperties {
-  if (s === "FIRMADO") return { background: "#E8F7EE", color: "#0A7A35", borderColor: "#BFE9CF" };
-  if (s === "GENERADO") return { background: "#E9F2FF", color: "#1447B2", borderColor: "#C9DDFF" };
-  return { background: "#F3F4F6", color: "#374151", borderColor: "#E5E7EB" };
 }
 
 function fmtDate(dateStr: string) {
@@ -390,69 +387,3 @@ function fmtDate(dateStr: string) {
 function sanitizeFilename(name: string) {
   return name.replace(/[\\/:*?"<>|]+/g, "-").trim();
 }
-
-const responsiveCss = `
-@media (max-width: 980px){
-  .d-grid{
-    grid-template-columns: 1fr !important;
-  }
-}
-`;
-
-const styles: Record<string, React.CSSProperties> = {
-  wrap: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 14,
-    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-    padding: 12,
-    maxWidth: 1200,
-    margin: "0 auto",
-  },
-  top: { display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-end", flexWrap: "wrap" },
-  h2: { margin: 0, fontSize: 18, color: "#111827" },
-  p: { margin: "6px 0 0 0", fontSize: 13, color: "#6B7280", maxWidth: 720 },
-
-  refreshBtn: { padding: "10px 12px", borderRadius: 10, border: "1px solid #D8DEE9", background: "#fff", cursor: "pointer", fontWeight: 900 },
-
-  errorBox: {
-    border: "1px solid #FECACA",
-    background: "#FEF2F2",
-    color: "#991B1B",
-    padding: "10px 12px",
-    borderRadius: 12,
-    fontSize: 13,
-    fontWeight: 900,
-  },
-
-  filtersCard: { background: "#fff", border: "1px solid #E7EAF0", borderRadius: 16, padding: 12 },
-  filtersGrid: { display: "grid", gridTemplateColumns: "1fr 220px 220px", gap: 10, alignItems: "end" },
-  field: { display: "flex", flexDirection: "column", gap: 6 },
-  label: { fontSize: 13, fontWeight: 900, color: "#374151" },
-  input: { padding: "10px 12px", borderRadius: 12, border: "1px solid #D8DEE9", outline: "none", fontSize: 14, background: "#fff" },
-
-  resultsRow: { marginTop: 10, display: "flex", justifyContent: "space-between" },
-  muted: { color: "#6B7280", fontSize: 12 },
-
-  tableCard: { background: "#fff", border: "1px solid #E7EAF0", borderRadius: 16, overflow: "hidden" },
-  tableScroll: { width: "100%", overflowX: "auto" },
-  table: { width: "100%", borderCollapse: "collapse", minWidth: 980 },
-  th: { textAlign: "left", fontSize: 12, padding: "10px 12px", background: "#F9FAFB", borderBottom: "1px solid #E7EAF0", color: "#374151" },
-  td: { padding: "10px 12px", borderBottom: "1px solid #F1F5F9", fontSize: 13, color: "#111827", verticalAlign: "top" },
-
-  cellTitle: { fontWeight: 900 },
-  cellSub: { fontSize: 11, color: "#6B7280", marginTop: 4 },
-
-  pill: { display: "inline-block", fontSize: 12, padding: "4px 10px", borderRadius: 999, border: "1px solid", fontWeight: 900, whiteSpace: "nowrap" },
-
-  inlineActions: { display: "flex", gap: 8, flexWrap: "wrap" },
-  miniBtn: {
-    padding: "8px 10px",
-    borderRadius: 10,
-    border: "1px solid #D8DEE9",
-    background: "#fff",
-    cursor: "pointer",
-    fontWeight: 900,
-    fontSize: 12,
-  },
-};

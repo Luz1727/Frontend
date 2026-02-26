@@ -1,7 +1,7 @@
-// src/pages/DictamenDocumento.tsx
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../services/api";
+import styles from './DictamenDocumento.module.css';
 
 type DictamenStatus = "BORRADOR" | "GENERADO" | "FIRMADO";
 
@@ -13,7 +13,6 @@ type Detail = {
   template_docx_path?: string | null;
   generated_docx_path?: string | null;
   pdf_path?: string | null;
-
   recipient_name?: string | null;
   constancia_data_json?: Record<string, any> | null;
 
@@ -22,6 +21,30 @@ type Detail = {
   libro: string;
   evaluador: string;
 };
+
+function Field({
+  label,
+  value,
+  onChange,
+  disabled = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className={styles.field}>
+      <label className={styles.label}>{label}</label>
+      <input
+        className={styles.input}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+      />
+    </div>
+  );
+}
 
 export default function DictamenDocumento() {
   const { id } = useParams();
@@ -32,8 +55,8 @@ export default function DictamenDocumento() {
   const [saving, setSaving] = useState(false);
   const [detail, setDetail] = useState<Detail | null>(null);
 
+  // ✅ Campos de tu compañera (más completos)
   const [folioEdit, setFolioEdit] = useState("");
-
   const [recipientName, setRecipientName] = useState("");
   const [ciudadEstado, setCiudadEstado] = useState("");
   const [fechaEmisionTexto, setFechaEmisionTexto] = useState("");
@@ -48,7 +71,7 @@ export default function DictamenDocumento() {
   const [firma1Nombre, setFirma1Nombre] = useState("");
   const [firma2Nombre, setFirma2Nombre] = useState("");
 
-  // ✅ NUEVO: nombres para UI (evita que diga "cargada" cuando aún no subes)
+  // ✅ UI para plantilla (de tu compañera)
   const [storedTemplateName, setStoredTemplateName] = useState<string | null>(null);
   const [selectedTemplateName, setSelectedTemplateName] = useState<string | null>(null);
 
@@ -63,6 +86,7 @@ export default function DictamenDocumento() {
       const json = data.constancia_data_json || {};
       setRecipientName(data.recipient_name || "");
 
+      // ✅ Todos los campos de tu compañera
       setCiudadEstado(json.ciudad_estado || "");
       setFechaEmisionTexto(json.fecha_emision_texto || "");
       setRecipientInstitucion(json.recipient_institucion || "");
@@ -76,7 +100,7 @@ export default function DictamenDocumento() {
       setFirma1Nombre(json.firma1_nombre || "");
       setFirma2Nombre(json.firma2_nombre || "");
 
-      // ✅ SOLO plantilla guardada en backend
+      // ✅ Plantilla guardada
       if (data.template_docx_path) {
         const name = data.template_docx_path.split("\\").pop()?.split("/").pop();
         setStoredTemplateName(name || null);
@@ -106,7 +130,7 @@ export default function DictamenDocumento() {
         headers: { "Content-Type": "multipart/form-data" },
       });
       await load();
-      setSelectedTemplateName(null); // ✅ ya quedó guardada, limpiamos "seleccionada"
+      setSelectedTemplateName(null);
       alert("Plantilla subida correctamente.");
     } catch (err: any) {
       alert(err?.response?.data?.detail ?? "Error al subir plantilla.");
@@ -127,15 +151,12 @@ export default function DictamenDocumento() {
           fecha_emision_texto: fechaEmisionTexto,
           recipient_institucion: recipientInstitucion,
           cvu_snii: cvu,
-
           capitulo_titulo: capituloTitulo,
           libro_titulo: libroTitulo,
           entrega_texto: entregaTexto,
-
           inicio_dictamen_texto: inicioTexto,
           fin_dictamen_texto: finTexto,
           cargo_texto: cargoTexto,
-
           firma1_nombre: firma1Nombre,
           firma2_nombre: firma2Nombre,
         },
@@ -163,7 +184,7 @@ export default function DictamenDocumento() {
     }
   };
 
-  const download = async (format: "docx") => {
+  const download = async (format: "docx" | "pdf") => {
     try {
       const res = await api.get(
         `/admin/dictamenes/${dictamenId}/download?format=${format}`,
@@ -184,33 +205,32 @@ export default function DictamenDocumento() {
     }
   };
 
-  if (loading) return <div style={s.wrap}>Cargando...</div>;
-  if (!detail) return <div style={s.wrap}>No encontrado</div>;
+  if (loading) return <div className={styles.wrap}>Cargando...</div>;
+  if (!detail) return <div className={styles.wrap}>No encontrado</div>;
 
   return (
-    <div style={s.wrap}>
-      <div style={s.top}>
+    <div className={styles.wrap}>
+      <div className={styles.top}>
         <div>
-          <h2 style={s.h2}>Documento del Dictamen</h2>
-          <div style={s.sub}>
+          <h2 className={styles.h2}>Documento del Dictamen</h2>
+          <div className={styles.sub}>
             <b>Folio:</b> {detail.folio} · <b>Estatus:</b> {detail.status}
           </div>
-          <div style={s.sub}>
-            <b>Capítulo:</b> {detail.capitulo} · <b>Libro:</b> {detail.libro} ·{" "}
-            <b>Evaluador:</b> {detail.evaluador}
+          <div className={styles.sub}>
+            <b>Capítulo:</b> {detail.capitulo} · <b>Libro:</b> {detail.libro} · <b>Evaluador:</b> {detail.evaluador}
           </div>
         </div>
 
-        <button style={s.backBtn} onClick={() => nav("/dictamenes")}>
+        <button className={styles.backBtn} onClick={() => nav("/dictamenes")}>
           Volver
         </button>
       </div>
 
-      {/* 1 Plantilla */}
-      <div style={s.card}>
+      {/* 1 Plantilla - Versión mejorada de tu compañera */}
+      <div className={styles.card}>
         <h3>1) Subir Plantilla Word (.docx)</h3>
-
-        {/* ✅ FIX: NO usar disabled en input file (si lo deshabilitas, el navegador borra la selección) */}
+        
+        {/* ✅ Input file sin disabled para que funcione correctamente */}
         <div style={{ pointerEvents: saving ? "none" : "auto", opacity: saving ? 0.85 : 1 }}>
           <input
             type="file"
@@ -218,64 +238,52 @@ export default function DictamenDocumento() {
             onChange={(e) => {
               const file = e.target.files?.[0];
               if (file) {
-                setSelectedTemplateName(file.name); // ✅ solo UI
+                setSelectedTemplateName(file.name);
                 uploadTemplate(file);
-                // Si quieres limpiar el input al terminar (opcional):
-                // e.currentTarget.value = "";
               }
             }}
+            className={styles.fileInput}
           />
         </div>
 
-        <div style={s.muted}>
-          {saving && selectedTemplateName
-            ? `⏳ Subiendo: ${selectedTemplateName}`
-            : storedTemplateName
-            ? `✅ Plantilla actual: ${storedTemplateName}`
-            : "⚠️ No hay plantilla subida"}
+        <div className={styles.muted}>
+          {saving && selectedTemplateName ? (
+            <span className={styles.warning}>⏳ Subiendo: {selectedTemplateName}</span>
+          ) : storedTemplateName ? (
+            <span className={styles.success}>✅ Plantilla actual: {storedTemplateName}</span>
+          ) : (
+            <span className={styles.warning}>⚠️ No hay plantilla subida</span>
+          )}
         </div>
       </div>
 
-      {/* 2 Datos */}
-      <div style={s.card}>
+      {/* 2 Datos - Versión completa de tu compañera con tus estilos */}
+      <div className={styles.card}>
         <h3>2) Datos editables</h3>
 
-        <div style={s.grid}>
-          <Field label="Folio (único)" value={folioEdit} onChange={setFolioEdit} />
-
-          <Field label="Dirigida a (nombre)" value={recipientName} onChange={setRecipientName} />
-          <Field
-            label="Institución (destinatario)"
-            value={recipientInstitucion}
-            onChange={setRecipientInstitucion}
-          />
-          <Field label="CVU / SNII" value={cvu} onChange={setCvu} />
-
-          <Field label="Ciudad y Estado" value={ciudadEstado} onChange={setCiudadEstado} />
-          <Field
-            label="Fecha de emisión (texto)"
-            value={fechaEmisionTexto}
-            onChange={setFechaEmisionTexto}
-          />
-
-          <Field label="Capítulo (título)" value={capituloTitulo} onChange={setCapituloTitulo} />
-          <Field label="Libro (título)" value={libroTitulo} onChange={setLibroTitulo} />
-          <Field label="Entrega (texto)" value={entregaTexto} onChange={setEntregaTexto} />
-
-          <Field label="Inicio dictamen (texto)" value={inicioTexto} onChange={setInicioTexto} />
-          <Field label="Fin dictamen (texto)" value={finTexto} onChange={setFinTexto} />
-          <Field label="Cargo (texto)" value={cargoTexto} onChange={setCargoTexto} />
-
-          <Field label="Firma 1 (nombre)" value={firma1Nombre} onChange={setFirma1Nombre} />
-          <Field label="Firma 2 (nombre)" value={firma2Nombre} onChange={setFirma2Nombre} />
+        <div className={styles.grid}>
+          <Field label="Folio (único)" value={folioEdit} onChange={setFolioEdit} disabled={saving} />
+          <Field label="Dirigida a (nombre)" value={recipientName} onChange={setRecipientName} disabled={saving} />
+          <Field label="Institución (destinatario)" value={recipientInstitucion} onChange={setRecipientInstitucion} disabled={saving} />
+          <Field label="CVU / SNII" value={cvu} onChange={setCvu} disabled={saving} />
+          <Field label="Ciudad y Estado" value={ciudadEstado} onChange={setCiudadEstado} disabled={saving} />
+          <Field label="Fecha de emisión (texto)" value={fechaEmisionTexto} onChange={setFechaEmisionTexto} disabled={saving} />
+          <Field label="Capítulo (título)" value={capituloTitulo} onChange={setCapituloTitulo} disabled={saving} />
+          <Field label="Libro (título)" value={libroTitulo} onChange={setLibroTitulo} disabled={saving} />
+          <Field label="Entrega (texto)" value={entregaTexto} onChange={setEntregaTexto} disabled={saving} />
+          <Field label="Inicio dictamen (texto)" value={inicioTexto} onChange={setInicioTexto} disabled={saving} />
+          <Field label="Fin dictamen (texto)" value={finTexto} onChange={setFinTexto} disabled={saving} />
+          <Field label="Cargo (texto)" value={cargoTexto} onChange={setCargoTexto} disabled={saving} />
+          <Field label="Firma 1 (nombre)" value={firma1Nombre} onChange={setFirma1Nombre} disabled={saving} />
+          <Field label="Firma 2 (nombre)" value={firma2Nombre} onChange={setFirma2Nombre} disabled={saving} />
         </div>
 
-        <div style={s.actions}>
-          <button style={s.btn} onClick={saveData} disabled={saving}>
+        <div className={styles.actions}>
+          <button className={styles.btn} onClick={saveData} disabled={saving}>
             Guardar datos
           </button>
           <button
-            style={s.btnStrong}
+            className={styles.btnStrong}
             onClick={renderDocument}
             disabled={saving || !detail.template_docx_path}
           >
@@ -284,53 +292,31 @@ export default function DictamenDocumento() {
         </div>
       </div>
 
-      {/* 3 Descargas */}
-      <div style={s.card}>
+      {/* 3 Descargas - Tus botones con PDF incluido */}
+      <div className={styles.card}>
         <h3>3) Descargas</h3>
-        <div style={s.actions}>
-          <button onClick={() => download("docx")} disabled={detail.status === "BORRADOR"}>
+        <div className={styles.actions}>
+          <button 
+            className={styles.btn} 
+            onClick={() => download("docx")} 
+            disabled={detail.status === "BORRADOR" || saving}
+          >
             Descargar DOCX
           </button>
+          <button 
+            className={styles.btn} 
+            onClick={() => download("pdf")} 
+            disabled={detail.status === "BORRADOR" || saving}
+          >
+            Descargar PDF
+          </button>
         </div>
+        {detail.status === "BORRADOR" && (
+          <div className={styles.muted}>
+            ⚠️ Debes generar el documento antes de poder descargarlo.
+          </div>
+        )}
       </div>
     </div>
   );
 }
-
-function Field({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div style={s.field}>
-      <label style={s.label}>{label}</label>
-      <input style={s.input} value={value} onChange={(e) => onChange(e.target.value)} />
-    </div>
-  );
-}
-
-const s: Record<string, React.CSSProperties> = {
-  wrap: { display: "flex", flexDirection: "column", gap: 16, padding: 16 },
-  top: { display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 },
-  h2: { margin: 0 },
-  sub: { fontSize: 13, color: "#6B7280", marginTop: 4 },
-  backBtn: { padding: 10, borderRadius: 8, cursor: "pointer" },
-
-  card: { border: "1px solid #E5E7EB", padding: 16, borderRadius: 12 },
-  grid: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 12 },
-
-  field: { display: "flex", flexDirection: "column", gap: 6 },
-  label: { fontSize: 13, fontWeight: 600 },
-  input: { padding: 10, borderRadius: 8, border: "1px solid #D1D5DB" },
-
-  actions: { display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 },
-  btn: { padding: 10, borderRadius: 8, cursor: "pointer" },
-  btnStrong: { padding: 10, borderRadius: 8, background: "#111827", color: "#fff", cursor: "pointer" },
-
-  muted: { marginTop: 8, fontSize: 12, color: "#6B7280" },
-};

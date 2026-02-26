@@ -1,6 +1,7 @@
-// src/layouts/PrivateLayout.tsx
-import React, { useMemo, useState } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+// src/layout/PrivateLayout.tsx
+import React, { useEffect, useMemo, useState } from "react";
+import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
+import styles from "./PrivateLayout.module.css";
 
 type Role = "editorial" | "dictaminador" | "autor";
 
@@ -77,26 +78,19 @@ function safeClearAuth() {
 }
 
 /** ---------------------------
- * Home por rol (MUY IMPORTANTE)
+ * Home por rol
  * --------------------------*/
 const defaultHomeByRole: Record<Role, string> = {
   editorial: "/",
   dictaminador: "/dictaminador",
-  autor: "/autor",
+  autor: "/autor/mis-envios",
 };
 
 /** ---------------------------
  * ACL por ruta (roles permitidos)
  * --------------------------*/
 const routeACL: Array<{ test: (path: string) => boolean; roles: Role[] }> = [
-  { test: (p) => p.startsWith("/usuarios"), roles: ["editorial"] },
-  { test: (p) => p.startsWith("/constancias"), roles: ["editorial"] },
-  { test: (p) => p.startsWith("/dictamenes"), roles: ["editorial"] },
-  // ✅ NUEVO: Comunicaciones (envío masivo / correos)
-  { test: (p) => p.startsWith("/comunicaciones"), roles: ["editorial"] },
-
-  { test: (p) => p.startsWith("/dictaminador"), roles: ["dictaminador"] },
-  { test: (p) => p.startsWith("/autor"), roles: ["autor"] },
+  // Editorial
   {
     test: (p) =>
       p === "/" ||
@@ -105,6 +99,14 @@ const routeACL: Array<{ test: (path: string) => boolean; roles: Role[] }> = [
       p.startsWith("/capitulos"),
     roles: ["editorial"],
   },
+  { test: (p) => p.startsWith("/dictamenes"), roles: ["editorial"] },
+  { test: (p) => p.startsWith("/constancias"), roles: ["editorial"] },
+  { test: (p) => p.startsWith("/usuarios"), roles: ["editorial"] },
+  { test: (p) => p.startsWith("/comunicaciones"), roles: ["editorial"] },
+
+  // Dictaminador / Autor
+  { test: (p) => p.startsWith("/dictaminador"), roles: ["dictaminador"] },
+  { test: (p) => p.startsWith("/autor"), roles: ["autor"] },
 ];
 
 function hasAccess(pathname: string, role: Role): boolean {
@@ -113,9 +115,29 @@ function hasAccess(pathname: string, role: Role): boolean {
   return rule.roles.includes(role);
 }
 
-export default function PrivateLayout({ children }: { children: JSX.Element }) {
+export default function PrivateLayout() {
   const nav = useNavigate();
   const location = useLocation();
+
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // cerrar drawer al pasar a desktop
+  useEffect(() => {
+    const onResize = () => {
+      if (window.innerWidth >= 980) setSidebarOpen(false);
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  // cerrar con ESC
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSidebarOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const token = localStorage.getItem("token");
   const userRaw = localStorage.getItem("user");
@@ -148,6 +170,39 @@ export default function PrivateLayout({ children }: { children: JSX.Element }) {
     return <Navigate to={defaultHomeByRole[user.role]} replace />;
   }
 
+  const logout = () => {
+    safeClearAuth();
+    nav("/login", { replace: true });
+  };
+
+  const go = (path: string) => {
+    setSidebarOpen(false);
+    nav(path);
+  };
+
+  const isActive = (path: string) => location.pathname === path;
+  const isStarts = (prefix: string) => location.pathname.startsWith(prefix);
+
+  const menu = useMemo(() => {
+    if (user!.role === "editorial") {
+      return [
+        { label: "Dashboard", path: "/" },
+        { label: "Convocatorias", path: "/convocatorias" },
+        { label: "Libros", path: "/libros" },
+        { label: "Capítulos", path: "/capitulos" },
+        { label: "Dictámenes", path: "/dictamenes" },
+        { label: "Constancias", path: "/constancias" },
+        { label: "Comunicaciones", path: "/comunicaciones" },
+        { label: "Usuarios", path: "/usuarios" },
+      ];
+    }
+    if (user!.role === "dictaminador") {
+      return [{ label: "Mis asignaciones", path: "/dictaminador" }];
+    }
+    return [{ label: "Mis envíos", path: "/autor/mis-envios" }];
+  }, [user]);
+
+  // Header + buscador (tu topbar)
   const [query, setQuery] = useState("");
   const [panelOpen, setPanelOpen] = useState(false);
   const [selectedAction, setSelectedAction] = useState<QuickAction | null>(null);
@@ -159,43 +214,6 @@ export default function PrivateLayout({ children }: { children: JSX.Element }) {
     estado: "RECIBIDO",
     comentario: "",
   });
-
-  const logout = () => {
-    safeClearAuth();
-    nav("/login", { replace: true });
-  };
-
-  const go = (path: string) => nav(path, { replace: true });
-  const isActive = (path: string) => location.pathname === path;
-  const isStarts = (prefix: string) => location.pathname.startsWith(prefix);
-
-  const menu = useMemo(() => {
-    if (user.role === "editorial") {
-      return [
-        { label: "Dashboard", path: "/" },
-        { label: "Convocatorias", path: "/convocatorias" },
-        { label: "Libros", path: "/libros" },
-        { label: "Capítulos", path: "/capitulos" },
-        { label: "Dictámenes", path: "/dictamenes" },
-        { label: "Constancias", path: "/constancias" },
-        // ✅ NUEVO: Comunicaciones
-        { label: "Comunicaciones", path: "/comunicaciones" },
-        { label: "Usuarios", path: "/usuarios" },
-      ];
-    }
-
-    if (user.role === "dictaminador") {
-      return [
-        { label: "Mis asignaciones", path: "/dictaminador" },
-        { label: "Mi cuenta", path: "/dictaminador?tab=cuenta" },
-      ];
-    }
-
-    return [
-      { label: "Mis envíos", path: "/autor" },
-      { label: "Mi cuenta", path: "/autor?tab=cuenta" },
-    ];
-  }, [user.role]);
 
   const onSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -244,24 +262,48 @@ export default function PrivateLayout({ children }: { children: JSX.Element }) {
       ? "Subir dictamen firmado"
       : "Panel rápido";
 
+  void setSelectedAction;
+  void setForm;
+  void form;
+  void quickPanelTitle;
+
   return (
-    <div style={styles.shell}>
-      <aside style={styles.sidebar}>
-        <div style={styles.brand}>
-          <div style={styles.brandIcon}>E</div>
-          <div>
-            <div style={styles.brandTitle}>Editorial</div>
-            <div style={styles.brandSubtitle}>Panel</div>
+    <div className={styles.shell}>
+      {/* overlay móvil */}
+      <button
+        type="button"
+        className={styles.overlay}
+        data-open={sidebarOpen ? "1" : "0"}
+        aria-label="Cerrar menú"
+        onClick={() => setSidebarOpen(false)}
+      />
+
+      {/* Sidebar drawer */}
+      <aside className={styles.sidebar} data-open={sidebarOpen ? "1" : "0"}>
+        <div className={styles.brand}>
+          <div className={styles.brandIcon}>E</div>
+          <div className={styles.brandText}>
+            <div className={styles.brandTitle}>Editorial</div>
+            <div className={styles.brandSubtitle}>Panel</div>
           </div>
+
+          <button
+            type="button"
+            className={styles.closeBtn}
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Cerrar menú"
+          >
+            ✕
+          </button>
         </div>
 
-        <nav style={styles.nav}>
+        <nav className={styles.nav}>
           {menu.map((item) => {
             const active = item.path === "/" ? isActive("/") : isStarts(item.path);
             return (
               <button
                 key={item.path}
-                style={{ ...styles.navItem, ...(active ? styles.navItemActive : {}) }}
+                className={`${styles.navItem} ${active ? styles.navItemActive : ""}`}
                 onClick={() => go(item.path)}
                 type="button"
               >
@@ -271,45 +313,56 @@ export default function PrivateLayout({ children }: { children: JSX.Element }) {
           })}
         </nav>
 
-        <div style={styles.sidebarFooter}>
-          <div style={styles.userBox}>
-            <div style={styles.userAvatar}>{avatarLetter}</div>
-            <div style={{ minWidth: 0 }}>
-              <div style={styles.userName}>{user?.name ?? "Usuario"}</div>
-              <div style={styles.userRole}>{user?.role ?? ""}</div>
+        <div className={styles.sidebarFooter}>
+          <div className={styles.userBox}>
+            <div className={styles.userAvatar}>{avatarLetter}</div>
+            <div className={styles.userMeta}>
+              <div className={styles.userName}>{user?.name ?? "Usuario"}</div>
+              <div className={styles.userRole}>{user?.role ?? ""}</div>
             </div>
           </div>
 
-          <button style={styles.logoutBtn} onClick={logout} type="button">
+          <button className={styles.logoutBtn} onClick={logout} type="button">
             Salir
           </button>
         </div>
       </aside>
 
-      <main style={styles.main}>
-        <header style={styles.header}>
-          <div style={styles.headerLeft}>
-            <h1 style={styles.headerTitle}>{headerTitle}</h1>
-            <p style={styles.headerSubtitle}>{headerSubtitle}</p>
+      {/* Main */}
+      <main className={styles.main}>
+        <header className={styles.header}>
+          {/* botón hamburguesa solo móvil */}
+          <button
+            type="button"
+            className={styles.menuBtn}
+            aria-label="Abrir menú"
+            onClick={() => setSidebarOpen(true)}
+          >
+            ☰
+          </button>
+
+          <div className={styles.headerLeft}>
+            <h1 className={styles.headerTitle}>{headerTitle}</h1>
+            <p className={styles.headerSubtitle}>{headerSubtitle}</p>
           </div>
 
           {user.role === "editorial" && (
-            <div style={styles.headerRight}>
-              <form onSubmit={onSearch} style={styles.searchWrap}>
+            <div className={styles.headerRight}>
+              <form onSubmit={onSearch} className={styles.searchWrap}>
                 <input
-                  style={styles.searchInput}
+                  className={styles.searchInput}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Buscar capítulo, libro, folio..."
                 />
-                <button type="submit" style={styles.searchBtn}>
+                <button type="submit" className={styles.searchBtn}>
                   Buscar
                 </button>
               </form>
 
               <button
                 type="button"
-                style={styles.panelBtn}
+                className={styles.panelBtn}
                 onClick={() => setPanelOpen((v) => !v)}
                 title="Panel rápido"
               >
@@ -319,57 +372,21 @@ export default function PrivateLayout({ children }: { children: JSX.Element }) {
           )}
         </header>
 
-        <div
-          style={{
-            ...styles.body,
-            gridTemplateColumns: panelOpen ? "minmax(0, 1fr) 360px" : "minmax(0, 1fr)",
-          }}
-        >
-          <section style={styles.content}>{children}</section>
+        <div className={styles.body} data-panel={panelOpen && user.role === "editorial" ? "1" : "0"}>
+          <section className={styles.content}>
+            <Outlet />
+          </section>
 
-          {/* Panel rápido solo editorial (evita que dictaminador/autor caigan aquí por historial) */}
           {user.role === "editorial" && panelOpen && (
-            <>
-              <div style={styles.overlay} onClick={() => setPanelOpen(false)} />
-              <aside style={styles.rightPanel}>{/* ... tu panel rápido ... */}</aside>
-            </>
+            <aside className={styles.rightPanel}>
+              <div className={styles.panelCard}>
+                <div className={styles.panelTitle}>Panel rápido</div>
+                <div className={styles.panelHint}>Aquí conectas tus acciones rápidas.</div>
+              </div>
+            </aside>
           )}
         </div>
       </main>
     </div>
   );
 }
-
-/** ✅ Tus styles igual */
-const styles: Record<string, React.CSSProperties> = {
-  // pega tus styles tal cual
-  shell: { minHeight: "100vh", display: "grid", gridTemplateColumns: "260px 1fr", background: "#F6F7F9" },
-  sidebar: { background: "#0F3D3E", color: "#fff", padding: 14, display: "flex", flexDirection: "column", gap: 12 },
-  brand: { display: "flex", alignItems: "center", gap: 12, padding: 10, borderRadius: 14, background: "rgba(255,255,255,0.06)" },
-  brandIcon: { width: 44, height: 44, borderRadius: 12, display: "grid", placeItems: "center", background: "rgba(255,255,255,0.18)", fontWeight: 900 },
-  brandTitle: { fontWeight: 800, lineHeight: 1 },
-  brandSubtitle: { fontSize: 12, opacity: 0.8, marginTop: 3 },
-  nav: { display: "flex", flexDirection: "column", gap: 8, paddingTop: 6 },
-  navItem: { width: "100%", textAlign: "left", padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: "#fff", cursor: "pointer", fontWeight: 600, fontSize: 14 },
-  navItemActive: { background: "rgba(255,255,255,0.14)" },
-  sidebarFooter: { marginTop: "auto", display: "flex", flexDirection: "column", gap: 10, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.12)" },
-  userBox: { display: "flex", alignItems: "center", gap: 10, padding: 10, borderRadius: 14, background: "rgba(255,255,255,0.06)" },
-  userAvatar: { width: 38, height: 38, borderRadius: 12, display: "grid", placeItems: "center", background: "rgba(255,255,255,0.18)", fontWeight: 900 },
-  userName: { fontWeight: 800, lineHeight: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
-  userRole: { fontSize: 12, opacity: 0.8, marginTop: 3 },
-  logoutBtn: { width: "100%", padding: "10px 12px", borderRadius: 12, border: "none", cursor: "pointer", background: "#ffffff", color: "#0F3D3E", fontWeight: 800 },
-  main: { display: "flex", flexDirection: "column", minWidth: 0 },
-  header: { display: "flex", gap: 14, alignItems: "center", justifyContent: "space-between", padding: 18, borderBottom: "1px solid #E7EAF0", background: "#fff" },
-  headerLeft: { minWidth: 0 },
-  headerTitle: { margin: 0, fontSize: 18, color: "#111827" },
-  headerSubtitle: { margin: "4px 0 0 0", fontSize: 13, color: "#6B7280" },
-  headerRight: { display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" },
-  searchWrap: { display: "flex", gap: 8, width: 420, maxWidth: "55vw" },
-  searchInput: { flex: 1, padding: "10px 12px", borderRadius: 12, border: "1px solid #D8DEE9", outline: "none", fontSize: 14 },
-  searchBtn: { padding: "10px 12px", borderRadius: 12, border: "1px solid #D8DEE9", background: "#fff", cursor: "pointer", fontWeight: 800 },
-  panelBtn: { padding: "10px 12px", borderRadius: 12, border: "1px solid #D8DEE9", background: "#fff", cursor: "pointer", fontWeight: 900, whiteSpace: "nowrap" },
-  body: { display: "grid", gap: 14, padding: 18, alignItems: "start" },
-  content: { minWidth: 0 },
-  overlay: { display: "none" },
-  rightPanel: { minWidth: 0, alignSelf: "start", position: "sticky", top: 18, display: "flex", flexDirection: "column", gap: 12 },
-};
