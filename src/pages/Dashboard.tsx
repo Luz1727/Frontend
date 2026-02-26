@@ -386,7 +386,7 @@ export default function Dashboard() {
           <div style={styles.titleSection}>
             <h1 style={styles.h1}>
               <span style={{ ...styles.h1Glitch, color: themeColors.text }}>DASHBOARD</span>
-              <span style={styles.h1Gradient}>CUÁNTICO</span>
+              
             </h1>
 
             <div style={{ ...styles.dateTime, color: themeColors.muted }}>

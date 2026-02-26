@@ -7,14 +7,14 @@ import { api } from "../../services/api";
 type ChapterStatus =
   | "RECIBIDO"
   | "ASIGNADO_A_DICTAMINADOR"
-  | "ENVIADO_A_DICTAMINADOR"           // ← NUEVO
-  | "EN_REVISION_DICTAMINADOR"          // ← NUEVO
-  | "CORRECCIONES_SOLICITADAS_A_AUTOR"  // ← NUEVO
+  | "ENVIADO_A_DICTAMINADOR"
+  | "EN_REVISION_DICTAMINADOR"
+  | "CORRECCIONES_SOLICITADAS_A_AUTOR"
   | "CORRECCIONES"
   | "REENVIADO_POR_AUTOR"
-  | "REVISADO_POR_EDITORIAL"            // ← NUEVO
-  | "LISTO_PARA_FIRMA"                  // ← NUEVO
-  | "FIRMADO"                           // ← NUEVO
+  | "REVISADO_POR_EDITORIAL"
+  | "LISTO_PARA_FIRMA"
+  | "FIRMADO"
   | "EN_REVISION"
   | "APROBADO"
   | "RECHAZADO";
@@ -28,6 +28,10 @@ type AssignedChapterApi = {
   book_name?: string | null;
   author_name?: string | null;
   author_email?: string | null;
+
+  // ✅ NUEVO (debe venir de backend)
+  deadline_at?: string | null; // DATE o DATETIME
+  deadline_stage?: string | null; // DICTAMEN | CORRECCION_AUTOR | etc
 };
 
 type AssignedChapterRow = {
@@ -39,6 +43,10 @@ type AssignedChapterRow = {
   book_name?: string | null;
   author_name?: string | null;
   author_email?: string | null;
+
+  // ✅ NUEVO
+  deadline_at?: string | null;
+  deadline_stage?: string | null;
 };
 
 type Me = {
@@ -140,17 +148,34 @@ function fmtDate(dateStr: string) {
   return `${dd}/${m}/${y}`;
 }
 
+/* =========================
+   ✅ NUEVO: Fecha completa (larga) para deadline
+   - Sin tocar fmtDate (se usa en "Actualizado")
+========================= */
+function fmtDateLong(dateStr?: string | null) {
+  if (!dateStr) return "—";
+  const d = toDateOnly(dateStr);
+  if (!d) return fmtDate(String(dateStr));
+
+  return new Intl.DateTimeFormat("es-MX", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "2-digit",
+  }).format(d);
+}
+
 function statusLabel(s: ChapterStatus) {
   if (s === "RECIBIDO") return "Recibido";
   if (s === "ASIGNADO_A_DICTAMINADOR") return "Asignado";
-  if (s === "ENVIADO_A_DICTAMINADOR") return "Enviado a dictaminador";  // ← NUEVO
-  if (s === "EN_REVISION_DICTAMINADOR") return "En revisión (dictaminador)";  // ← NUEVO
-  if (s === "CORRECCIONES_SOLICITADAS_A_AUTOR") return "Correcciones solicitadas";  // ← NUEVO
+  if (s === "ENVIADO_A_DICTAMINADOR") return "Enviado a dictaminador";
+  if (s === "EN_REVISION_DICTAMINADOR") return "En revisión (dictaminador)";
+  if (s === "CORRECCIONES_SOLICITADAS_A_AUTOR") return "Correcciones solicitadas";
   if (s === "CORRECCIONES") return "Correcciones";
   if (s === "REENVIADO_POR_AUTOR") return "Reenviado";
-  if (s === "REVISADO_POR_EDITORIAL") return "Revisado por editorial";  // ← NUEVO
-  if (s === "LISTO_PARA_FIRMA") return "Listo para firma";  // ← NUEVO
-  if (s === "FIRMADO") return "Firmado";  // ← NUEVO
+  if (s === "REVISADO_POR_EDITORIAL") return "Revisado por editorial";
+  if (s === "LISTO_PARA_FIRMA") return "Listo para firma";
+  if (s === "FIRMADO") return "Firmado";
   if (s === "EN_REVISION") return "En revisión";
   if (s === "APROBADO") return "Aprobado";
   return "Rechazado";
@@ -166,8 +191,6 @@ function initials(name?: string) {
 }
 
 function toneByStatus(s: ChapterStatus) {
-
-  // ✅ finales
   if (s === "APROBADO")
     return { bg: "rgba(16,185,129,.14)", bd: "rgba(16,185,129,.35)", tx: "#065F46" };
 
@@ -180,41 +203,33 @@ function toneByStatus(s: ChapterStatus) {
   if (s === "LISTO_PARA_FIRMA")
     return { bg: "rgba(14,165,233,.12)", bd: "rgba(14,165,233,.30)", tx: "#075985" };
 
-  // ✅ revisión editorial
   if (s === "REVISADO_POR_EDITORIAL")
     return { bg: "rgba(34,197,94,.12)", bd: "rgba(34,197,94,.30)", tx: "#166534" };
 
-  // ✅ correcciones (nuevo + legacy)
   if (s === "CORRECCIONES_SOLICITADAS_A_AUTOR")
     return { bg: "rgba(245,158,11,.14)", bd: "rgba(245,158,11,.35)", tx: "#92400E" };
 
   if (s === "CORRECCIONES")
     return { bg: "rgba(245,158,11,.14)", bd: "rgba(245,158,11,.35)", tx: "#92400E" };
 
-  // ✅ revisión dictaminador (nuevo + legacy)
   if (s === "EN_REVISION_DICTAMINADOR")
     return { bg: "rgba(59,130,246,.12)", bd: "rgba(59,130,246,.30)", tx: "#1D4ED8" };
 
   if (s === "EN_REVISION")
     return { bg: "rgba(59,130,246,.12)", bd: "rgba(59,130,246,.30)", tx: "#1D4ED8" };
 
-  // ✅ envío / asignación
   if (s === "ENVIADO_A_DICTAMINADOR")
     return { bg: "rgba(99,102,241,.12)", bd: "rgba(99,102,241,.30)", tx: "#3730A3" };
 
   if (s === "ASIGNADO_A_DICTAMINADOR")
     return { bg: "rgba(139,92,246,.14)", bd: "rgba(139,92,246,.30)", tx: "#5B21B6" };
 
-  // ✅ reenviado / recibido
-  if (s === "REENVIADO_POR_AUTOR")
-    return { bg: "rgba(148,163,184,.18)", bd: "rgba(148,163,184,.35)", tx: "#334155" };
+  if (s === "REENVIADO_POR_AUTOR") return { bg: "rgba(148,163,184,.18)", bd: "rgba(148,163,184,.35)", tx: "#334155" };
+  if (s === "RECIBIDO") return { bg: "rgba(148,163,184,.18)", bd: "rgba(148,163,184,.35)", tx: "#334155" };
 
-  if (s === "RECIBIDO")
-    return { bg: "rgba(148,163,184,.18)", bd: "rgba(148,163,184,.35)", tx: "#334155" };
-
-  // fallback
   return { bg: "rgba(148,163,184,.18)", bd: "rgba(148,163,184,.35)", tx: "#334155" };
 }
+
 function btnFxPrimaryProps() {
   return {
     onMouseEnter: (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -324,6 +339,39 @@ function downloadBlob(blob: Blob, filename: string) {
       window.URL.revokeObjectURL(url);
     }, 100);
   });
+}
+
+/* =========================
+   ✅ NUEVO: Helpers deadline
+   - Se mantiene tu lógica, solo cambiamos el TEXTO para mostrar fecha completa
+========================= */
+function toDateOnly(dateOrDatetime?: string | null): Date | null {
+  if (!dateOrDatetime) return null;
+  const d = String(dateOrDatetime).slice(0, 10); // yyyy-mm-dd
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return null;
+  // Importante: evitar shift por zona horaria
+  return new Date(`${d}T00:00:00`);
+}
+
+function daysUntil(deadlineAt?: string | null): number | null {
+  const dl = toDateOnly(deadlineAt);
+  if (!dl) return null;
+  const now = new Date();
+  const today = new Date(`${now.toISOString().slice(0, 10)}T00:00:00`);
+  const ms = dl.getTime() - today.getTime();
+  // ceil para que “hoy” sea 0, mañana 1, etc
+  return Math.ceil(ms / (1000 * 60 * 60 * 24));
+}
+
+function deadlineTone(d: number | null) {
+  // null -> gris
+  if (d === null) return { bg: "rgba(148,163,184,.18)", bd: "rgba(148,163,184,.35)", tx: "#334155" };
+  // vencido
+  if (d < 0) return { bg: "rgba(244,63,94,.12)", bd: "rgba(244,63,94,.30)", tx: "#9F1239" };
+  // urgente (0-3 días)
+  if (d <= 3) return { bg: "rgba(245,158,11,.14)", bd: "rgba(245,158,11,.35)", tx: "#92400E" };
+  // ok
+  return { bg: "rgba(16,185,129,.12)", bd: "rgba(16,185,129,.28)", tx: "#065F46" };
 }
 
 /* =========================
@@ -473,7 +521,7 @@ function Stat({ label, value, sub }: { label: string; value: string | number; su
 }
 
 /* =========================
-   ChapterItem: botones actualizados
+   ChapterItem: ✅ ahora muestra deadline (con fecha completa)
 ========================= */
 const ChapterItem = React.memo(
   ({
@@ -490,6 +538,24 @@ const ChapterItem = React.memo(
     loading: boolean;
   }) => {
     const t = toneByStatus(chapter.status);
+
+    const dlDays = daysUntil(chapter.deadline_at ?? null);
+    const dlTone = deadlineTone(dlDays);
+
+    // ✅ CAMBIO: mostrar fecha completa en vez de dd/mm/yyyy
+    const deadlineText =
+      chapter.deadline_at
+        ? `Fecha límite: ${fmtDateLong(chapter.deadline_at)}`
+        : null;
+
+    const deadlineRemain =
+      dlDays === null
+        ? null
+        : dlDays < 0
+        ? `Vencido (${Math.abs(dlDays)} día(s))`
+        : dlDays === 0
+        ? "Vence hoy"
+        : `Faltan ${dlDays} día(s)`;
 
     return (
       <div style={sx.item}>
@@ -514,11 +580,23 @@ const ChapterItem = React.memo(
             </span>
             <span style={sx.metaSep}>•</span>
             <span>Actualizado {fmtDate(chapter.updated_at)}</span>
+
+            {/* ✅ NUEVO: Deadline con fecha completa */}
+            {chapter.deadline_at ? (
+              <>
+                <span style={sx.metaSep}>•</span>
+                <span style={sx.deadlineWrap}>
+                  <span>{deadlineText}</span>
+                  <span style={{ ...sx.deadlinePill, background: dlTone.bg, borderColor: dlTone.bd, color: dlTone.tx }}>
+                    {deadlineRemain}
+                  </span>
+                </span>
+              </>
+            ) : null}
           </div>
         </div>
 
         <div style={sx.itemActions}>
-          {/* ✅ VER NUEVO ARCHIVO (usa endpoint /view-latest) */}
           <button
             type="button"
             style={sx.btnSoft}
@@ -532,7 +610,6 @@ const ChapterItem = React.memo(
             </span>
           </button>
 
-          {/* ✅ DESCARGAR ÚLTIMO ARCHIVO (usa endpoint /download-latest) */}
           <button
             type="button"
             style={sx.btnSoft}
@@ -687,6 +764,10 @@ function MisAsignacionesDictaminadorContent() {
         book_name: c.book_name ?? null,
         author_name: c.author_name ?? null,
         author_email: c.author_email ?? null,
+
+        // ✅ NUEVO
+        deadline_at: c.deadline_at ?? null,
+        deadline_stage: c.deadline_stage ?? null,
       }));
 
       setRows(mapped);
@@ -724,40 +805,48 @@ function MisAsignacionesDictaminadorContent() {
   }, [rows, q, status]);
 
   const stats = useMemo(() => {
-  const total = rows.length;
-  const pendientes = rows.filter((r) => 
-    ["ASIGNADO_A_DICTAMINADOR", "ENVIADO_A_DICTAMINADOR", "EN_REVISION", "EN_REVISION_DICTAMINADOR", "REENVIADO_POR_AUTOR", "REVISADO_POR_EDITORIAL", "LISTO_PARA_FIRMA"].includes(r.status)
-  ).length;
-  const correcciones = rows.filter((r) => 
-    ["CORRECCIONES", "CORRECCIONES_SOLICITADAS_A_AUTOR"].includes(r.status)
-  ).length;
-  const resueltos = rows.filter((r) => 
-    ["APROBADO", "RECHAZADO", "FIRMADO"].includes(r.status)
-  ).length;
-  return { total, pendientes, correcciones, resueltos };
-}, [rows]);
+    const total = rows.length;
+    const pendientes = rows.filter((r) =>
+      [
+        "ASIGNADO_A_DICTAMINADOR",
+        "ENVIADO_A_DICTAMINADOR",
+        "EN_REVISION",
+        "EN_REVISION_DICTAMINADOR",
+        "REENVIADO_POR_AUTOR",
+        "REVISADO_POR_EDITORIAL",
+        "LISTO_PARA_FIRMA",
+      ].includes(r.status)
+    ).length;
+    const correcciones = rows.filter((r) => ["CORRECCIONES", "CORRECCIONES_SOLICITADAS_A_AUTOR"].includes(r.status)).length;
+    const resueltos = rows.filter((r) => ["APROBADO", "RECHAZADO", "FIRMADO"].includes(r.status)).length;
+    return { total, pendientes, correcciones, resueltos };
+  }, [rows]);
 
   const patchStatus = async (chapterId: number, newStatus: ChapterStatus, extra?: { comment?: string }) => {
-  const payload: any = { status: newStatus };
-  if (extra?.comment) payload.comment = extra.comment;
+    const payload: any = { status: newStatus };
+    if (extra?.comment) payload.comment = extra.comment;
 
-  const { data } = await api.patch(`/dictaminador/chapters/${chapterId}/status`, payload, {
-    headers: authHeaders(),
-  });
+    const { data } = await api.patch(`/dictaminador/chapters/${chapterId}/status`, payload, {
+      headers: authHeaders(),
+    });
 
-  const updated: AssignedChapterRow = {
-    id: data.id ?? chapterId,
-    title: data.title ?? selected?.title ?? "",
-    status: data.status ?? newStatus,
-    updated_at: data.updated_at ?? new Date().toISOString(),
-    file_path: data.file_path ?? selected?.file_path ?? null,
-    book_name: data.book_name ?? selected?.book_name ?? null,
-    author_name: data.author_name ?? selected?.author_name ?? null,
-    author_email: data.author_email ?? selected?.author_email ?? null,
+    const updated: AssignedChapterRow = {
+      id: data.id ?? chapterId,
+      title: data.title ?? selected?.title ?? "",
+      status: data.status ?? newStatus,
+      updated_at: data.updated_at ?? new Date().toISOString(),
+      file_path: data.file_path ?? selected?.file_path ?? null,
+      book_name: data.book_name ?? selected?.book_name ?? null,
+      author_name: data.author_name ?? selected?.author_name ?? null,
+      author_email: data.author_email ?? selected?.author_email ?? null,
+
+      // ✅ NUEVO (si el backend lo regresa en el patch, lo tomamos; si no, conservamos lo actual)
+      deadline_at: data.deadline_at ?? selected?.deadline_at ?? null,
+      deadline_stage: data.deadline_stage ?? selected?.deadline_stage ?? null,
+    };
+
+    setRows((prev) => prev.map((r) => (r.id === chapterId ? updated : r)));
   };
-
-  setRows((prev) => prev.map((r) => (r.id === chapterId ? updated : r)));
-};
 
   const openAction = (type: "REVISION" | "CORRECCIONES" | "APROBAR" | "RECHAZAR", row: AssignedChapterRow) => {
     setSelected(row);
@@ -800,46 +889,41 @@ function MisAsignacionesDictaminadorContent() {
      ✅ VER ÚLTIMO ARCHIVO (usa endpoint /view-latest)
   ========================= */
   const viewLatestFile = async (c: AssignedChapterRow) => {
-  try {
-    setLoading(true);
-    setErrorMsg(null);
+    try {
+      setLoading(true);
+      setErrorMsg(null);
 
-    const res = await api.get(`/dictaminador/chapters/${c.id}/view-latest`, {
-      headers: authHeaders(),
-      responseType: "blob",
-      params: { ts: Date.now() }
-    });
+      const res = await api.get(`/dictaminador/chapters/${c.id}/view-latest`, {
+        headers: authHeaders(),
+        responseType: "blob",
+        params: { ts: Date.now() },
+      });
 
-    const blob: Blob = res.data instanceof Blob 
-      ? res.data 
-      : new Blob([JSON.stringify(res.data)], {
-          type: res.headers?.["content-type"] || "application/octet-stream",
-        });
+      const blob: Blob =
+        res.data instanceof Blob
+          ? res.data
+          : new Blob([JSON.stringify(res.data)], {
+              type: res.headers?.["content-type"] || "application/octet-stream",
+            });
 
-    // Crear URL del blob
-    const blobUrl = window.URL.createObjectURL(blob);
-    
-    // Intentar abrir en nueva pestaña
-    const newWindow = window.open(blobUrl, "_blank");
-    
-    // Si el popup fue bloqueado, mostrar mensaje al usuario
-    if (!newWindow) {
-      alert("El navegador bloqueó la ventana emergente. Haz clic en 'Descargar último' para ver el archivo.");
-      // Liberar la URL después de un tiempo
-      setTimeout(() => window.URL.revokeObjectURL(blobUrl), 60000);
-    } else {
-      // Liberar la URL después de que la pestaña haya cargado
-      setTimeout(() => window.URL.revokeObjectURL(blobUrl), 60000);
+      const blobUrl = window.URL.createObjectURL(blob);
+      const newWindow = window.open(blobUrl, "_blank");
+
+      if (!newWindow) {
+        alert("El navegador bloqueó la ventana emergente. Haz clic en 'Descargar último' para ver el archivo.");
+        setTimeout(() => window.URL.revokeObjectURL(blobUrl), 60000);
+      } else {
+        setTimeout(() => window.URL.revokeObjectURL(blobUrl), 60000);
+      }
+    } catch (err: any) {
+      if (handleAuthMaybe(err)) return;
+      const msg = apiMsg(err, "No se pudo abrir el archivo.");
+      setErrorMsg(msg);
+      alert(msg);
+    } finally {
+      setLoading(false);
     }
-  } catch (err: any) {
-    if (handleAuthMaybe(err)) return;
-    const msg = apiMsg(err, "No se pudo abrir el archivo.");
-    setErrorMsg(msg);
-    alert(msg);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   /* =========================
      ✅ DESCARGAR ÚLTIMO ARCHIVO (usa endpoint /download-latest)
@@ -852,14 +936,15 @@ function MisAsignacionesDictaminadorContent() {
       const res = await api.get(`/dictaminador/chapters/${c.id}/download-latest`, {
         headers: authHeaders(),
         responseType: "blob",
-        params: { ts: Date.now() }
+        params: { ts: Date.now() },
       });
 
-      const blob: Blob = res.data instanceof Blob 
-        ? res.data 
-        : new Blob([JSON.stringify(res.data)], {
-            type: res.headers?.["content-type"] || "application/octet-stream",
-          });
+      const blob: Blob =
+        res.data instanceof Blob
+          ? res.data
+          : new Blob([JSON.stringify(res.data)], {
+              type: res.headers?.["content-type"] || "application/octet-stream",
+            });
 
       let filename = `capitulo_${c.id}_ultimo`;
       const cd = res.headers?.["content-disposition"] as string | undefined;
@@ -1246,27 +1331,27 @@ function MisAsignacionesDictaminadorContent() {
                 <div style={sx.filterBlock}>
                   <div style={sx.filterLabel}>Filtrar por estado</div>
                   <select style={sx.select} value={status} onChange={(e) => setStatus(e.target.value as any)}>
-  <option value="ALL">Todos</option>
-  <option value="ASIGNADO_A_DICTAMINADOR">Asignado</option>
-  <option value="ENVIADO_A_DICTAMINADOR">Enviado a dictaminador</option>  {/* ← NUEVO */}
-  <option value="EN_REVISION_DICTAMINADOR">En revisión (dictaminador)</option>  {/* ← NUEVO */}
-  <option value="EN_REVISION">En revisión</option>
-  <option value="CORRECCIONES_SOLICITADAS_A_AUTOR">Correcciones solicitadas</option>  {/* ← NUEVO */}
-  <option value="CORRECCIONES">Correcciones</option>
-  <option value="REENVIADO_POR_AUTOR">Reenviado</option>
-  <option value="REVISADO_POR_EDITORIAL">Revisado por editorial</option>  {/* ← NUEVO */}
-  <option value="LISTO_PARA_FIRMA">Listo para firma</option>  {/* ← NUEVO */}
-  <option value="FIRMADO">Firmado</option>  {/* ← NUEVO */}
-  <option value="APROBADO">Aprobado</option>
-  <option value="RECHAZADO">Rechazado</option>
-</select>
+                    <option value="ALL">Todos</option>
+                    <option value="ASIGNADO_A_DICTAMINADOR">Asignado</option>
+                    <option value="ENVIADO_A_DICTAMINADOR">Enviado a dictaminador</option>
+                    <option value="EN_REVISION_DICTAMINADOR">En revisión (dictaminador)</option>
+                    <option value="EN_REVISION">En revisión</option>
+                    <option value="CORRECCIONES_SOLICITADAS_A_AUTOR">Correcciones solicitadas</option>
+                    <option value="CORRECCIONES">Correcciones</option>
+                    <option value="REENVIADO_POR_AUTOR">Reenviado</option>
+                    <option value="REVISADO_POR_EDITORIAL">Revisado por editorial</option>
+                    <option value="LISTO_PARA_FIRMA">Listo para firma</option>
+                    <option value="FIRMADO">Firmado</option>
+                    <option value="APROBADO">Aprobado</option>
+                    <option value="RECHAZADO">Rechazado</option>
+                  </select>
                 </div>
 
                 <div style={sx.quickBadges}>
-  <span style={{ ...sx.badge, ...badgeTone("ASIGNADO_A_DICTAMINADOR") }}>Pendientes: {stats.pendientes}</span>
-  <span style={{ ...sx.badge, ...badgeTone("CORRECCIONES_SOLICITADAS_A_AUTOR") }}>Correcciones: {stats.correcciones}</span>  {/* ← NUEVO */}
-  <span style={{ ...sx.badge, ...badgeTone("APROBADO") }}>Resueltos: {stats.resueltos}</span>
-</div>
+                  <span style={{ ...sx.badge, ...badgeTone("ASIGNADO_A_DICTAMINADOR") }}>Pendientes: {stats.pendientes}</span>
+                  <span style={{ ...sx.badge, ...badgeTone("CORRECCIONES_SOLICITADAS_A_AUTOR") }}>Correcciones: {stats.correcciones}</span>
+                  <span style={{ ...sx.badge, ...badgeTone("APROBADO") }}>Resueltos: {stats.resueltos}</span>
+                </div>
               </div>
 
               <div style={sx.list}>
@@ -1771,6 +1856,10 @@ const sx: Record<string, React.CSSProperties> = {
   itemMeta: { marginTop: 6, fontSize: 12, color: "rgba(15,23,42,.55)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" },
   metaDot: { width: 6, height: 6, borderRadius: 999, background: "rgba(99,102,241,.55)" },
   metaSep: { opacity: 0.65 },
+
+  // ✅ NUEVO (deadline UI) - ya lo traías, se mantiene
+  deadlineWrap: { display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  deadlinePill: { fontSize: 12, padding: "4px 10px", borderRadius: 999, border: "1px solid rgba(15,23,42,.12)", fontWeight: 1000, whiteSpace: "nowrap" },
 
   statusChip: { fontSize: 12, padding: "6px 10px", borderRadius: 999, border: "1px solid rgba(15,23,42,.12)", fontWeight: 1000, whiteSpace: "nowrap" },
 

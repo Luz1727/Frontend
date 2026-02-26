@@ -1,7 +1,6 @@
 // src/App.tsx
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
-
 import Dashboard from "./pages/Dashboard";
 import Convocatorias from "./pages/Convocatorias";
 import Libros from "./pages/Libros";
@@ -11,7 +10,7 @@ import Dictamenes from "./pages/Dictamenes";
 import DictamenDetalle from "./pages/DictamenDetalle";
 import Constancias from "./pages/Constancias";
 import Usuarios from "./pages/Usuarios";
-
+import Comunicaciones from "./pages/Comunicaciones";
 import MisEnviosAutor from "./pages/autor/MisEnviosAutor"; // ✅ AUTOR (sin PrivateLayout)
 
 import PrivateLayout from "./layout/PrivateLayout";
@@ -46,7 +45,7 @@ export default function App() {
         <Route path="/usuarios" element={<PrivateLayout><Usuarios /></PrivateLayout>} />
         <Route path="/dictamenes" element={<PrivateLayout><Dictamenes /></PrivateLayout>} />
         <Route path="/dictamenes/:id/documento" element={<PrivateLayout><DictamenDocumento /></PrivateLayout>} />
-
+        <Route path="/comunicaciones" element={<PrivateLayout><Comunicaciones /></PrivateLayout>} />
         {/* 404 */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

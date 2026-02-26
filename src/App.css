@@ -1,43 +1,249 @@
-#root {
+
+/* =========================
+   THEME VARIABLES
+========================== */
+.dash[data-theme="dark"]{
+  --bg:#0a0a0f;
+  --text:#ffffff;
+  --muted:#94a3b8;
+  --card:rgba(255,255,255,0.03);
+  --card2:rgba(255,255,255,0.02);
+  --border:rgba(255,255,255,0.10);
+  --border2:rgba(255,255,255,0.06);
+}
+.dash[data-theme="light"]{
+  --bg:#f7f8fb;
+  --text:#000000;
+  --muted:#475569;
+  --card:#ffffff;
+  --card2:#ffffff;
+  --border:rgba(0,0,0,0.12);
+  --border2:rgba(0,0,0,0.08);
+}
+
+/* ✅ Lo que pediste: options en dark con texto negro */
+.dash[data-theme="dark"] select,
+.dash[data-theme="dark"] select option,
+.dash[data-theme="dark"] select optgroup{
+  color:#000 !important;
+  background:#fff !important;
+}
+
+/* =========================
+   LAYOUT GLOBAL (PRO)
+========================== */
+.dash{
+  min-height: 100vh;
+  padding: clamp(14px, 2.2vw, 28px) clamp(14px, 2.6vw, 34px);
+}
+
+/* Mejor “container feel” en pantallas grandes */
+.dash .header,
+.dash .statsGrid,
+.dash .mainGrid{
   max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
-  font-family: 'Times New Roman', Times, serif;
+  margin-left: auto;
+  margin-right: auto;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+/* Encabezados internos */
+.sectionTitle h3{
+  margin:0;
+  font-size:16px;
+  font-weight:800;
+  color: var(--text);
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+/* =========================
+   INTERACTIONS
+========================== */
+.statCard:hover .statCardGlow{ opacity:1; }
+.statCard:hover .statCardHologram{ transform: translateX(100%); }
+
+.actionCard:hover{
+  transform: translateX(5px);
+  background: rgba(59,130,246,0.10);
+  border-color: #3b82f6;
+}
+
+.tableRow:hover{ background: rgba(0,0,0,0.02); }
+.dash[data-theme="dark"] .tableRow:hover{ background: rgba(255,255,255,0.03); }
+
+.tableAction:hover{
+  background:#3b82f6;
+  border-color:#3b82f6;
+  color:#fff;
+}
+.tableAction:hover .actionArrow{ transform: translateX(3px); }
+
+.viewAllButton:hover{
+  background: rgba(59,130,246,0.10);
+  border-color:#3b82f6;
+  color: var(--text);
+}
+.refreshButton:hover{
+  background: rgba(59,130,246,0.10);
+  border-color:#3b82f6;
+}
+.refreshButton:hover .refreshIcon{ animation: spin 1s linear infinite; }
+
+.periodButton:hover,
+.viewButton:hover{
+  background: rgba(59,130,246,0.10);
+  color: var(--text);
+}
+
+.pageButton:hover{
+  background: rgba(59,130,246,0.10);
+  border-color:#3b82f6;
+}
+.themeToggle:hover{
+  background: rgba(59,130,246,0.10);
+  border-color:#3b82f6;
+}
+
+/* Accesibilidad focus */
+.dash button:focus-visible,
+.dash select:focus-visible{
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(59,130,246,.18);
+  border-color: rgba(59,130,246,.55) !important;
+}
+
+/* =========================
+   TABLE (MOBILE FRIENDLY)
+========================== */
+.tableContainer{
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+.tableContainer::-webkit-scrollbar{ height: 10px; }
+.tableContainer::-webkit-scrollbar-thumb{
+  background: rgba(148,163,184,.25);
+  border-radius: 999px;
+}
+.dash[data-theme="dark"] .tableContainer::-webkit-scrollbar-thumb{
+  background: rgba(255,255,255,.14);
+}
+
+/* Sombra suave al scroll horizontal */
+.tableContainer{
+  mask-image: linear-gradient(90deg, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+}
+
+/* =========================
+   RESPONSIVE GRIDS (YA FUNCIONA)
+========================== */
+
+/* Stats: auto-fit -> se acomoda solito */
+.statsGrid{
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
+  gap: 18px !important;
+}
+
+/* Main grid: 3 columnas en desktop, 1 en móvil */
+.mainGrid{
+  display: grid !important;
+  grid-template-columns: 1.1fr 1.9fr 1.1fr !important;
+  gap: 18px !important;
+}
+@media (max-width: 1200px){
+  .mainGrid{ grid-template-columns: 1fr !important; }
+}
+
+/* Quick metrics: 4 -> 2 -> 1 */
+.quickMetrics{
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0,1fr)) !important;
+  gap: 14px !important;
+}
+@media (max-width: 900px){
+  .quickMetrics{ grid-template-columns: repeat(2, minmax(0,1fr)) !important; }
+}
+@media (max-width: 560px){
+  .quickMetrics{ grid-template-columns: 1fr !important; }
+}
+
+/* Header: stack real en móvil */
+@media (max-width: 720px){
+  .headerTop{
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
   }
-  to {
-    transform: rotate(360deg);
+  .notifications{
+    width: 100% !important;
+    justify-content: space-between !important;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+  }
+  .headerContent{
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+  }
+  .headerActions{
+    width: 100% !important;
+    gap: 10px !important;
+  }
+
+  /* Botones más cómodos en touch */
+  .dash button{
+    min-height: 44px;
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
+/* Animations */
+@keyframes quantumFloat {
+  0% { transform: translate(0, 0) scale(1); opacity: 0; }
+  10% { opacity: 0.3; }
+  90% { opacity: 0.3; }
+  100% { transform: translate(-80px, 80px) scale(0); opacity: 0; }
+}
+@keyframes cubeRotate {
+  0% { transform: rotateX(0deg) rotateY(0deg); }
+  100% { transform: rotateX(360deg) rotateY(360deg); }
+}
+@keyframes progress {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+@keyframes glitch {
+  0%, 100% { transform: translate(0); }
+  20% { transform: translate(-5px, 5px); }
+  40% { transform: translate(5px, -5px); }
+  60% { transform: translate(-5px, -5px); }
+  80% { transform: translate(5px, 5px); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Reduce motion */
+@media (prefers-reduced-motion: reduce){
+  .dash *{
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
   }
-}
 
-.card {
-  padding: 2em;
-}
 
-.read-the-docs {
-  color: #888;
+
+  /* Panel rápido en móvil: sticky deja de tener sentido -> lo hacemos modal */
+  .pl-rightPanel{
+    position: fixed !important;
+    right: 14px;
+    left: 14px;
+    top: 78px;
+    z-index: 30 !important;
+  }
+
+  
 }

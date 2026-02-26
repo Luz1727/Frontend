@@ -8,7 +8,13 @@ type DictamenStatus = "BORRADOR" | "GENERADO" | "FIRMADO";
 
 type Row = {
   id: string;
+
+  // ✅ folio que se muestra como principal (folio del capítulo)
   folio: string;
+
+  // ✅ folio real del dictamen (para referencia/descargas)
+  dictamenFolio: string;
+
   capituloId: string;
   capitulo: string;
   libro: string;
@@ -21,7 +27,11 @@ type Row = {
 
 type AdminDictamenApi = {
   id: number;
-  folio: string;
+  folio: string; // folio del dictamen (dictamenes.folio)
+
+  // ✅ folio del capítulo (chapters.folio) agregado desde backend
+  chapterFolio?: string | null;
+
   capituloId: number;
   capitulo: string;
   libro: string;
@@ -45,18 +55,30 @@ export default function Dictamenes() {
   const [decision, setDecision] = useState<"ALL" | Decision>("ALL");
 
   const mapApi = (data: AdminDictamenApi[] = []): Row[] =>
-    data.map((d) => ({
-      id: String(d.id),
-      folio: d.folio ?? "—",
-      capituloId: String(d.capituloId ?? ""),
-      capitulo: d.capitulo ?? "—",
-      libro: d.libro ?? "—",
-      evaluador: d.evaluador ?? "—",
-      decision: d.decision,
-      promedio: Number(d.promedio ?? 0),
-      status: d.status,
-      updatedAt: (d.updatedAt || "").slice(0, 10),
-    }));
+    data.map((d) => {
+      const chapterFolio = (d.chapterFolio || "").trim();
+      const dictamenFolio = (d.folio || "").trim();
+
+      return {
+        id: String(d.id),
+
+        // ✅ Folio que se muestra en la tabla:
+        // Prioriza folio del capítulo, si no hay, cae al folio del dictamen
+        folio: chapterFolio || dictamenFolio || "—",
+
+        // ✅ Folio real del dictamen siempre guardado aparte
+        dictamenFolio: dictamenFolio || "—",
+
+        capituloId: String(d.capituloId ?? ""),
+        capitulo: d.capitulo ?? "—",
+        libro: d.libro ?? "—",
+        evaluador: d.evaluador ?? "—",
+        decision: d.decision,
+        promedio: Number(d.promedio ?? 0),
+        status: d.status,
+        updatedAt: (d.updatedAt || "").slice(0, 10),
+      };
+    });
 
   const load = async () => {
     try {
@@ -93,7 +115,9 @@ export default function Dictamenes() {
       if (decision !== "ALL" && x.decision !== decision) return false;
 
       if (!qq) return true;
-      const blob = `${x.folio} ${x.capitulo} ${x.evaluador} ${x.libro}`.toLowerCase();
+
+      // ✅ Buscar por folio capitulo + folio dictamen + texto
+      const blob = `${x.folio} ${x.dictamenFolio} ${x.capitulo} ${x.evaluador} ${x.libro}`.toLowerCase();
       return blob.includes(qq);
     });
   }, [rows, q, status, decision]);
@@ -133,7 +157,9 @@ export default function Dictamenes() {
       const cd = res.headers?.["content-disposition"] as string | undefined;
       const fromHeader = cd ? /filename="?([^"]+)"?/i.exec(cd)?.[1] : undefined;
 
-      const fallback = `dictamen-${row.folio || row.id}.${format}`;
+      // ✅ Nombre: preferir folio del capítulo (row.folio) y si no, el del dictamen
+      const baseFolio = (row.folio && row.folio !== "—") ? row.folio : row.dictamenFolio;
+      const fallback = `dictamen-${baseFolio || row.id}.${format}`;
       const filename = sanitizeFilename(fromHeader || fallback);
 
       const url = window.URL.createObjectURL(blob);
@@ -179,7 +205,7 @@ export default function Dictamenes() {
               style={styles.input}
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Folio, capítulo, evaluador..."
+              placeholder="Folio capítulo, folio dictamen, capítulo, evaluador..."
             />
           </div>
 
@@ -224,7 +250,7 @@ export default function Dictamenes() {
           <table style={styles.table}>
             <thead>
               <tr>
-                <th style={styles.th}>Folio</th>
+                <th style={styles.th}>Folio (Capítulo)</th>
                 <th style={styles.th}>Capítulo</th>
                 <th style={styles.th}>Libro</th>
                 <th style={styles.th}>Evaluador</th>
@@ -241,7 +267,7 @@ export default function Dictamenes() {
                 <tr key={x.id}>
                   <td style={styles.td}>
                     <div style={styles.cellTitle}>{x.folio}</div>
-                    <div style={styles.cellSub}>ID: {x.id}</div>
+                    <div style={styles.cellSub}>Dictamen: {x.dictamenFolio} • ID: {x.id}</div>
                   </td>
 
                   <td style={styles.td}>

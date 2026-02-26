@@ -81,32 +81,35 @@ function safeClearAuth() {
  * --------------------------*/
 const defaultHomeByRole: Record<Role, string> = {
   editorial: "/",
-  dictaminador: "/dictaminador", // ✅ tu panel real (Dictaminador.tsx)
-  autor: "/autor",               // ✅ tu panel real del autor
+  dictaminador: "/dictaminador",
+  autor: "/autor",
 };
 
 /** ---------------------------
  * ACL por ruta (roles permitidos)
- * Ajusta a TU sistema.
  * --------------------------*/
 const routeACL: Array<{ test: (path: string) => boolean; roles: Role[] }> = [
   { test: (p) => p.startsWith("/usuarios"), roles: ["editorial"] },
   { test: (p) => p.startsWith("/constancias"), roles: ["editorial"] },
-
-  // Si /dictamenes es SOLO para editorial (por tu layout viejo), déjalo así:
   { test: (p) => p.startsWith("/dictamenes"), roles: ["editorial"] },
+  // ✅ NUEVO: Comunicaciones (envío masivo / correos)
+  { test: (p) => p.startsWith("/comunicaciones"), roles: ["editorial"] },
 
-  // Rutas de panel por rol:
   { test: (p) => p.startsWith("/dictaminador"), roles: ["dictaminador"] },
   { test: (p) => p.startsWith("/autor"), roles: ["autor"] },
-
-  // Lo demás (dashboard/libros/capitulos/convocatorias) si quieres que lo vea editorial:
-  { test: (p) => p === "/" || p.startsWith("/convocatorias") || p.startsWith("/libros") || p.startsWith("/capitulos"), roles: ["editorial"] },
+  {
+    test: (p) =>
+      p === "/" ||
+      p.startsWith("/convocatorias") ||
+      p.startsWith("/libros") ||
+      p.startsWith("/capitulos"),
+    roles: ["editorial"],
+  },
 ];
 
 function hasAccess(pathname: string, role: Role): boolean {
   const rule = routeACL.find((r) => r.test(pathname));
-  if (!rule) return false; // ✅ mejor negar por defecto (evita pantallas “raras”)
+  if (!rule) return false;
   return rule.roles.includes(role);
 }
 
@@ -140,7 +143,7 @@ export default function PrivateLayout({ children }: { children: JSX.Element }) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
-  // ✅ 4) Si cae en ruta que NO es para su rol (por flecha Atrás), redirige a su home
+  // 4) ACL
   if (!hasAccess(location.pathname, user.role)) {
     return <Navigate to={defaultHomeByRole[user.role]} replace />;
   }
@@ -162,12 +165,11 @@ export default function PrivateLayout({ children }: { children: JSX.Element }) {
     nav("/login", { replace: true });
   };
 
-  const go = (path: string) => nav(path, { replace: true }); // ✅ evita historial “malo”
+  const go = (path: string) => nav(path, { replace: true });
   const isActive = (path: string) => location.pathname === path;
   const isStarts = (prefix: string) => location.pathname.startsWith(prefix);
 
   const menu = useMemo(() => {
-    // Menú por rol (evita que autor/dictaminador vean el panel viejo)
     if (user.role === "editorial") {
       return [
         { label: "Dashboard", path: "/" },
@@ -176,6 +178,8 @@ export default function PrivateLayout({ children }: { children: JSX.Element }) {
         { label: "Capítulos", path: "/capitulos" },
         { label: "Dictámenes", path: "/dictamenes" },
         { label: "Constancias", path: "/constancias" },
+        // ✅ NUEVO: Comunicaciones
+        { label: "Comunicaciones", path: "/comunicaciones" },
         { label: "Usuarios", path: "/usuarios" },
       ];
     }
@@ -183,11 +187,10 @@ export default function PrivateLayout({ children }: { children: JSX.Element }) {
     if (user.role === "dictaminador") {
       return [
         { label: "Mis asignaciones", path: "/dictaminador" },
-        { label: "Mi cuenta", path: "/dictaminador?tab=cuenta" }, // si manejas query, o crea /dictaminador/cuenta
+        { label: "Mi cuenta", path: "/dictaminador?tab=cuenta" },
       ];
     }
 
-    // autor
     return [
       { label: "Mis envíos", path: "/autor" },
       { label: "Mi cuenta", path: "/autor?tab=cuenta" },
@@ -215,6 +218,8 @@ export default function PrivateLayout({ children }: { children: JSX.Element }) {
         ? "Constancias"
         : isStarts("/usuarios")
         ? "Usuarios"
+        : isStarts("/comunicaciones")
+        ? "Comunicaciones"
         : "Panel"
       : user.role === "dictaminador"
       ? "Dictaminador"
@@ -222,12 +227,22 @@ export default function PrivateLayout({ children }: { children: JSX.Element }) {
 
   const headerSubtitle =
     user.role === "editorial"
-      ? "Gestión editorial y dictámenes"
+      ? isStarts("/comunicaciones")
+        ? "Envío masivo y automatizado de correos"
+        : "Gestión editorial y dictámenes"
       : user.role === "dictaminador"
       ? "Revisión y dictámenes asignados"
       : "Seguimiento y envío de capítulos";
 
   const avatarLetter = (user?.name?.trim()?.[0] ?? "U").toUpperCase();
+
+  // (opcional) título accesible del panel rápido si lo usas luego para acciones
+  const quickPanelTitle =
+    selectedAction === "generar_constancia"
+      ? "Generar constancia"
+      : selectedAction === "subir_dictamen_firmado"
+      ? "Subir dictamen firmado"
+      : "Panel rápido";
 
   return (
     <div style={styles.shell}>

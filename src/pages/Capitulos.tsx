@@ -8,6 +8,7 @@ type Status =
   | "ASIGNADO_A_DICTAMINADOR"
   | "ENVIADO_A_DICTAMINADOR"
   | "EN_REVISION_DICTAMINADOR"
+  | "CORRECCIONES_SOLICITITADAS_A_AUTOR"
   | "CORRECCIONES_SOLICITADAS_A_AUTOR"
   | "REENVIADO_POR_AUTOR"
   | "REVISADO_POR_EDITORIAL"
@@ -25,6 +26,10 @@ type ChapterRow = {
   status: Status;
   updatedAt: string; // yyyy-mm-dd
   evaluatorEmail?: string | null;
+
+  // ✅ NUEVO (fechas / deadline)
+  deadlineAt?: string | null; // yyyy-mm-dd
+  deadlineStage?: string | null; // DICTAMEN | CORRECCION_AUTOR | REDICTAMEN | etc
 };
 
 type AdminChapterApi = {
@@ -38,6 +43,10 @@ type AdminChapterApi = {
   status: Status;
   updated_at: string;
   evaluator_email?: string | null;
+
+  // ✅ NUEVO (lo debe devolver tu backend)
+  deadline_at?: string | null; // DATETIME o DATE
+  deadline_stage?: string | null;
 };
 
 export default function Capitulos() {
@@ -60,12 +69,15 @@ export default function Capitulos() {
 
   // modal acciones
   const [actionOpen, setActionOpen] = useState(false);
-  const [actionType, setActionType] = useState<"ASIGNAR" | "CORRECCION" | "ENVIAR" | null>(null);
+  const [actionType, setActionType] = useState<"ASIGNAR" | null>(null);
   const [selected, setSelected] = useState<ChapterRow | null>(null);
 
   const [actionForm, setActionForm] = useState({
     dictaminador: "",
     comentario: "",
+
+    // ✅ NUEVO: la editorial selecciona la fecha límite
+    deadlineAt: "", // yyyy-mm-dd
   });
 
   const apiMsg = (err: any, fallback: string) =>
@@ -88,6 +100,10 @@ export default function Capitulos() {
         status: c.status,
         updatedAt: (c.updated_at || "").slice(0, 10),
         evaluatorEmail: c.evaluator_email ?? null,
+
+        // ✅ NUEVO
+        deadlineAt: c.deadline_at ? (c.deadline_at || "").slice(0, 10) : null,
+        deadlineStage: c.deadline_stage ?? null,
       }));
 
       setAll(mapped);
@@ -157,10 +173,13 @@ export default function Capitulos() {
     setTo("");
   };
 
-  const openAction = (type: "ASIGNAR" | "CORRECCION" | "ENVIAR", row: ChapterRow) => {
+  const openAction = (type: "ASIGNAR", row: ChapterRow) => {
     setSelected(row);
     setActionType(type);
-    setActionForm({ dictaminador: "", comentario: "" });
+
+    // ✅ NUEVO: limpiamos deadlineAt
+    setActionForm({ dictaminador: "", comentario: "", deadlineAt: "" });
+
     setActionOpen(true);
   };
 
@@ -177,6 +196,10 @@ export default function Capitulos() {
     status: data.status,
     updatedAt: (data.updated_at || "").slice(0, 10),
     evaluatorEmail: data.evaluator_email ?? null,
+
+    // ✅ NUEVO
+    deadlineAt: data.deadline_at ? (data.deadline_at || "").slice(0, 10) : null,
+    deadlineStage: data.deadline_stage ?? null,
   });
 
   // guardar folio
@@ -188,29 +211,16 @@ export default function Capitulos() {
     setFolioDraft((p) => ({ ...p, [chapterId]: updated.folio }));
   };
 
-  // asignar dictaminador por correo
-  const assignEvaluatorBackend = async (chapterId: string, evaluatorEmail: string) => {
+  // ✅ asignar dictaminador + fecha límite (la editorial la pone)
+  const assignEvaluatorBackend = async (chapterId: string, evaluatorEmail: string, deadlineAt: string) => {
     const { data } = await api.post<AdminChapterApi>(`/admin/chapters/${Number(chapterId)}/assign`, {
       evaluator_email: evaluatorEmail,
+
+      // ✅ NUEVO
+      deadline_at: deadlineAt, // yyyy-mm-dd
+      deadline_stage: "DICTAMEN",
     });
 
-    const updated = mapApiToRow(data);
-    setAll((prev) => prev.map((x) => (x.id === chapterId ? updated : x)));
-  };
-
-  // guardar corrección
-  const saveCorreccionBackend = async (chapterId: string, comentario: string) => {
-    const { data } = await api.post<AdminChapterApi>(`/admin/chapters/${Number(chapterId)}/correcciones`, {
-      comment: comentario,
-    });
-
-    const updated = mapApiToRow(data);
-    setAll((prev) => prev.map((x) => (x.id === chapterId ? updated : x)));
-  };
-
-  // enviar al dictaminador (registro/historial)
-  const sendToEvaluatorBackend = async (chapterId: string) => {
-    const { data } = await api.post<AdminChapterApi>(`/admin/chapters/${Number(chapterId)}/send`);
     const updated = mapApiToRow(data);
     setAll((prev) => prev.map((x) => (x.id === chapterId ? updated : x)));
   };
@@ -226,25 +236,12 @@ export default function Capitulos() {
         const email = actionForm.dictaminador.trim().toLowerCase();
         if (!email) return alert("Escribe el correo del dictaminador.");
 
-        await assignEvaluatorBackend(selected.id, email);
+        // ✅ NUEVO
+        const deadlineAt = actionForm.deadlineAt.trim();
+        if (!deadlineAt) return alert("Selecciona la fecha límite.");
+
+        await assignEvaluatorBackend(selected.id, email, deadlineAt);
         alert("Dictaminador asignado ✅");
-        setActionOpen(false);
-        return;
-      }
-
-      if (actionType === "CORRECCION") {
-        const comentario = actionForm.comentario.trim();
-        if (!comentario) return alert("Escribe el comentario de corrección.");
-
-        await saveCorreccionBackend(selected.id, comentario);
-        alert("Corrección guardada ✅");
-        setActionOpen(false);
-        return;
-      }
-
-      if (actionType === "ENVIAR") {
-        await sendToEvaluatorBackend(selected.id);
-        alert("Enviado / registrado ✅");
         setActionOpen(false);
         return;
       }
@@ -293,21 +290,21 @@ export default function Capitulos() {
               <div style={styles.field}>
                 <label style={styles.label}>Estado</label>
                 <select style={styles.input} value={status} onChange={(e) => setStatus(e.target.value)}>
-  <option value="ALL">Todos</option>
-  <option value="RECIBIDO">Recibido</option>
-  <option value="ASIGNADO_A_DICTAMINADOR">Asignado</option>
-  <option value="ENVIADO_A_DICTAMINADOR">Enviado a dictaminador</option>  {/* ← NUEVO */}
-  <option value="EN_REVISION_DICTAMINADOR">En revisión (dictaminador)</option>  {/* ← NUEVO */}
-  <option value="EN_REVISION">En revisión</option>
-  <option value="CORRECCIONES_SOLICITADAS_A_AUTOR">Correcciones solicitadas</option>  {/* ← NUEVO */}
-  <option value="CORRECCIONES">Correcciones</option>
-  <option value="REENVIADO_POR_AUTOR">Reenviado</option>
-  <option value="REVISADO_POR_EDITORIAL">Revisado por editorial</option>  {/* ← NUEVO */}
-  <option value="LISTO_PARA_FIRMA">Listo para firma</option>  {/* ← NUEVO */}
-  <option value="FIRMADO">Firmado</option>  {/* ← NUEVO */}
-  <option value="APROBADO">Aprobado</option>
-  <option value="RECHAZADO">Rechazado</option>
-</select>
+                  <option value="ALL">Todos</option>
+                  <option value="RECIBIDO">Recibido</option>
+                  <option value="ASIGNADO_A_DICTAMINADOR">Asignado</option>
+                  <option value="ENVIADO_A_DICTAMINADOR">Enviado a dictaminador</option>
+                  <option value="EN_REVISION_DICTAMINADOR">En revisión (dictaminador)</option>
+                  <option value="EN_REVISION">En revisión</option>
+                  <option value="CORRECCIONES_SOLICITADAS_A_AUTOR">Correcciones solicitadas</option>
+                  <option value="CORRECCIONES">Correcciones</option>
+                  <option value="REENVIADO_POR_AUTOR">Reenviado</option>
+                  <option value="REVISADO_POR_EDITORIAL">Revisado por editorial</option>
+                  <option value="LISTO_PARA_FIRMA">Listo para firma</option>
+                  <option value="FIRMADO">Firmado</option>
+                  <option value="APROBADO">Aprobado</option>
+                  <option value="RECHAZADO">Rechazado</option>
+                </select>
               </div>
 
               <div style={styles.field}>
@@ -343,20 +340,34 @@ export default function Capitulos() {
               </span>
 
               <div style={styles.chips}>
-  <span style={{ ...styles.chip, ...pillTone("RECIBIDO") }}>Recibidos: {counts.RECIBIDO}</span>
-  <span style={{ ...styles.chip, ...pillTone("ASIGNADO_A_DICTAMINADOR") }}>Asignados: {counts.ASIGNADO_A_DICTAMINADOR}</span>
-  <span style={{ ...styles.chip, ...pillTone("ENVIADO_A_DICTAMINADOR") }}>Enviados: {counts.ENVIADO_A_DICTAMINADOR}</span>  {/* ← NUEVO */}
-  <span style={{ ...styles.chip, ...pillTone("EN_REVISION_DICTAMINADOR") }}>En revisión (dict): {counts.EN_REVISION_DICTAMINADOR}</span>  {/* ← NUEVO */}
-  <span style={{ ...styles.chip, ...pillTone("EN_REVISION") }}>En revisión: {counts.EN_REVISION}</span>
-  <span style={{ ...styles.chip, ...pillTone("CORRECCIONES_SOLICITADAS_A_AUTOR") }}>Correcciones sol: {counts.CORRECCIONES_SOLICITADAS_A_AUTOR}</span>  {/* ← NUEVO */}
-  <span style={{ ...styles.chip, ...pillTone("CORRECCIONES") }}>Correcciones: {counts.CORRECCIONES}</span>
-  <span style={{ ...styles.chip, ...pillTone("REENVIADO_POR_AUTOR") }}>Reenviados: {counts.REENVIADO_POR_AUTOR}</span>
-  <span style={{ ...styles.chip, ...pillTone("REVISADO_POR_EDITORIAL") }}>Revisado editorial: {counts.REVISADO_POR_EDITORIAL}</span>  {/* ← NUEVO */}
-  <span style={{ ...styles.chip, ...pillTone("LISTO_PARA_FIRMA") }}>Listo firma: {counts.LISTO_PARA_FIRMA}</span>  {/* ← NUEVO */}
-  <span style={{ ...styles.chip, ...pillTone("FIRMADO") }}>Firmados: {counts.FIRMADO}</span>  {/* ← NUEVO */}
-  <span style={{ ...styles.chip, ...pillTone("APROBADO") }}>Aprobados: {counts.APROBADO}</span>
-  <span style={{ ...styles.chip, ...pillTone("RECHAZADO") }}>Rechazados: {counts.RECHAZADO}</span>
-</div>
+                <span style={{ ...styles.chip, ...pillTone("RECIBIDO") }}>Recibidos: {counts.RECIBIDO}</span>
+                <span style={{ ...styles.chip, ...pillTone("ASIGNADO_A_DICTAMINADOR") }}>
+                  Asignados: {counts.ASIGNADO_A_DICTAMINADOR}
+                </span>
+                <span style={{ ...styles.chip, ...pillTone("ENVIADO_A_DICTAMINADOR") }}>
+                  Enviados: {counts.ENVIADO_A_DICTAMINADOR}
+                </span>
+                <span style={{ ...styles.chip, ...pillTone("EN_REVISION_DICTAMINADOR") }}>
+                  En revisión (dict): {counts.EN_REVISION_DICTAMINADOR}
+                </span>
+                <span style={{ ...styles.chip, ...pillTone("EN_REVISION") }}>En revisión: {counts.EN_REVISION}</span>
+                <span style={{ ...styles.chip, ...pillTone("CORRECCIONES_SOLICITADAS_A_AUTOR") }}>
+                  Correcciones sol: {counts.CORRECCIONES_SOLICITADAS_A_AUTOR}
+                </span>
+                <span style={{ ...styles.chip, ...pillTone("CORRECCIONES") }}>Correcciones: {counts.CORRECCIONES}</span>
+                <span style={{ ...styles.chip, ...pillTone("REENVIADO_POR_AUTOR") }}>
+                  Reenviados: {counts.REENVIADO_POR_AUTOR}
+                </span>
+                <span style={{ ...styles.chip, ...pillTone("REVISADO_POR_EDITORIAL") }}>
+                  Revisado editorial: {counts.REVISADO_POR_EDITORIAL}
+                </span>
+                <span style={{ ...styles.chip, ...pillTone("LISTO_PARA_FIRMA") }}>
+                  Listo firma: {counts.LISTO_PARA_FIRMA}
+                </span>
+                <span style={{ ...styles.chip, ...pillTone("FIRMADO") }}>Firmados: {counts.FIRMADO}</span>
+                <span style={{ ...styles.chip, ...pillTone("APROBADO") }}>Aprobados: {counts.APROBADO}</span>
+                <span style={{ ...styles.chip, ...pillTone("RECHAZADO") }}>Rechazados: {counts.RECHAZADO}</span>
+              </div>
             </div>
           </div>
 
@@ -372,6 +383,10 @@ export default function Capitulos() {
                   <th style={styles.th}>Dictaminador</th>
                   <th style={styles.th}>Estado</th>
                   <th style={styles.th}>Actualizado</th>
+
+                  {/* ✅ NUEVO */}
+                  <th style={styles.th}>Fecha límite</th>
+
                   <th style={styles.th}>Acción</th>
                 </tr>
               </thead>
@@ -430,6 +445,9 @@ export default function Capitulos() {
 
                       <td style={styles.td}>{fmtDate(x.updatedAt)}</td>
 
+                      {/* ✅ NUEVO */}
+                      <td style={styles.td}>{x.deadlineAt ? fmtDate(x.deadlineAt) : "—"}</td>
+
                       <td style={styles.td}>
                         <div style={styles.actions}>
                           <button style={styles.linkBtn} onClick={() => nav(`/capitulos/${x.id}`)} type="button">
@@ -440,13 +458,7 @@ export default function Capitulos() {
                             Asignar
                           </button>
 
-                          <button style={styles.ghostBtnSmall} onClick={() => openAction("CORRECCION", x)} type="button">
-                            Corrección
-                          </button>
-
-                          <button style={styles.ghostBtnSmall} onClick={() => openAction("ENVIAR", x)} type="button">
-                            Enviar
-                          </button>
+                          {/* ✅ QUITADOS: Corrección y Enviar */}
                         </div>
                       </td>
                     </tr>
@@ -455,7 +467,7 @@ export default function Capitulos() {
 
                 {filtered.length === 0 && (
                   <tr>
-                    <td style={styles.td} colSpan={8}>
+                    <td style={styles.td} colSpan={9}>
                       No hay resultados con esos filtros.
                     </td>
                   </tr>
@@ -470,50 +482,31 @@ export default function Capitulos() {
       {actionOpen && selected && actionType && (
         <div style={styles.modalOverlay} onClick={() => setActionOpen(false)}>
           <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <div style={styles.modalTitle}>
-              {actionType === "ASIGNAR"
-                ? "Asignar dictaminador"
-                : actionType === "CORRECCION"
-                ? "Solicitar correcciones"
-                : "Enviar al dictaminador"}
-            </div>
+            <div style={styles.modalTitle}>Asignar dictaminador</div>
 
             <div style={styles.modalHint}>
               Capítulo: <b>{selected.title}</b> • Folio: <b>{selected.folio || "—"}</b>
             </div>
 
-            {actionType === "ASIGNAR" && (
-              <>
-                <label style={styles.modalLabel}>Correo del dictaminador</label>
-                <input
-                  style={styles.modalInput}
-                  value={actionForm.dictaminador}
-                  onChange={(e) => setActionForm((s) => ({ ...s, dictaminador: e.target.value }))}
-                  placeholder="ej: dictaminador@correo.com"
-                />
-                <div style={styles.modalInfo}>
-                  El correo debe existir en la tabla <b>users</b> y tener <b>role=dictaminador</b>.
-                </div>
-              </>
-            )}
+            <label style={styles.modalLabel}>Correo del dictaminador</label>
+            <input
+              style={styles.modalInput}
+              value={actionForm.dictaminador}
+              onChange={(e) => setActionForm((s) => ({ ...s, dictaminador: e.target.value }))}
+              placeholder="ej: dictaminador@correo.com"
+            />
+            <div style={styles.modalInfo}>
+              El correo debe existir en la tabla <b>users</b> y tener <b>role=dictaminador</b>.
+            </div>
 
-            {actionType === "CORRECCION" && (
-              <>
-                <label style={styles.modalLabel}>Comentario / motivo</label>
-                <textarea
-                  style={styles.modalTextarea}
-                  value={actionForm.comentario}
-                  onChange={(e) => setActionForm((s) => ({ ...s, comentario: e.target.value }))}
-                  placeholder="Ej: Ajustar formato APA, revisar coherencia..."
-                />
-              </>
-            )}
-
-            {actionType === "ENVIAR" && (
-              <div style={styles.modalInfo}>
-                Registrará el envío al dictaminador asignado (si no hay asignación, el backend rechaza).
-              </div>
-            )}
+            {/* ✅ NUEVO: Fecha límite */}
+            <label style={styles.modalLabel}>Fecha límite (dictaminador)</label>
+            <input
+              style={styles.modalInput}
+              type="date"
+              value={actionForm.deadlineAt}
+              onChange={(e) => setActionForm((s) => ({ ...s, deadlineAt: e.target.value }))}
+            />
 
             <div style={styles.modalActions}>
               <button style={styles.secondaryBtn} type="button" onClick={() => setActionOpen(false)}>
@@ -533,31 +526,30 @@ export default function Capitulos() {
 function statusLabel(s: Status) {
   if (s === "RECIBIDO") return "Recibido";
   if (s === "ASIGNADO_A_DICTAMINADOR") return "Asignado";
-  if (s === "ENVIADO_A_DICTAMINADOR") return "Enviado a dictaminador";  // ← NUEVO
-  if (s === "EN_REVISION_DICTAMINADOR") return "En revisión (dictaminador)";  // ← NUEVO
-  if (s === "CORRECCIONES_SOLICITADAS_A_AUTOR") return "Correcciones solicitadas";  // ← NUEVO
+  if (s === "ENVIADO_A_DICTAMINADOR") return "Enviado a dictaminador";
+  if (s === "EN_REVISION_DICTAMINADOR") return "En revisión (dictaminador)";
+  if (s === "CORRECCIONES_SOLICITADAS_A_AUTOR") return "Correcciones solicitadas";
   if (s === "CORRECCIONES") return "Correcciones";
   if (s === "REENVIADO_POR_AUTOR") return "Reenviado";
-  if (s === "REVISADO_POR_EDITORIAL") return "Revisado por editorial";  // ← NUEVO
-  if (s === "LISTO_PARA_FIRMA") return "Listo para firma";  // ← NUEVO
-  if (s === "FIRMADO") return "Firmado";  // ← NUEVO
+  if (s === "REVISADO_POR_EDITORIAL") return "Revisado por editorial";
+  if (s === "LISTO_PARA_FIRMA") return "Listo para firma";
+  if (s === "FIRMADO") return "Firmado";
   if (s === "EN_REVISION") return "En revisión";
   if (s === "APROBADO") return "Aprobado";
   return "Rechazado";
 }
+
 function pillTone(s: Status): React.CSSProperties {
-  if (s === "APROBADO" || s === "FIRMADO")  // ← NUEVO (FIRMADO)
+  if (s === "APROBADO" || s === "FIRMADO")
     return { background: "#E8F7EE", color: "#0A7A35", borderColor: "#BFE9CF" };
-  if (s === "CORRECCIONES" || s === "CORRECCIONES_SOLICITADAS_A_AUTOR")  // ← NUEVO
+  if (s === "CORRECCIONES" || s === "CORRECCIONES_SOLICITADAS_A_AUTOR")
     return { background: "#FFF6E5", color: "#9A5B00", borderColor: "#FFE0A3" };
-  if (s === "EN_REVISION" || s === "EN_REVISION_DICTAMINADOR" || s === "ENVIADO_A_DICTAMINADOR")  // ← NUEVOS
+  if (s === "EN_REVISION" || s === "EN_REVISION_DICTAMINADOR" || s === "ENVIADO_A_DICTAMINADOR")
     return { background: "#E9F2FF", color: "#1447B2", borderColor: "#C9DDFF" };
-  if (s === "ASIGNADO_A_DICTAMINADOR" || s === "REVISADO_POR_EDITORIAL" || s === "LISTO_PARA_FIRMA")  // ← NUEVOS
+  if (s === "ASIGNADO_A_DICTAMINADOR" || s === "REVISADO_POR_EDITORIAL" || s === "LISTO_PARA_FIRMA")
     return { background: "#EEF2FF", color: "#3730A3", borderColor: "#C7D2FE" };
-  if (s === "REENVIADO_POR_AUTOR")
-    return { background: "#ECFDF5", color: "#065F46", borderColor: "#A7F3D0" };
-  if (s === "RECHAZADO")
-    return { background: "#FEECEC", color: "#B42318", borderColor: "#F9CACA" };
+  if (s === "REENVIADO_POR_AUTOR") return { background: "#ECFDF5", color: "#065F46", borderColor: "#A7F3D0" };
+  if (s === "RECHAZADO") return { background: "#FEECEC", color: "#B42318", borderColor: "#F9CACA" };
   return { background: "#F3F4F6", color: "#374151", borderColor: "#E5E7EB" };
 }
 
@@ -572,14 +564,14 @@ function countStatuses(rows: ChapterRow[]) {
   const out: Record<Status, number> = {
     RECIBIDO: 0,
     ASIGNADO_A_DICTAMINADOR: 0,
-    ENVIADO_A_DICTAMINADOR: 0,           // ← NUEVO
-    EN_REVISION_DICTAMINADOR: 0,          // ← NUEVO
-    CORRECCIONES_SOLICITADAS_A_AUTOR: 0,  // ← NUEVO
+    ENVIADO_A_DICTAMINADOR: 0,
+    EN_REVISION_DICTAMINADOR: 0,
+    CORRECCIONES_SOLICITADAS_A_AUTOR: 0,
     CORRECCIONES: 0,
     REENVIADO_POR_AUTOR: 0,
-    REVISADO_POR_EDITORIAL: 0,            // ← NUEVO
-    LISTO_PARA_FIRMA: 0,                  // ← NUEVO
-    FIRMADO: 0,                           // ← NUEVO
+    REVISADO_POR_EDITORIAL: 0,
+    LISTO_PARA_FIRMA: 0,
+    FIRMADO: 0,
     EN_REVISION: 0,
     APROBADO: 0,
     RECHAZADO: 0,
@@ -587,7 +579,6 @@ function countStatuses(rows: ChapterRow[]) {
   for (const r of rows) out[r.status] += 1;
   return out;
 }
-  
 
 const styles: Record<string, React.CSSProperties> = {
   wrap: { display: "flex", flexDirection: "column", gap: 14 },
