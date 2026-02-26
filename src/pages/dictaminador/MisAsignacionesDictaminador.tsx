@@ -224,8 +224,10 @@ function toneByStatus(s: ChapterStatus) {
   if (s === "ASIGNADO_A_DICTAMINADOR")
     return { bg: "rgba(139,92,246,.14)", bd: "rgba(139,92,246,.30)", tx: "#5B21B6" };
 
-  if (s === "REENVIADO_POR_AUTOR") return { bg: "rgba(148,163,184,.18)", bd: "rgba(148,163,184,.35)", tx: "#334155" };
-  if (s === "RECIBIDO") return { bg: "rgba(148,163,184,.18)", bd: "rgba(148,163,184,.35)", tx: "#334155" };
+  if (s === "REENVIADO_POR_AUTOR")
+    return { bg: "rgba(148,163,184,.18)", bd: "rgba(148,163,184,.35)", tx: "#334155" };
+  if (s === "RECIBIDO")
+    return { bg: "rgba(148,163,184,.18)", bd: "rgba(148,163,184,.35)", tx: "#334155" };
 
   return { bg: "rgba(148,163,184,.18)", bd: "rgba(148,163,184,.35)", tx: "#334155" };
 }
@@ -271,17 +273,6 @@ function btnFxSecondaryProps() {
 /* =========================
    Helpers nuevos (VER/DESCARGAR)
 ========================= */
-function getApiBase(): string {
-  const base = (api as any)?.defaults?.baseURL || "";
-  return String(base).replace(/\/+$/, "");
-}
-
-function joinUrl(base: string, path: string) {
-  const b = String(base || "").replace(/\/+$/, "");
-  const p = String(path || "").replace(/^\/+/, "");
-  return b ? `${b}/${p}` : `/${p}`;
-}
-
 function guessExtFromContentType(ct: string) {
   const s = (ct || "").toLowerCase();
   if (s.includes("pdf")) return ".pdf";
@@ -291,35 +282,6 @@ function guessExtFromContentType(ct: string) {
   if (s.includes("vnd.ms-excel")) return ".xls";
   if (s.includes("text/plain")) return ".txt";
   return "";
-}
-
-async function fetchBlobWithAuth(url: string, token: string) {
-  const u = url.includes("?") ? `${url}&ts=${Date.now()}` : `${url}?ts=${Date.now()}`;
-
-  const resp = await fetch(u, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!resp.ok) {
-    const txt = await resp.text().catch(() => "");
-    throw new Error(txt || `No se pudo obtener el archivo (${resp.status})`);
-  }
-
-  const ct = resp.headers.get("content-type") || "application/octet-stream";
-  const blob = await resp.blob();
-  return { blob, contentType: ct };
-}
-
-function openBlobInNewTab(blob: Blob) {
-  const url = window.URL.createObjectURL(blob);
-  const w = window.open(url, "_blank", "noopener,noreferrer");
-  if (!w) {
-    window.location.href = url;
-  }
-  setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
 }
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -343,14 +305,18 @@ function downloadBlob(blob: Blob, filename: string) {
 
 /* =========================
    ✅ NUEVO: Helpers deadline
-   - Se mantiene tu lógica, solo cambiamos el TEXTO para mostrar fecha completa
 ========================= */
 function toDateOnly(dateOrDatetime?: string | null): Date | null {
   if (!dateOrDatetime) return null;
   const d = String(dateOrDatetime).slice(0, 10); // yyyy-mm-dd
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return null;
-  // Importante: evitar shift por zona horaria
   return new Date(`${d}T00:00:00`);
+}
+
+function toDateInputValue(dateOrDatetime?: string | null): string {
+  if (!dateOrDatetime) return "";
+  const d = String(dateOrDatetime).slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : "";
 }
 
 function daysUntil(deadlineAt?: string | null): number | null {
@@ -359,18 +325,13 @@ function daysUntil(deadlineAt?: string | null): number | null {
   const now = new Date();
   const today = new Date(`${now.toISOString().slice(0, 10)}T00:00:00`);
   const ms = dl.getTime() - today.getTime();
-  // ceil para que “hoy” sea 0, mañana 1, etc
   return Math.ceil(ms / (1000 * 60 * 60 * 24));
 }
 
 function deadlineTone(d: number | null) {
-  // null -> gris
   if (d === null) return { bg: "rgba(148,163,184,.18)", bd: "rgba(148,163,184,.35)", tx: "#334155" };
-  // vencido
   if (d < 0) return { bg: "rgba(244,63,94,.12)", bd: "rgba(244,63,94,.30)", tx: "#9F1239" };
-  // urgente (0-3 días)
   if (d <= 3) return { bg: "rgba(245,158,11,.14)", bd: "rgba(245,158,11,.35)", tx: "#92400E" };
-  // ok
   return { bg: "rgba(16,185,129,.12)", bd: "rgba(16,185,129,.28)", tx: "#065F46" };
 }
 
@@ -542,11 +503,7 @@ const ChapterItem = React.memo(
     const dlDays = daysUntil(chapter.deadline_at ?? null);
     const dlTone = deadlineTone(dlDays);
 
-    // ✅ CAMBIO: mostrar fecha completa en vez de dd/mm/yyyy
-    const deadlineText =
-      chapter.deadline_at
-        ? `Fecha límite: ${fmtDateLong(chapter.deadline_at)}`
-        : null;
+    const deadlineText = chapter.deadline_at ? `Fecha límite: ${fmtDateLong(chapter.deadline_at)}` : null;
 
     const deadlineRemain =
       dlDays === null
@@ -566,30 +523,23 @@ const ChapterItem = React.memo(
               {chapter.book_name ? <span style={sx.itemMuted}> • {chapter.book_name}</span> : null}
             </div>
 
-            <span style={{ ...sx.statusChip, background: t.bg, borderColor: t.bd, color: t.tx }}>
-              {statusLabel(chapter.status)}
-            </span>
+            <span style={{ ...sx.statusChip, background: t.bg, borderColor: t.bd, color: t.tx }}>{statusLabel(chapter.status)}</span>
           </div>
 
           <div style={sx.itemMeta}>
             <span style={sx.metaDot} />
             <span>
-              {chapter.author_name
-                ? `${chapter.author_name}${chapter.author_email ? ` (${chapter.author_email})` : ""}`
-                : "Autor: —"}
+              {chapter.author_name ? `${chapter.author_name}${chapter.author_email ? ` (${chapter.author_email})` : ""}` : "Autor: —"}
             </span>
             <span style={sx.metaSep}>•</span>
             <span>Actualizado {fmtDate(chapter.updated_at)}</span>
 
-            {/* ✅ NUEVO: Deadline con fecha completa */}
             {chapter.deadline_at ? (
               <>
                 <span style={sx.metaSep}>•</span>
                 <span style={sx.deadlineWrap}>
                   <span>{deadlineText}</span>
-                  <span style={{ ...sx.deadlinePill, background: dlTone.bg, borderColor: dlTone.bd, color: dlTone.tx }}>
-                    {deadlineRemain}
-                  </span>
+                  <span style={{ ...sx.deadlinePill, background: dlTone.bg, borderColor: dlTone.bd, color: dlTone.tx }}>{deadlineRemain}</span>
                 </span>
               </>
             ) : null}
@@ -662,7 +612,13 @@ const ChapterItem = React.memo(
             </span>
           </button>
 
-          <button type="button" style={sx.btnDanger} onClick={() => onAction("RECHAZAR", chapter)} disabled={loading} title="Rechazar">
+          <button
+            type="button"
+            style={sx.btnDanger}
+            onClick={() => onAction("RECHAZAR", chapter)}
+            disabled={loading}
+            title="Rechazar"
+          >
             <span style={sx.btnInner}>
               <Icon name="x" /> Rechazar
             </span>
@@ -699,6 +655,9 @@ function MisAsignacionesDictaminadorContent() {
   const [actionType, setActionType] = useState<"REVISION" | "CORRECCIONES" | "APROBAR" | "RECHAZAR" | null>(null);
   const [selected, setSelected] = useState<AssignedChapterRow | null>(null);
   const [comment, setComment] = useState("");
+
+  // ✅ NUEVO: fecha límite que el dictaminador fija al solicitar correcciones
+  const [deadlineInput, setDeadlineInput] = useState<string>(""); // yyyy-mm-dd
 
   const authHeaders = useCallback(() => ({ Authorization: `Bearer ${getToken()}` }), []);
   const apiMsg = (err: any, fallback: string) => err?.response?.data?.detail || err?.message || fallback;
@@ -822,9 +781,15 @@ function MisAsignacionesDictaminadorContent() {
     return { total, pendientes, correcciones, resueltos };
   }, [rows]);
 
-  const patchStatus = async (chapterId: number, newStatus: ChapterStatus, extra?: { comment?: string }) => {
+  const patchStatus = async (
+    chapterId: number,
+    newStatus: ChapterStatus,
+    extra?: { comment?: string; deadline_at?: string | null; deadline_stage?: string | null }
+  ) => {
     const payload: any = { status: newStatus };
     if (extra?.comment) payload.comment = extra.comment;
+    if (extra?.deadline_at !== undefined) payload.deadline_at = extra.deadline_at; // DATE/DATETIME
+    if (extra?.deadline_stage !== undefined) payload.deadline_stage = extra.deadline_stage;
 
     const { data } = await api.patch(`/dictaminador/chapters/${chapterId}/status`, payload, {
       headers: authHeaders(),
@@ -840,7 +805,7 @@ function MisAsignacionesDictaminadorContent() {
       author_name: data.author_name ?? selected?.author_name ?? null,
       author_email: data.author_email ?? selected?.author_email ?? null,
 
-      // ✅ NUEVO (si el backend lo regresa en el patch, lo tomamos; si no, conservamos lo actual)
+      // ✅ NUEVO
       deadline_at: data.deadline_at ?? selected?.deadline_at ?? null,
       deadline_stage: data.deadline_stage ?? selected?.deadline_stage ?? null,
     };
@@ -852,6 +817,14 @@ function MisAsignacionesDictaminadorContent() {
     setSelected(row);
     setActionType(type);
     setComment("");
+
+    // ✅ NUEVO: precargar deadline si ya existía (solo para correcciones)
+    if (type === "CORRECCIONES") {
+      setDeadlineInput(toDateInputValue(row.deadline_at ?? null));
+    } else {
+      setDeadlineInput("");
+    }
+
     setActionOpen(true);
   };
 
@@ -863,11 +836,20 @@ function MisAsignacionesDictaminadorContent() {
       setErrorMsg(null);
 
       if (actionType === "REVISION") await patchStatus(selected.id, "EN_REVISION");
+
       if (actionType === "CORRECCIONES") {
         if (!comment.trim()) return alert("Escribe las observaciones / comentario.");
-        await patchStatus(selected.id, "CORRECCIONES", { comment: comment.trim() });
+        if (!deadlineInput) return alert("Selecciona la fecha límite para que el autor suba el archivo corregido.");
+
+        await patchStatus(selected.id, "CORRECCIONES", {
+          comment: comment.trim(),
+          deadline_at: deadlineInput, // yyyy-mm-dd
+          deadline_stage: "CORRECCION_AUTOR",
+        });
       }
+
       if (actionType === "APROBAR") await patchStatus(selected.id, "APROBADO");
+
       if (actionType === "RECHAZAR") {
         if (!comment.trim()) return alert("Escribe el motivo de rechazo.");
         await patchStatus(selected.id, "RECHAZADO", { comment: comment.trim() });
@@ -1090,7 +1072,11 @@ function MisAsignacionesDictaminadorContent() {
             {nav === "asignaciones" ? <span style={sx.navGlow} /> : null}
           </button>
 
-          <button type="button" onClick={() => setNav("cuenta")} style={{ ...sx.navBtn, ...(nav === "cuenta" ? sx.navBtnActive : {}) }}>
+          <button
+            type="button"
+            onClick={() => setNav("cuenta")}
+            style={{ ...sx.navBtn, ...(nav === "cuenta" ? sx.navBtnActive : {}) }}
+          >
             <span style={sx.navIcon}>
               <Icon name="user" tone="light" />
             </span>
@@ -1384,7 +1370,7 @@ function MisAsignacionesDictaminadorContent() {
                 <br />
                 2) Descarga con <b>Descargar último</b>.
                 <br />
-                3) Marca <b>En revisión</b> o solicita <b>Correcciones</b>.
+                3) Marca <b>En revisión</b> o solicita <b>Correcciones</b> (con fecha límite).
                 <br />
                 4) Cuando el autor reenvíe, vuelve a <b>Ver último</b> y decide: <b>Aprobar</b> o <b>Rechazar</b>.
               </div>
@@ -1429,6 +1415,22 @@ function MisAsignacionesDictaminadorContent() {
                         : "• No cumple criterios\n• Falta metodología..."
                     }
                   />
+
+                  {/* ✅ NUEVO: Fecha límite SOLO cuando son CORRECCIONES */}
+                  {actionType === "CORRECCIONES" && (
+                    <>
+                      <label style={sx.modalLabel}>Fecha límite para que el autor suba el archivo corregido</label>
+                      <input
+                        style={sx.modalInput}
+                        type="date"
+                        value={deadlineInput}
+                        onChange={(e) => setDeadlineInput(e.target.value)}
+                      />
+                      <div style={sx.modalHint}>
+                        Esta fecha se guardará en el backend y se mostrará al autor como plazo para reenviar.
+                      </div>
+                    </>
+                  )}
                 </>
               )}
 
@@ -1857,7 +1859,6 @@ const sx: Record<string, React.CSSProperties> = {
   metaDot: { width: 6, height: 6, borderRadius: 999, background: "rgba(99,102,241,.55)" },
   metaSep: { opacity: 0.65 },
 
-  // ✅ NUEVO (deadline UI) - ya lo traías, se mantiene
   deadlineWrap: { display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
   deadlinePill: { fontSize: 12, padding: "4px 10px", borderRadius: 999, border: "1px solid rgba(15,23,42,.12)", fontWeight: 1000, whiteSpace: "nowrap" },
 
