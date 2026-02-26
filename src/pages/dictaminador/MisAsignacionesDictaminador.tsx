@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback, Suspense } from "react";
 import { api } from "../../services/api";
 import styles from './MisAsignacionesDictaminador.module.css';
+import { alertService } from "../../utils/alerts";
 
 /* =========================
    Tipos
@@ -185,7 +186,7 @@ function initials(name?: string) {
   return (a + b).toUpperCase();
 }
 
-// ✅ Función unificada para obtener la clase del badge
+// Función para obtener la clase del badge
 function getBadgeClass(status: ChapterStatus): string {
   const baseClass = styles.badge;
   
@@ -201,7 +202,7 @@ function getBadgeClass(status: ChapterStatus): string {
   return `${baseClass} ${styles.statusDefault}`;
 }
 
-// ✅ Función para obtener la clase del chip de estado
+// Función para obtener la clase del chip de estado
 function getStatusChipClass(status: ChapterStatus): string {
   const baseClass = styles.statusChip;
   
@@ -527,7 +528,7 @@ const ChapterItem = React.memo(
             {chapter.deadline_at ? (
               <>
                 <span className={styles.metaSep}>•</span>
-                <span className={styles.deadlineWrap}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
                   <span>{deadlineText}</span>
                   <span style={{ ...styles.deadlinePill, ...dlTone }}>
                     {deadlineRemain}
@@ -646,6 +647,11 @@ function MisAsignacionesDictaminadorContent() {
   const authHeaders = useCallback(() => ({ Authorization: `Bearer ${getToken()}` }), []);
   const apiMsg = (err: any, fallback: string) => err?.response?.data?.detail || err?.message || fallback;
 
+  const showError = (msg: string) => {
+    alertService.error(msg);
+    setErrorMsg(msg);
+  };
+
   const hardLogout = useCallback(() => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
@@ -656,6 +662,7 @@ function MisAsignacionesDictaminadorContent() {
     (err: any) => {
       const st = err?.response?.status;
       if (st === 401 || st === 403) {
+        alertService.warning("Sesión expirada. Serás redirigido al login.");
         hardLogout();
         return true;
       }
@@ -712,9 +719,10 @@ function MisAsignacionesDictaminadorContent() {
       }));
 
       setRows(mapped);
+      alertService.success("Asignaciones cargadas correctamente");
     } catch (err: any) {
       if (handleAuthMaybe(err)) return;
-      setErrorMsg(apiMsg(err, "No se pudieron cargar tus asignaciones."));
+      showError(apiMsg(err, "No se pudieron cargar tus asignaciones."));
     } finally {
       setLoading(false);
     }
@@ -797,15 +805,45 @@ function MisAsignacionesDictaminadorContent() {
       setLoading(true);
       setErrorMsg(null);
 
-      if (actionType === "REVISION") await patchStatus(selected.id, "EN_REVISION");
-      if (actionType === "CORRECCIONES") {
-        if (!comment.trim()) return alert("Escribe las observaciones / comentario.");
-        await patchStatus(selected.id, "CORRECCIONES", { comment: comment.trim() });
+      if (actionType === "REVISION") {
+        await patchStatus(selected.id, "EN_REVISION");
+        alertService.success("Capítulo marcado como 'En revisión'");
       }
-      if (actionType === "APROBAR") await patchStatus(selected.id, "APROBADO");
+      
+      if (actionType === "CORRECCIONES") {
+        if (!comment.trim()) {
+          alertService.warning("Escribe las observaciones / comentario.");
+          return;
+        }
+        await patchStatus(selected.id, "CORRECCIONES", { comment: comment.trim() });
+        alertService.success("Correcciones solicitadas al autor");
+      }
+      
+      if (actionType === "APROBAR") {
+        const result = await alertService.confirm(
+          "¿Estás seguro de aprobar este capítulo?",
+          "Aprobar capítulo"
+        );
+        if (!result.isConfirmed) return;
+        
+        await patchStatus(selected.id, "APROBADO");
+        alertService.success("Capítulo aprobado correctamente");
+      }
+      
       if (actionType === "RECHAZAR") {
-        if (!comment.trim()) return alert("Escribe el motivo de rechazo.");
+        if (!comment.trim()) {
+          alertService.warning("Escribe el motivo de rechazo.");
+          return;
+        }
+        
+        const result = await alertService.confirm(
+          "¿Estás seguro de rechazar este capítulo? Esta acción no se puede deshacer.",
+          "Rechazar capítulo"
+        );
+        if (!result.isConfirmed) return;
+        
         await patchStatus(selected.id, "RECHAZADO", { comment: comment.trim() });
+        alertService.success("Capítulo rechazado");
       }
 
       setActionOpen(false);
@@ -813,8 +851,7 @@ function MisAsignacionesDictaminadorContent() {
     } catch (err: any) {
       if (handleAuthMaybe(err)) return;
       const msg = apiMsg(err, "No se pudo ejecutar la acción.");
-      setErrorMsg(msg);
-      alert(msg);
+      showError(msg);
     } finally {
       setLoading(false);
     }
@@ -842,7 +879,7 @@ function MisAsignacionesDictaminadorContent() {
       const newWindow = window.open(blobUrl, "_blank");
       
       if (!newWindow) {
-        alert("El navegador bloqueó la ventana emergente. Haz clic en 'Descargar último' para ver el archivo.");
+        alertService.warning("El navegador bloqueó la ventana emergente. Usa el botón 'Descargar último'.");
         setTimeout(() => window.URL.revokeObjectURL(blobUrl), 60000);
       } else {
         setTimeout(() => window.URL.revokeObjectURL(blobUrl), 60000);
@@ -850,8 +887,7 @@ function MisAsignacionesDictaminadorContent() {
     } catch (err: any) {
       if (handleAuthMaybe(err)) return;
       const msg = apiMsg(err, "No se pudo abrir el archivo.");
-      setErrorMsg(msg);
-      alert(msg);
+      showError(msg);
     } finally {
       setLoading(false);
     }
@@ -897,11 +933,11 @@ function MisAsignacionesDictaminadorContent() {
       }
 
       downloadBlob(blob, filename);
+      alertService.success("Descarga iniciada");
     } catch (err: any) {
       if (handleAuthMaybe(err)) return;
       const msg = apiMsg(err, "No se pudo descargar el archivo.");
-      setErrorMsg(msg);
-      alert(msg);
+      showError(msg);
     } finally {
       setLoading(false);
     }
@@ -914,12 +950,11 @@ function MisAsignacionesDictaminadorContent() {
       const { data } = await api.patch<Preferences>("/account/preferences", prefs, { headers: authHeaders() });
       setPrefs(data);
       setOpenPrefs(false);
-      alert("Preferencias guardadas ✅");
+      alertService.success("Preferencias guardadas ✅");
     } catch (err: any) {
       if (handleAuthMaybe(err)) return;
       const msg = apiMsg(err, "No se pudieron guardar notificaciones.");
-      setErrorMsg(msg);
-      alert(msg);
+      showError(msg);
     } finally {
       setLoading(false);
     }
@@ -932,20 +967,25 @@ function MisAsignacionesDictaminadorContent() {
       const { data } = await api.patch<Privacy>("/account/privacy", privacy, { headers: authHeaders() });
       setPrivacy(data);
       setOpenPrivacy(false);
-      alert("Privacidad guardada ✅");
+      alertService.success("Privacidad guardada ✅");
     } catch (err: any) {
       if (handleAuthMaybe(err)) return;
       const msg = apiMsg(err, "No se pudo guardar privacidad.");
-      setErrorMsg(msg);
-      alert(msg);
+      showError(msg);
     } finally {
       setLoading(false);
     }
   };
 
   const changePassword = async () => {
-    if (!pwd.current_password || !pwd.new_password) return alert("Completa ambos campos.");
-    if (pwd.new_password.length < 8) return alert("La nueva contraseña debe tener mínimo 8 caracteres.");
+    if (!pwd.current_password || !pwd.new_password) {
+      alertService.warning("Completa ambos campos.");
+      return;
+    }
+    if (pwd.new_password.length < 8) {
+      alertService.warning("La nueva contraseña debe tener mínimo 8 caracteres.");
+      return;
+    }
 
     try {
       setLoading(true);
@@ -953,21 +993,24 @@ function MisAsignacionesDictaminadorContent() {
       await api.post("/account/change-password", pwd, { headers: authHeaders() });
       setPwd({ current_password: "", new_password: "" });
       setOpenPwd(false);
-      alert("Contraseña actualizada ✅");
+      alertService.success("Contraseña actualizada ✅");
     } catch (err: any) {
       if (handleAuthMaybe(err)) return;
       const msg = apiMsg(err, "No se pudo cambiar la contraseña.");
-      setErrorMsg(msg);
-      alert(msg);
+      showError(msg);
     } finally {
       setLoading(false);
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    window.location.href = "/login";
+  const logout = async () => {
+    const result = await alertService.confirm("¿Seguro que quieres cerrar sesión?");
+    
+    if (result.isConfirmed) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.location.href = "/login";
+    }
   };
 
   if (!me && loading) {
