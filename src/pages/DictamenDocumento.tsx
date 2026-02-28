@@ -244,19 +244,19 @@ export default function DictamenDocumento() {
     }
   };
 
-  const download = async (format: "docx" | "pdf") => {
+  // ✅ SOLO DOCX (quitado PDF)
+  const downloadDocx = async () => {
     try {
       if (!detail || detail.status === "BORRADOR") {
         await alertService.warning("Debes generar el documento antes de descargar.", "Aún no generado");
         return;
       }
 
-      alertService.loading(`Preparando descarga (${format.toUpperCase()})...`);
+      alertService.loading("Preparando descarga (DOCX)...");
 
-      const res = await api.get(
-        `/admin/dictamenes/${dictamenId}/download?format=${format}`,
-        { responseType: "blob" }
-      );
+      const res = await api.get(`/admin/dictamenes/${dictamenId}/download?format=docx`, {
+        responseType: "blob",
+      });
 
       alertService.close();
 
@@ -264,13 +264,13 @@ export default function DictamenDocumento() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `dictamen-${detail?.folio || dictamenId}.${format}`;
+      a.download = `dictamen-${detail?.folio || dictamenId}.docx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
 
-      alertService.toastSuccess(`Descarga iniciada ✅ (${format.toUpperCase()})`);
+      alertService.toastSuccess("Descarga iniciada ✅ (DOCX)");
     } catch (err: any) {
       alertService.close();
       const msg = apiMsg(err, "No se pudo descargar.");
@@ -381,11 +381,8 @@ export default function DictamenDocumento() {
       <div className={styles.card}>
         <h3>3) Descargas</h3>
         <div className={styles.actions}>
-          <button className={styles.btn} onClick={() => download("docx")} disabled={saving}>
+          <button className={styles.btn} onClick={downloadDocx} disabled={saving}>
             Descargar DOCX
-          </button>
-          <button className={styles.btn} onClick={() => download("pdf")} disabled={saving}>
-            Descargar PDF
           </button>
         </div>
 
