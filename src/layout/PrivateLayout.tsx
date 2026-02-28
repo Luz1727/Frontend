@@ -1,9 +1,6 @@
-// src/layout/PrivateLayout.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import styles from "./PrivateLayout.module.css";
-
-// ✅ ALERTA PREMIUM
 import { alertService } from "../utils/alerts";
 
 type Role = "editorial" | "dictaminador" | "autor";
@@ -23,9 +20,6 @@ type QuickAction =
   | "generar_constancia"
   | "subir_dictamen_firmado";
 
-/** ---------------------------
- *  Helpers (blindaje)
- *  --------------------------*/
 function base64UrlDecode(input: string) {
   const pad = "=".repeat((4 - (input.length % 4)) % 4);
   const base64 = (input + pad).replace(/-/g, "+").replace(/_/g, "/");
@@ -80,23 +74,14 @@ function safeClearAuth() {
   localStorage.removeItem("user");
 }
 
-/** ---------------------------
- * Home por rol (✅ editorial inicia en /libros)
- * --------------------------*/
 const defaultHomeByRole: Record<Role, string> = {
   editorial: "/libros",
   dictaminador: "/dictaminador",
   autor: "/autor/mis-envios",
 };
 
-/** ---------------------------
- * ACL por ruta (roles permitidos)
- * --------------------------*/
 const routeACL: Array<{ test: (path: string) => boolean; roles: Role[] }> = [
-  {
-    test: (p) => p.startsWith("/libros") || p.startsWith("/capitulos"),
-    roles: ["editorial"],
-  },
+  { test: (p) => p.startsWith("/libros") || p.startsWith("/capitulos"), roles: ["editorial"] },
   { test: (p) => p.startsWith("/dictamenes"), roles: ["editorial"] },
   { test: (p) => p.startsWith("/usuarios"), roles: ["editorial"] },
 
@@ -114,14 +99,10 @@ export default function PrivateLayout() {
   const nav = useNavigate();
   const location = useLocation();
 
-  /* ✅ TODOS los hooks SIEMPRE arriba (nunca retornes antes) */
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  // Header + buscador (topbar)
   const [query, setQuery] = useState("");
   const [panelOpen, setPanelOpen] = useState(false);
 
-  // (si luego lo usas)
   const [selectedAction, setSelectedAction] = useState<QuickAction | null>(null);
   const [form, setForm] = useState({
     folio: "",
@@ -132,16 +113,31 @@ export default function PrivateLayout() {
     comentario: "",
   });
 
-  // cerrar drawer al pasar a desktop
+  // ✅ al desmontar el layout, mata cualquier swal
+  useEffect(() => {
+    return () => {
+      alertService.close();
+    };
+  }, []);
+
+  // ✅ bloquear scroll cuando sidebar abierto (móvil)
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [sidebarOpen]);
+
   useEffect(() => {
     const onResize = () => {
-      if (window.innerWidth >= 980) setSidebarOpen(false);
+      if (window.innerWidth >= 981) setSidebarOpen(false);
     };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // cerrar con ESC
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setSidebarOpen(false);
@@ -150,26 +146,22 @@ export default function PrivateLayout() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  /* ===== Auth (sin hooks) ===== */
   const token = localStorage.getItem("token");
   const userRaw = localStorage.getItem("user");
 
   let user: User | null = null;
   let guard: JSX.Element | null = null;
 
-  // 1) token y user existen
   if (!token || !userRaw) {
     safeClearAuth();
     guard = <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
-  // 2) token válido y no expirado
   if (!guard && isTokenExpired(token!)) {
     safeClearAuth();
     guard = <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
-  // 3) parse + shape check del user
   if (!guard) {
     try {
       const parsed = JSON.parse(userRaw!);
@@ -181,20 +173,25 @@ export default function PrivateLayout() {
     }
   }
 
-  // ✅ Si editorial entra a "/" => lo mandamos a /libros
   if (!guard && user!.role === "editorial" && location.pathname === "/") {
     guard = <Navigate to="/libros" replace />;
   }
 
-  // 4) ACL
   if (!guard && !hasAccess(location.pathname, user!.role)) {
     guard = <Navigate to={defaultHomeByRole[user!.role]} replace />;
   }
 
-  // ✅ LOGOUT con confirm premium
+  // ✅ FIX REAL: blur antes del confirm (evita aria-hidden warning + “no pinta”)
   const logout = async () => {
-    // (por si quedó un Swal abierto)
     alertService.close();
+
+    // 🔥 Quitar foco de cualquier input (buscador, filtros, etc.)
+    try {
+      (document.activeElement as HTMLElement | null)?.blur?.();
+    } catch {}
+
+    // deja un tick para que el blur se aplique
+    await new Promise<void>((r) => setTimeout(() => r(), 0));
 
     const res = await alertService.confirm({
       title: "Cerrar sesión",
@@ -204,8 +201,12 @@ export default function PrivateLayout() {
       cancelText: "Cancelar",
     });
 
-    if (!res.isConfirmed) return;
+    if (!res.isConfirmed) {
+      alertService.close();
+      return;
+    }
 
+    alertService.close();
     safeClearAuth();
     nav("/login", { replace: true });
   };
@@ -217,7 +218,6 @@ export default function PrivateLayout() {
 
   const isStarts = (prefix: string) => location.pathname.startsWith(prefix);
 
-  // ✅ MENU sin Constancias ni Comunicaciones
   const menu = useMemo(() => {
     if (!user) return [];
     if (user.role === "editorial") {
@@ -228,9 +228,7 @@ export default function PrivateLayout() {
         { label: "Usuarios", path: "/usuarios" },
       ];
     }
-    if (user.role === "dictaminador") {
-      return [{ label: "Mis asignaciones", path: "/dictaminador" }];
-    }
+    if (user.role === "dictaminador") return [{ label: "Mis asignaciones", path: "/dictaminador" }];
     return [{ label: "Mis envíos", path: "/autor/mis-envios" }];
   }, [user]);
 
@@ -241,18 +239,15 @@ export default function PrivateLayout() {
 
   const avatarLetter = (user?.name?.trim()?.[0] ?? "U").toUpperCase();
 
-  // (opcional) si luego lo usas
   void selectedAction;
   void setSelectedAction;
   void form;
   void setForm;
 
-  /* ✅ AHORA SÍ: retornos al final */
   if (guard) return guard;
 
   return (
-    <div className={styles.shell}>
-      {/* overlay móvil */}
+    <div className={styles.shell} data-open={sidebarOpen ? "1" : "0"}>
       <button
         type="button"
         className={styles.overlay}
@@ -261,7 +256,6 @@ export default function PrivateLayout() {
         onClick={() => setSidebarOpen(false)}
       />
 
-      {/* Sidebar drawer */}
       <aside className={styles.sidebar} data-open={sidebarOpen ? "1" : "0"}>
         <div className={styles.brand}>
           <div className={styles.brandIcon}>E</div>
@@ -305,25 +299,26 @@ export default function PrivateLayout() {
             </div>
           </div>
 
-          <button className={styles.logoutBtn} onClick={logout} type="button">
-            Salir
-          </button>
+<button
+  className={styles.logoutBtn}
+  onClick={() => { console.log("CLICK SALIR"); logout(); }}
+  type="button"
+>
+  Salir
+</button>
         </div>
       </aside>
 
-      {/* Main */}
       <main className={styles.main}>
         <header className={styles.header}>
           <button
             type="button"
             className={styles.menuBtn}
             aria-label="Abrir menú"
-            onClick={() => setSidebarOpen(true)}
+            onClick={() => setSidebarOpen((v) => !v)}
           >
             ☰
           </button>
-
-          {/* ✅ QUITADO: títulos del header (headerLeft) */}
 
           {user?.role === "editorial" && (
             <div className={styles.headerRight}>

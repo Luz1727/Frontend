@@ -506,3 +506,35 @@
     transition:none !important;
   }
 }
+/* ================================
+   ✅ SOLO TABLA RESPONSIVA
+   PÉGALO AL FINAL de Capitulos.module.css
+================================ */
+
+/* Card contenedor: habilita scroll horizontal */
+.tableCard{
+  overflow-x: auto !important;          /* antes estaba hidden */
+  -webkit-overflow-scrolling: touch;
+}
+
+/* La tabla mantiene columnas, en móvil se hace scroll */
+.table{
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 980px;                    /* ajusta si quieres: 850-1100 */
+}
+
+/* Ajustes de padding/tamaño en pantallas chicas */
+@media (max-width: 900px){
+  .table{ min-width: 920px; }
+  .th, .td{ padding: 10px 10px; }
+}
+
+@media (max-width: 600px){
+  .table{ min-width: 860px; }
+  .th, .td{ padding: 10px 8px; font-size: 12px; }
+}
+
+@media (max-width: 420px){
+  .table{ min-width: 820px; }
+}

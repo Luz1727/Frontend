@@ -8,7 +8,6 @@ type ConfirmOpts = {
   icon?: SweetAlertIcon;
 };
 
-// ✅ helper: evita warning aria-hidden (blur antes de abrir)
 function blurActiveElement() {
   try {
     const el = document.activeElement as HTMLElement | null;
@@ -16,13 +15,57 @@ function blurActiveElement() {
   } catch {}
 }
 
+function getRoot() {
+  return document.getElementById("root");
+}
+
+/**
+ * ✅ INERT: evita que algún input retenga foco mientras Swal intenta
+ * aplicar aria-hidden. Esto es lo que te está rompiendo el modal.
+ */
+function setRootInert(on: boolean) {
+  const root = getRoot();
+  if (!root) return;
+
+  try {
+    if (on) {
+      root.setAttribute("inert", "");
+      // por si quedó pegado de antes:
+      root.removeAttribute("aria-hidden");
+      root.removeAttribute("data-previous-aria-hidden");
+    } else {
+      root.removeAttribute("inert");
+      root.removeAttribute("aria-hidden");
+      root.removeAttribute("data-previous-aria-hidden");
+    }
+  } catch {}
+}
+
+function hardClose() {
+  try {
+    Swal.close();
+    document.querySelectorAll(".swal2-container").forEach((n) => n.remove());
+    document.querySelectorAll(".swal2-backdrop-show, .swal2-backdrop-hide").forEach((n) => n.remove());
+
+    document.body.classList.remove("swal2-shown", "swal2-height-auto", "swal2-no-backdrop");
+    document.body.style.removeProperty("overflow");
+    document.body.style.removeProperty("padding-right");
+  } catch {}
+
+  // ✅ deja la app “normal” siempre
+  setRootInert(false);
+}
+
 const base = Swal.mixin({
   toast: false,
   position: "center",
   allowOutsideClick: true,
   allowEscapeKey: true,
-  heightAuto: false, // ✅ OK en MODAL
-  returnFocus: false, // ✅ OK en MODAL (NO toast)
+  heightAuto: false,
+
+  returnFocus: false,
+  focusConfirm: false,
+  focusCancel: false,
 
   customClass: {
     popup: "alert-premium animated fadeInDown",
@@ -40,8 +83,13 @@ const base = Swal.mixin({
   hideClass: { popup: "animated fadeOutUp faster" },
 
   didOpen: () => {
-    // ✅ evita foco atrapado en botón detrás del modal
     blurActiveElement();
+    setTimeout(blurActiveElement, 0);
+  },
+
+  didClose: () => {
+    // ✅ al cerrar, regresa la app a normal
+    setRootInert(false);
   },
 });
 
@@ -53,9 +101,7 @@ const toast = Swal.mixin({
   showConfirmButton: false,
   timer: 2400,
   timerProgressBar: true,
-
-  // ❌ IMPORTANTÍSIMO: NO pongas returnFocus en toast
-  // ❌ NO pongas heightAuto en toast
+  returnFocus: false,
 
   customClass: {
     popup: "alert-premium animated fadeIn faster swal-toast-center",
@@ -66,18 +112,31 @@ const toast = Swal.mixin({
   buttonsStyling: false,
 
   didOpen: () => {
-    // ✅ por accesibilidad (y evita el warning de aria-hidden/focus)
     blurActiveElement();
+    setTimeout(blurActiveElement, 0);
+  },
+
+  didClose: () => {
+    setRootInert(false);
   },
 });
 
+async function prepareBeforeFire() {
+  hardClose();          // limpia restos
+  blurActiveElement();  // quita foco actual
+  setRootInert(true);   // 🔥 clave: evita foco dentro del root
+  await new Promise<void>((r) => setTimeout(() => r(), 0)); // deja aplicar inert/blur
+}
+
 function fire(icon: SweetAlertIcon, title: string, text?: string) {
-  blurActiveElement();
-  return base.fire({
-    icon,
-    title,
-    html: text ? `<div>${text}</div>` : undefined,
-  });
+  return (async () => {
+    await prepareBeforeFire();
+    return base.fire({
+      icon,
+      title,
+      html: text ? `<div>${text}</div>` : undefined,
+    });
+  })();
 }
 
 export const alertService = {
@@ -86,15 +145,25 @@ export const alertService = {
   warning: (msg: string, title = "Atención") => fire("warning", title, msg),
   info: (msg: string, title = "Info") => fire("info", title, msg),
 
-  // ✅ BLINDAJE: forzamos que no se meta returnFocus a toast
-  toastSuccess: (msg: string) => toast.fire({ icon: "success", title: msg }),
-  toastError: (msg: string) => toast.fire({ icon: "error", title: msg }),
-  toastWarning: (msg: string) => toast.fire({ icon: "warning", title: msg }),
-  toastInfo: (msg: string) => toast.fire({ icon: "info", title: msg }),
+  toastSuccess: async (msg: string) => {
+    await prepareBeforeFire();
+    return toast.fire({ icon: "success", title: msg });
+  },
+  toastError: async (msg: string) => {
+    await prepareBeforeFire();
+    return toast.fire({ icon: "error", title: msg });
+  },
+  toastWarning: async (msg: string) => {
+    await prepareBeforeFire();
+    return toast.fire({ icon: "warning", title: msg });
+  },
+  toastInfo: async (msg: string) => {
+    await prepareBeforeFire();
+    return toast.fire({ icon: "info", title: msg });
+  },
 
   confirm: async (titleOrOpts: string | ConfirmOpts, textMaybe?: string) => {
-    Swal.close();
-    blurActiveElement();
+    await prepareBeforeFire();
 
     const opts: ConfirmOpts =
       typeof titleOrOpts === "string"
@@ -108,18 +177,16 @@ export const alertService = {
       showCancelButton: true,
       confirmButtonText: opts.confirmText ?? "Sí, continuar",
       cancelButtonText: opts.cancelText ?? "Cancelar",
-
       showClass: { popup: "animated zoomIn faster" },
       hideClass: { popup: "animated zoomOut faster" },
-
-      // ✅ modal ok
       returnFocus: false,
+      focusConfirm: false,
+      focusCancel: false,
     });
   },
 
-  loading: (title = "Procesando...") => {
-    Swal.close();
-    blurActiveElement();
+  loading: async (title = "Procesando...") => {
+    await prepareBeforeFire();
 
     return base.fire({
       title,
@@ -137,5 +204,6 @@ export const alertService = {
     });
   },
 
-  close: () => Swal.close(),
+  close: () => hardClose(),
+  hardClose,
 };

@@ -13,11 +13,10 @@
     linear-gradient(180deg, #F7F9FF 0%, #F3F6FF 60%, #F6F7F9 100%);
 
   width: 100%;
-  animation: shellFadeIn .45s ease both;
 }
 
 /* ================================
-   OVERLAY
+   OVERLAY (fondo oscuro móvil)
 ================================ */
 
 .overlay{
@@ -30,8 +29,9 @@
   opacity: 0;
   pointer-events: none;
   transition: opacity .2s ease;
-  backdrop-filter: blur(6px);
+  backdrop-filter: blur(4px);
 }
+
 .overlay[data-open="1"]{
   opacity: 1;
   pointer-events: auto;
@@ -57,12 +57,6 @@
   box-shadow: 0 22px 60px rgba(2,6,23,0.35);
 }
 
-@media (min-width: 981px){
-  .sidebar{
-    animation: sidebarIn .55s cubic-bezier(.2,.9,.2,1) both;
-  }
-}
-
 .brand{
   display: flex;
   align-items: center;
@@ -72,7 +66,6 @@
 
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.10);
-  backdrop-filter: blur(10px);
 }
 
 .brandIcon{
@@ -85,7 +78,6 @@
   background: linear-gradient(135deg, rgba(99,102,241,0.85), rgba(56,189,248,0.85));
   color: #071426;
   font-weight: 900;
-  box-shadow: 0 14px 28px rgba(99,102,241,0.25);
 }
 
 .brandTitle{ font-weight: 900; }
@@ -102,6 +94,10 @@
   color: #fff;
   cursor: pointer;
 }
+
+/* ================================
+   NAV
+================================ */
 
 .nav{
   display: flex;
@@ -123,28 +119,21 @@
   font-weight: 650;
   font-size: 14px;
 
-  transition:
-    background .15s ease,
-    transform .18s cubic-bezier(.2,.9,.2,1),
-    border-color .15s ease,
-    box-shadow .15s ease;
+  transition: all .18s ease;
 }
 
 .navItem:hover{
   background: rgba(255,255,255,0.08);
   transform: translateX(3px);
-  border-color: rgba(255,255,255,0.20);
-  box-shadow: 0 10px 22px rgba(2,6,23,0.18);
 }
 
 .navItemActive{
   background: rgba(99,102,241,0.22);
   border-color: rgba(99,102,241,0.35);
-  box-shadow: 0 14px 28px rgba(2,6,23,0.25);
 }
 
 /* ================================
-   FOOTER SIDEBAR
+   SIDEBAR FOOTER
 ================================ */
 
 .sidebarFooter{
@@ -163,8 +152,6 @@
   padding: 10px;
   border-radius: 14px;
   background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.08);
-  backdrop-filter: blur(10px);
 }
 
 .userAvatar{
@@ -177,6 +164,9 @@
   font-weight: 900;
 }
 
+.userName{ font-weight: 900; }
+.userRole{ font-size: 12px; opacity: 0.8; }
+
 .logoutBtn{
   width: 100%;
   padding: 10px 12px;
@@ -187,12 +177,6 @@
   background: linear-gradient(135deg, #FFFFFF 0%, #EAF0FF 100%);
   color: #0A1A2E;
   font-weight: 900;
-  transition: transform .15s ease, box-shadow .15s ease;
-  box-shadow: 0 16px 30px rgba(2,6,23,0.25);
-}
-.logoutBtn:hover{
-  transform: translateY(-2px);
-  box-shadow: 0 20px 35px rgba(2,6,23,0.35);
 }
 
 /* ================================
@@ -207,16 +191,12 @@
 
 .header{
   display: flex;
-  gap: 14px;
   align-items: center;
-  justify-content: space-between;
+  gap: 14px;
   padding: 18px;
 
-  background: rgba(255,255,255,0.78);
+  background: rgba(255,255,255,0.9);
   border-bottom: 1px solid rgba(15,23,42,0.08);
-  backdrop-filter: blur(12px);
-
-  animation: headerDrop .45s ease both;
 }
 
 .menuBtn{
@@ -230,34 +210,6 @@
   font-size: 18px;
 }
 
-.headerTitle{
-  margin: 0;
-  font-size: 18px;
-  color: #0F172A;
-  font-weight: 900;
-}
-
-.headerSubtitle{
-  margin: 4px 0 0 0;
-  font-size: 13px;
-  color: #64748B;
-}
-
-.searchInput{
-  border-radius: 12px;
-  border: 1px solid rgba(15,23,42,0.12);
-  background: rgba(255,255,255,0.9);
-  padding: 10px 12px;
-  transition: box-shadow .15s ease;
-}
-.searchInput:focus{
-  box-shadow: 0 0 0 4px rgba(99,102,241,0.14);
-}
-
-/* ================================
-   PANEL DERECHO
-================================ */
-
 .body{
   display: grid;
   gap: 14px;
@@ -269,64 +221,70 @@
   grid-template-columns: minmax(0, 1fr) 360px;
 }
 
-.rightPanel{ animation: none; }
+.content{ min-width: 0; }
 
-.body[data-panel="1"] .rightPanel{
-  animation: panelPop .35s ease both;
+.rightPanel{
+  position: sticky;
+  top: 18px;
 }
 
 .panelCard{
-  background: rgba(255,255,255,0.85);
+  background: rgba(255,255,255,0.9);
   border-radius: 16px;
   padding: 14px;
   box-shadow: 0 18px 45px rgba(15,23,42,0.08);
-  backdrop-filter: blur(10px);
 }
 
 /* ================================
-   RESPONSIVE
+   RESPONSIVE (AQUÍ ESTÁ EL FIX)
 ================================ */
 
 @media (max-width: 980px){
-  .shell{ display: block; }
-  .overlay{ display: block; }
-  .menuBtn{ display: inline-flex; }
-}
 
-@media (max-width: 600px){
-  .header{ flex-wrap: wrap; }
-}
+  .shell{
+    display: block;
+  }
 
-/* ================================
-   KEYFRAMES
-================================ */
+  .overlay{
+    display: block;
+  }
 
-@keyframes shellFadeIn{
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
+  .menuBtn{
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
 
-@keyframes sidebarIn{
-  from { opacity: 0; transform: translateX(-10px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
+  /* 🔥 Drawer real */
+  .sidebar{
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 50; /* mayor que overlay */
+    width: min(86vw, 320px);
 
-@keyframes headerDrop{
-  from { opacity: 0; transform: translateY(-8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
+    transform: translateX(-110%);
+    transition: transform .22s ease;
+    box-shadow: 0 18px 55px rgba(0,0,0,.35);
+  }
 
-@keyframes panelPop{
-  from { opacity: 0; transform: translateY(8px) scale(.98); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
+  .sidebar[data-open="1"]{
+    transform: translateX(0);
+  }
 
-/* ================================
-   REDUCE MOTION
-================================ */
+  .closeBtn{
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
 
-@media (prefers-reduced-motion: reduce){
-  .shell, .sidebar, .header, .rightPanel{
-    animation: none !important;
+  .body,
+  .body[data-panel="1"]{
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rightPanel{
+    position: static;
   }
 }

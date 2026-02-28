@@ -5,7 +5,7 @@ import styles from "./LayoutEditorial.module.css";
 export default function LayoutEditorial() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Cerrar drawer al cambiar tamaño a desktop
+  // Cerrar sidebar al cambiar tamaño a desktop
   useEffect(() => {
     const onResize = () => {
       if (window.innerWidth >= 980) setSidebarOpen(false);
@@ -14,7 +14,7 @@ export default function LayoutEditorial() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // (opcional) cerrar con ESC
+  // Cerrar con tecla ESC
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setSidebarOpen(false);
@@ -25,7 +25,7 @@ export default function LayoutEditorial() {
 
   return (
     <div className={styles.app}>
-      {/* Overlay (solo móvil cuando está abierto) */}
+      {/* Overlay - USANDO data-open como en tu CSS original */}
       <button
         type="button"
         className={styles.overlay}
@@ -34,7 +34,7 @@ export default function LayoutEditorial() {
         onClick={() => setSidebarOpen(false)}
       />
 
-      {/* Sidebar */}
+      {/* Sidebar - USANDO data-open como en tu CSS original */}
       <aside className={styles.sidebar} data-open={sidebarOpen ? "1" : "0"}>
         <div className={styles.sidebarHeader}>
           <div className={styles.logoCircle}>E</div>
@@ -55,31 +55,60 @@ export default function LayoutEditorial() {
         </div>
 
         <nav className={styles.nav}>
-          <NavLink to="/" end className={({ isActive }) => `${styles.link} ${isActive ? styles.active : ""}`} onClick={() => setSidebarOpen(false)}>
+          <NavLink 
+            to="/" 
+            end 
+            className={({ isActive }) => `${styles.link} ${isActive ? styles.active : ""}`} 
+            onClick={() => setSidebarOpen(false)}
+          >
             Dashboard
           </NavLink>
 
-          <NavLink to="/convocatorias" className={({ isActive }) => `${styles.link} ${isActive ? styles.active : ""}`} onClick={() => setSidebarOpen(false)}>
+          <NavLink 
+            to="/convocatorias" 
+            className={({ isActive }) => `${styles.link} ${isActive ? styles.active : ""}`} 
+            onClick={() => setSidebarOpen(false)}
+          >
             Convocatorias
           </NavLink>
 
-          <NavLink to="/libros" className={({ isActive }) => `${styles.link} ${isActive ? styles.active : ""}`} onClick={() => setSidebarOpen(false)}>
+          <NavLink 
+            to="/libros" 
+            className={({ isActive }) => `${styles.link} ${isActive ? styles.active : ""}`} 
+            onClick={() => setSidebarOpen(false)}
+          >
             Libros
           </NavLink>
 
-          <NavLink to="/capitulos" className={({ isActive }) => `${styles.link} ${isActive ? styles.active : ""}`} onClick={() => setSidebarOpen(false)}>
+          <NavLink 
+            to="/capitulos" 
+            className={({ isActive }) => `${styles.link} ${isActive ? styles.active : ""}`} 
+            onClick={() => setSidebarOpen(false)}
+          >
             Capítulos
           </NavLink>
 
-          <NavLink to="/dictamenes" className={({ isActive }) => `${styles.link} ${isActive ? styles.active : ""}`} onClick={() => setSidebarOpen(false)}>
+          <NavLink 
+            to="/dictamenes" 
+            className={({ isActive }) => `${styles.link} ${isActive ? styles.active : ""}`} 
+            onClick={() => setSidebarOpen(false)}
+          >
             Dictámenes
           </NavLink>
 
-          <NavLink to="/constancias" className={({ isActive }) => `${styles.link} ${isActive ? styles.active : ""}`} onClick={() => setSidebarOpen(false)}>
+          <NavLink 
+            to="/constancias" 
+            className={({ isActive }) => `${styles.link} ${isActive ? styles.active : ""}`} 
+            onClick={() => setSidebarOpen(false)}
+          >
             Constancias
           </NavLink>
 
-          <NavLink to="/usuarios" className={({ isActive }) => `${styles.link} ${isActive ? styles.active : ""}`} onClick={() => setSidebarOpen(false)}>
+          <NavLink 
+            to="/usuarios" 
+            className={({ isActive }) => `${styles.link} ${isActive ? styles.active : ""}`} 
+            onClick={() => setSidebarOpen(false)}
+          >
             Usuarios
           </NavLink>
         </nav>
@@ -87,7 +116,7 @@ export default function LayoutEditorial() {
 
       {/* Main */}
       <div className={styles.main}>
-        {/* Topbar (donde tienes buscador/botones arriba) */}
+        {/* Topbar */}
         <header className={styles.topbar}>
           <button
             type="button"
@@ -100,7 +129,7 @@ export default function LayoutEditorial() {
 
           {/* Aquí va tu topbar real (buscador / botones) */}
           <div className={styles.topbarRight}>
-            {/* Deja esto como contenedor; tu Dashboard renderiza abajo */}
+            {/* Esto lo llenan las páginas hijas */}
           </div>
         </header>
 

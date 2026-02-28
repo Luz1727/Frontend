@@ -2,8 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import styles from "./Login.module.css";
-
-// ✅ ALERTA PREMIUM
 import { alertService } from "../utils/alerts";
 
 // ===== TYPES =====
@@ -63,6 +61,11 @@ export default function Login() {
     return !!email.trim() && !!password.trim() && !loading;
   }, [email, password, loading]);
 
+  // ✅ FIX: al entrar al login, mata cualquier swal/backdrop pegado
+  useEffect(() => {
+    alertService.close();
+  }, []);
+
   // ===== FX: Parallax blobs + glow follow mouse =====
   useEffect(() => {
     const el = leftRef.current;
@@ -85,11 +88,9 @@ export default function Login() {
         const cx = (e.clientX - r.left) / r.width;
         const cy = (e.clientY - r.top) / r.height;
 
-        // blobs parallax
         el.style.setProperty("--mx", `${(cx - 0.5) * 2}`);
         el.style.setProperty("--my", `${(cy - 0.5) * 2}`);
 
-        // card tilt
         const cr = card.getBoundingClientRect();
         const ccx = (e.clientX - cr.left) / cr.width;
         const ccy = (e.clientY - cr.top) / cr.height;
@@ -98,7 +99,6 @@ export default function Login() {
         card.style.setProperty("--rx", `${rx}deg`);
         card.style.setProperty("--ry", `${ry}deg`);
 
-        // glow follow
         card.style.setProperty("--gx", `${ccx * 100}%`);
         card.style.setProperty("--gy", `${ccy * 100}%`);
       });
@@ -129,15 +129,12 @@ export default function Login() {
 
     if (!email.trim() || !password.trim()) {
       setErrorMsg("Ingresa tu correo y contraseña.");
-      // ✅ alert opcional (no cambia lógica)
       await alertService.warning("Ingresa tu correo y contraseña.", "Faltan datos");
       return;
     }
 
     try {
       setLoading(true);
-
-      // ✅ ALERT LOADING (premium)
       alertService.loading("Iniciando sesión...");
 
       const { data } = await api.post<LoginResponse>("/auth/login", {
@@ -152,23 +149,22 @@ export default function Login() {
       const fallback = HOME_BY_ROLE[data.user.role];
       const target = isAllowedFrom(data.user.role, from) ? from : fallback;
 
+      // ✅ FIX CLAVE: cerrar Swal ANTES de navegar
+      alertService.close();
+
       nav(target, { replace: true });
     } catch (err: any) {
       const msg = err?.response?.data?.detail ?? "No se pudo iniciar sesión. Verifica tus credenciales.";
       setErrorMsg(msg);
-
-      // ✅ ALERT ERROR (premium)
       await alertService.error(msg, "Error al iniciar sesión");
     } finally {
       setLoading(false);
-      // ✅ cerrar loading SIEMPRE
       alertService.close();
     }
   };
 
   const errorId = errorMsg ? "login-error" : undefined;
 
-  // ===== FX: Ripple on button click =====
   const onRipple = (e: React.MouseEvent<HTMLButtonElement>) => {
     const btn = e.currentTarget;
     const rect = btn.getBoundingClientRect();
