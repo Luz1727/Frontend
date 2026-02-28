@@ -12,8 +12,6 @@ import DictamenDetalle from "./pages/DictamenDetalle";
 import DictamenDocumento from "./pages/DictamenDocumento";
 import Constancias from "./pages/Constancias";
 import Usuarios from "./pages/Usuarios";
-import Comunicaciones from "./pages/Comunicaciones";
-
 import MisEnviosAutor from "./pages/autor/MisEnviosAutor";
 import MisAsignacionesDictaminador from "./pages/dictaminador/MisAsignacionesDictaminador";
 
@@ -46,7 +44,6 @@ export default function App() {
 
           <Route path="/constancias" element={<Constancias />} />
           <Route path="/usuarios" element={<Usuarios />} />
-          <Route path="/comunicaciones" element={<Comunicaciones />} />
         </Route>
 
         {/* 404 */}

@@ -1,205 +1,141 @@
-import Swal from 'sweetalert2';
+import Swal, { SweetAlertIcon } from "sweetalert2";
+
+type ConfirmOpts = {
+  title?: string;
+  text?: string;
+  confirmText?: string;
+  cancelText?: string;
+  icon?: SweetAlertIcon;
+};
+
+// ✅ helper: evita warning aria-hidden (blur antes de abrir)
+function blurActiveElement() {
+  try {
+    const el = document.activeElement as HTMLElement | null;
+    if (el && typeof el.blur === "function") el.blur();
+  } catch {}
+}
+
+const base = Swal.mixin({
+  toast: false,
+  position: "center",
+  allowOutsideClick: true,
+  allowEscapeKey: true,
+  heightAuto: false, // ✅ OK en MODAL
+  returnFocus: false, // ✅ OK en MODAL (NO toast)
+
+  customClass: {
+    popup: "alert-premium animated fadeInDown",
+    title: "alert-title",
+    htmlContainer: "alert-text",
+    confirmButton: "swal2-confirm-btn-premium",
+    cancelButton: "swal2-cancel-btn-premium",
+  },
+
+  buttonsStyling: false,
+  showConfirmButton: true,
+  confirmButtonText: "Aceptar",
+
+  showClass: { popup: "animated fadeInDown faster" },
+  hideClass: { popup: "animated fadeOutUp faster" },
+
+  didOpen: () => {
+    // ✅ evita foco atrapado en botón detrás del modal
+    blurActiveElement();
+  },
+});
+
+const toast = Swal.mixin({
+  toast: true,
+  position: "bottom",
+  width: "420px",
+  padding: "12px 14px",
+  showConfirmButton: false,
+  timer: 2400,
+  timerProgressBar: true,
+
+  // ❌ IMPORTANTÍSIMO: NO pongas returnFocus en toast
+  // ❌ NO pongas heightAuto en toast
+
+  customClass: {
+    popup: "alert-premium animated fadeIn faster swal-toast-center",
+    title: "alert-title",
+    htmlContainer: "alert-text",
+  },
+
+  buttonsStyling: false,
+
+  didOpen: () => {
+    // ✅ por accesibilidad (y evita el warning de aria-hidden/focus)
+    blurActiveElement();
+  },
+});
+
+function fire(icon: SweetAlertIcon, title: string, text?: string) {
+  blurActiveElement();
+  return base.fire({
+    icon,
+    title,
+    html: text ? `<div>${text}</div>` : undefined,
+  });
+}
 
 export const alertService = {
-  // Alerta de éxito con diseño mejorado
-  success: (message: string, title: string = '¡Excelente!') => {
-    return Swal.fire({
-      icon: 'success',
-      title: title,
-      text: message,
-      timer: 3000,
-      showConfirmButton: false,
-      position: 'center',
-      background: 'linear-gradient(135deg, #f0f9ff 0%, #ffffff 100%)',
-      iconColor: '#2d9cdb',
-      backdrop: 'rgba(0,0,0,0.4)',
-      allowOutsideClick: true,
-      allowEscapeKey: true,
-      customClass: {
-        popup: 'animated zoomIn alert-premium',
-        title: 'alert-title',
-        htmlContainer: 'alert-text'
-      },
-      showClass: {
-        popup: 'animated zoomIn faster'
-      },
-      hideClass: {
-        popup: 'animated zoomOut faster'
-      }
-    });
-  },
+  success: (msg: string, title = "Listo") => fire("success", title, msg),
+  error: (msg: string, title = "Ups…") => fire("error", title, msg),
+  warning: (msg: string, title = "Atención") => fire("warning", title, msg),
+  info: (msg: string, title = "Info") => fire("info", title, msg),
 
-  // Alerta de error con diseño mejorado
-  error: (message: string, title: string = '¡Ups! Algo salió mal') => {
-    return Swal.fire({
-      icon: 'error',
-      title: title,
-      text: message,
-      timer: 4000,
-      showConfirmButton: false,
-      position: 'center',
-      background: 'linear-gradient(135deg, #fef2f2 0%, #ffffff 100%)',
-      iconColor: '#ef4444',
-      backdrop: 'rgba(0,0,0,0.4)',
-      allowOutsideClick: true,
-      allowEscapeKey: true,
-      customClass: {
-        popup: 'animated shake alert-premium',
-        title: 'alert-title',
-        htmlContainer: 'alert-text'
-      },
-      showClass: {
-        popup: 'animated fadeInDown faster'
-      },
-      hideClass: {
-        popup: 'animated fadeOutUp faster'
-      }
-    });
-  },
+  // ✅ BLINDAJE: forzamos que no se meta returnFocus a toast
+  toastSuccess: (msg: string) => toast.fire({ icon: "success", title: msg }),
+  toastError: (msg: string) => toast.fire({ icon: "error", title: msg }),
+  toastWarning: (msg: string) => toast.fire({ icon: "warning", title: msg }),
+  toastInfo: (msg: string) => toast.fire({ icon: "info", title: msg }),
 
-  // Alerta de advertencia con diseño mejorado
-  warning: (message: string, title: string = 'Atención') => {
-    return Swal.fire({
-      icon: 'warning',
-      title: title,
-      text: message,
-      timer: 4000,
-      showConfirmButton: false,
-      position: 'center',
-      background: 'linear-gradient(135deg, #fffbeb 0%, #ffffff 100%)',
-      iconColor: '#f59e0b',
-      backdrop: 'rgba(0,0,0,0.4)',
-      allowOutsideClick: true,
-      allowEscapeKey: true,
-      customClass: {
-        popup: 'animated pulse alert-premium',
-        title: 'alert-title',
-        htmlContainer: 'alert-text'
-      },
-      showClass: {
-        popup: 'animated fadeInDown faster'
-      },
-      hideClass: {
-        popup: 'animated fadeOutUp faster'
-      }
-    });
-  },
+  confirm: async (titleOrOpts: string | ConfirmOpts, textMaybe?: string) => {
+    Swal.close();
+    blurActiveElement();
 
-  // Alerta de información con diseño mejorado
-  info: (message: string, title: string = 'Información') => {
-    return Swal.fire({
-      icon: 'info',
-      title: title,
-      text: message,
-      timer: 3000,
-      showConfirmButton: false,
-      position: 'center',
-      background: 'linear-gradient(135deg, #eff6ff 0%, #ffffff 100%)',
-      iconColor: '#3b82f6',
-      backdrop: 'rgba(0,0,0,0.4)',
-      allowOutsideClick: true,
-      allowEscapeKey: true,
-      customClass: {
-        popup: 'animated fadeInDown alert-premium',
-        title: 'alert-title',
-        htmlContainer: 'alert-text'
-      },
-      showClass: {
-        popup: 'animated fadeInDown faster'
-      },
-      hideClass: {
-        popup: 'animated fadeOutUp faster'
-      }
-    });
-  },
+    const opts: ConfirmOpts =
+      typeof titleOrOpts === "string"
+        ? { title: titleOrOpts, text: textMaybe }
+        : titleOrOpts;
 
-  // Alerta de confirmación con diseño mejorado
-  confirm: (message: string, title: string = '¿Confirmar acción?') => {
-    return Swal.fire({
-      title: title,
-      text: message,
-      icon: 'question',
+    return base.fire({
+      icon: opts.icon ?? "question",
+      title: opts.title ?? "¿Confirmas?",
+      html: opts.text ? `<div>${opts.text}</div>` : undefined,
       showCancelButton: true,
-      confirmButtonColor: '#2d9cdb',
-      cancelButtonColor: '#94a3b8',
-      confirmButtonText: 'Sí, continuar',
-      cancelButtonText: 'Cancelar',
-      background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-      iconColor: '#f59e0b',
-      backdrop: 'rgba(0,0,0,0.5)',
-      reverseButtons: true,
-      position: 'center',
-      customClass: {
-        popup: 'animated fadeInDown alert-premium',
-        title: 'alert-title',
-        htmlContainer: 'alert-text',
-        confirmButton: 'swal2-confirm-btn-premium',
-        cancelButton: 'swal2-cancel-btn-premium'
-      }
+      confirmButtonText: opts.confirmText ?? "Sí, continuar",
+      cancelButtonText: opts.cancelText ?? "Cancelar",
+
+      showClass: { popup: "animated zoomIn faster" },
+      hideClass: { popup: "animated zoomOut faster" },
+
+      // ✅ modal ok
+      returnFocus: false,
     });
   },
 
-  // Alerta de carga con diseño mejorado
-  loading: (message: string = 'Procesando solicitud...') => {
-    return Swal.fire({
-      title: message,
+  loading: (title = "Procesando...") => {
+    Swal.close();
+    blurActiveElement();
+
+    return base.fire({
+      title,
+      html: `
+        <div class="alert-text">Espera un momento…</div>
+        <div class="progress-bar-container"><div class="progress-bar"></div></div>
+      `,
       allowOutsideClick: false,
+      allowEscapeKey: false,
       showConfirmButton: false,
-      background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-      backdrop: 'rgba(0,0,0,0.5)',
       didOpen: () => {
+        blurActiveElement();
         Swal.showLoading();
       },
-      position: 'center',
-      customClass: {
-        popup: 'animated fadeIn alert-premium',
-        title: 'alert-title'
-      }
     });
   },
 
-  // Alerta personalizada para procesos largos
-  progress: (message: string = 'Subiendo archivo...') => {
-    return Swal.fire({
-      title: message,
-      html: '<div class="progress-bar-container"><div class="progress-bar"></div></div>',
-      showConfirmButton: false,
-      allowOutsideClick: false,
-      background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-      backdrop: 'rgba(0,0,0,0.5)',
-      position: 'center',
-      customClass: {
-        popup: 'animated fadeIn alert-premium',
-        title: 'alert-title'
-      }
-    });
-  },
-
-  // Alerta con input
-  prompt: (message: string, title: string = 'Ingresa los datos', inputPlaceholder: string = 'Escribe aquí...') => {
-    return Swal.fire({
-      title: title,
-      text: message,
-      input: 'text',
-      inputPlaceholder: inputPlaceholder,
-      showCancelButton: true,
-      confirmButtonColor: '#2d9cdb',
-      cancelButtonColor: '#94a3b8',
-      confirmButtonText: 'Aceptar',
-      cancelButtonText: 'Cancelar',
-      background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-      backdrop: 'rgba(0,0,0,0.5)',
-      position: 'center',
-      customClass: {
-        popup: 'animated fadeInDown alert-premium',
-        title: 'alert-title',
-        input: 'alert-input'
-      }
-    });
-  },
-
-  // Cerrar alerta
-  close: () => {
-    Swal.close();
-  }
+  close: () => Swal.close(),
 };

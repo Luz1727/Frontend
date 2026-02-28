@@ -1,17 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
-import styles from './Dictamenes.module.css';
+import styles from "./Dictamenes.module.css";
 
 type Decision = "APROBADO" | "CORRECCIONES" | "RECHAZADO";
 type DictamenStatus = "BORRADOR" | "GENERADO" | "FIRMADO";
 
 type Row = {
   id: string;
-  // ✅ folio que se muestra como principal (folio del capítulo)
-  folio: string;
-  // ✅ folio real del dictamen (para referencia/descargas)
-  dictamenFolio: string;
+  folio: string;         // folio del capítulo (si existe)
+  dictamenFolio: string; // folio real del dictamen
   capituloId: string;
   capitulo: string;
   libro: string;
@@ -24,9 +22,8 @@ type Row = {
 
 type AdminDictamenApi = {
   id: number;
-  folio: string; // folio del dictamen (dictamenes.folio)
-  // ✅ folio del capítulo (chapters.folio) agregado desde backend
-  chapterFolio?: string | null;
+  folio: string; // dictamenes.folio
+  chapterFolio?: string | null; // chapters.folio
   capituloId: number;
   capitulo: string;
   libro: string;
@@ -37,22 +34,32 @@ type AdminDictamenApi = {
   updatedAt?: string | null;
 };
 
-// ✅ Función para obtener la clase del pill según la decisión
-function getDecisionPillClass(decision: Decision): string {
-  const baseClass = styles.pill;
-  
-  if (decision === "APROBADO") return `${baseClass} ${styles.pillApproved}`;
-  if (decision === "CORRECCIONES") return `${baseClass} ${styles.pillCorrections}`;
-  return `${baseClass} ${styles.pillRejected}`;
+function getDecisionPillClass(decision: Decision) {
+  const base = styles.pill;
+  if (decision === "APROBADO") return `${base} ${styles.pillApproved}`;
+  if (decision === "CORRECCIONES") return `${base} ${styles.pillCorrections}`;
+  return `${base} ${styles.pillRejected}`;
 }
 
-// ✅ Función para obtener la clase del pill según el estado
-function getStatusPillClass(status: DictamenStatus): string {
-  const baseClass = styles.pill;
-  
-  if (status === "FIRMADO") return `${baseClass} ${styles.pillFirmado}`;
-  if (status === "GENERADO") return `${baseClass} ${styles.pillGenerado}`;
-  return `${baseClass} ${styles.pillBorrador}`;
+function getStatusPillClass(status: DictamenStatus) {
+  const base = styles.pill;
+  if (status === "FIRMADO") return `${base} ${styles.pillFirmado}`;
+  if (status === "GENERADO") return `${base} ${styles.pillGenerado}`;
+  return `${base} ${styles.pillBorrador}`;
+}
+
+function getStatusChipClass(status: DictamenStatus) {
+  const base = styles.chip;
+  if (status === "FIRMADO") return `${base} ${styles.chipFirmado}`;
+  if (status === "GENERADO") return `${base} ${styles.chipGenerado}`;
+  return `${base} ${styles.chipBorrador}`;
+}
+
+function getDecisionChipClass(decision: Decision) {
+  const base = styles.chip;
+  if (decision === "APROBADO") return `${base} ${styles.chipAprobado}`;
+  if (decision === "CORRECCIONES") return `${base} ${styles.chipCorrecciones}`;
+  return `${base} ${styles.chipRechazado}`;
 }
 
 export default function Dictamenes() {
@@ -74,9 +81,7 @@ export default function Dictamenes() {
 
       return {
         id: String(d.id),
-        // ✅ Folio que se muestra en la tabla: prioriza folio del capítulo
         folio: chapterFolio || dictamenFolio || "—",
-        // ✅ Folio real del dictamen siempre guardado aparte
         dictamenFolio: dictamenFolio || "—",
         capituloId: String(d.capituloId ?? ""),
         capitulo: d.capitulo ?? "—",
@@ -96,24 +101,14 @@ export default function Dictamenes() {
       const { data } = await api.get<AdminDictamenApi[]>("/admin/dictamenes");
       setRows(mapApi(data ?? []));
     } catch (err: any) {
-      setErrorMsg(
-        err?.response?.data?.detail ??
-          "No se pudieron cargar los dictámenes. Revisa backend, token y rol."
-      );
+      setErrorMsg(err?.response?.data?.detail ?? "No se pudieron cargar los dictámenes.");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    let alive = true;
-    (async () => {
-      if (!alive) return;
-      await load();
-    })();
-    return () => {
-      alive = false;
-    };
+    load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -122,14 +117,21 @@ export default function Dictamenes() {
     return rows.filter((x) => {
       if (status !== "ALL" && x.status !== status) return false;
       if (decision !== "ALL" && x.decision !== decision) return false;
-
       if (!qq) return true;
 
-      // ✅ Buscar por folio capitulo + folio dictamen + texto (mejora de tu compañera)
       const blob = `${x.folio} ${x.dictamenFolio} ${x.capitulo} ${x.evaluador} ${x.libro}`.toLowerCase();
       return blob.includes(qq);
     });
   }, [rows, q, status, decision]);
+
+  const stats = useMemo(() => {
+    const out = { BORRADOR: 0, GENERADO: 0, FIRMADO: 0, APROBADO: 0, CORRECCIONES: 0, RECHAZADO: 0 };
+    for (const r of filtered) {
+      out[r.status] += 1 as any;
+      out[r.decision] += 1 as any;
+    }
+    return out;
+  }, [filtered]);
 
   const renderDoc = async (id: string) => {
     try {
@@ -144,15 +146,13 @@ export default function Dictamenes() {
     }
   };
 
-  // ✅ DESCARGA con TOKEN (Bearer) usando blob
   const download = async (row: Row, format: "pdf" | "docx") => {
     try {
       setBusyId(row.id);
 
-      const res = await api.get(
-        `/admin/dictamenes/${Number(row.id)}/download?format=${format}`,
-        { responseType: "blob" }
-      );
+      const res = await api.get(`/admin/dictamenes/${Number(row.id)}/download?format=${format}`, {
+        responseType: "blob",
+      });
 
       const contentType =
         (res.headers?.["content-type"] as string | undefined) ||
@@ -162,12 +162,10 @@ export default function Dictamenes() {
 
       const blob = new Blob([res.data], { type: contentType });
 
-      // Si backend manda Content-Disposition, lo intentamos leer
       const cd = res.headers?.["content-disposition"] as string | undefined;
       const fromHeader = cd ? /filename="?([^"]+)"?/i.exec(cd)?.[1] : undefined;
 
-      // ✅ Nombre: preferir folio del capítulo (row.folio) y si no, el del dictamen (mejora de tu compañera)
-      const baseFolio = (row.folio && row.folio !== "—") ? row.folio : row.dictamenFolio;
+      const baseFolio = row.folio && row.folio !== "—" ? row.folio : row.dictamenFolio;
       const fallback = `dictamen-${baseFolio || row.id}.${format}`;
       const filename = sanitizeFilename(fromHeader || fallback);
 
@@ -249,6 +247,16 @@ export default function Dictamenes() {
           <span className={styles.muted}>
             Mostrando <b>{filtered.length}</b> de {rows.length}
           </span>
+
+          <div className={styles.chips}>
+            <span className={getStatusChipClass("BORRADOR")}>Borrador: {stats.BORRADOR}</span>
+            <span className={getStatusChipClass("GENERADO")}>Generado: {stats.GENERADO}</span>
+            <span className={getStatusChipClass("FIRMADO")}>Firmado: {stats.FIRMADO}</span>
+
+            <span className={getDecisionChipClass("APROBADO")}>Aprobado: {stats.APROBADO}</span>
+            <span className={getDecisionChipClass("CORRECCIONES")}>Correcciones: {stats.CORRECCIONES}</span>
+            <span className={getDecisionChipClass("RECHAZADO")}>Rechazado: {stats.RECHAZADO}</span>
+          </div>
         </div>
       </div>
 
@@ -287,15 +295,11 @@ export default function Dictamenes() {
                   <td className={styles.td}>{x.promedio.toFixed(1)}</td>
 
                   <td className={styles.td}>
-                    <span className={getDecisionPillClass(x.decision)}>
-                      {decisionLabel(x.decision)}
-                    </span>
+                    <span className={getDecisionPillClass(x.decision)}>{decisionLabel(x.decision)}</span>
                   </td>
 
                   <td className={styles.td}>
-                    <span className={getStatusPillClass(x.status)}>
-                      {statusLabel(x.status)}
-                    </span>
+                    <span className={getStatusPillClass(x.status)}>{statusLabel(x.status)}</span>
                   </td>
 
                   <td className={styles.td}>{fmtDate(x.updatedAt)}</td>
@@ -306,7 +310,6 @@ export default function Dictamenes() {
                         className={styles.miniBtn}
                         type="button"
                         onClick={() => nav(`/dictamenes/${x.id}/documento`)}
-                        title="Subir plantilla, editar datos y generar documento"
                       >
                         Documento
                       </button>
@@ -316,7 +319,6 @@ export default function Dictamenes() {
                         type="button"
                         onClick={() => renderDoc(x.id)}
                         disabled={busyId === x.id}
-                        title="Genera DOCX y PDF"
                       >
                         {busyId === x.id ? "..." : "Generar"}
                       </button>
@@ -326,7 +328,6 @@ export default function Dictamenes() {
                         type="button"
                         onClick={() => download(x, "pdf")}
                         disabled={x.status === "BORRADOR" || busyId === x.id}
-                        title="Descargar PDF"
                       >
                         PDF
                       </button>
@@ -336,7 +337,6 @@ export default function Dictamenes() {
                         type="button"
                         onClick={() => download(x, "docx")}
                         disabled={x.status === "BORRADOR" || busyId === x.id}
-                        title="Descargar DOCX"
                       >
                         DOCX
                       </button>
@@ -383,7 +383,6 @@ function fmtDate(dateStr: string) {
   return `${d}/${m}/${y}`;
 }
 
-// evita caracteres raros en el nombre de archivo
 function sanitizeFilename(name: string) {
   return name.replace(/[\\/:*?"<>|]+/g, "-").trim();
 }

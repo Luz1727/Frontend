@@ -3,6 +3,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import styles from "./PrivateLayout.module.css";
 
+// ✅ ALERTA PREMIUM
+import { alertService } from "../utils/alerts";
+
 type Role = "editorial" | "dictaminador" | "autor";
 
 type User = {
@@ -78,10 +81,10 @@ function safeClearAuth() {
 }
 
 /** ---------------------------
- * Home por rol
+ * Home por rol (✅ editorial inicia en /libros)
  * --------------------------*/
 const defaultHomeByRole: Record<Role, string> = {
-  editorial: "/",
+  editorial: "/libros",
   dictaminador: "/dictaminador",
   autor: "/autor/mis-envios",
 };
@@ -90,21 +93,13 @@ const defaultHomeByRole: Record<Role, string> = {
  * ACL por ruta (roles permitidos)
  * --------------------------*/
 const routeACL: Array<{ test: (path: string) => boolean; roles: Role[] }> = [
-  // Editorial
   {
-    test: (p) =>
-      p === "/" ||
-      p.startsWith("/convocatorias") ||
-      p.startsWith("/libros") ||
-      p.startsWith("/capitulos"),
+    test: (p) => p.startsWith("/libros") || p.startsWith("/capitulos"),
     roles: ["editorial"],
   },
   { test: (p) => p.startsWith("/dictamenes"), roles: ["editorial"] },
-  { test: (p) => p.startsWith("/constancias"), roles: ["editorial"] },
   { test: (p) => p.startsWith("/usuarios"), roles: ["editorial"] },
-  { test: (p) => p.startsWith("/comunicaciones"), roles: ["editorial"] },
 
-  // Dictaminador / Autor
   { test: (p) => p.startsWith("/dictaminador"), roles: ["dictaminador"] },
   { test: (p) => p.startsWith("/autor"), roles: ["autor"] },
 ];
@@ -119,7 +114,23 @@ export default function PrivateLayout() {
   const nav = useNavigate();
   const location = useLocation();
 
+  /* ✅ TODOS los hooks SIEMPRE arriba (nunca retornes antes) */
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Header + buscador (topbar)
+  const [query, setQuery] = useState("");
+  const [panelOpen, setPanelOpen] = useState(false);
+
+  // (si luego lo usas)
+  const [selectedAction, setSelectedAction] = useState<QuickAction | null>(null);
+  const [form, setForm] = useState({
+    folio: "",
+    tituloCapitulo: "",
+    autor: "",
+    dictaminador: "",
+    estado: "RECIBIDO",
+    comentario: "",
+  });
 
   // cerrar drawer al pasar a desktop
   useEffect(() => {
@@ -139,38 +150,62 @@ export default function PrivateLayout() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  /* ===== Auth (sin hooks) ===== */
   const token = localStorage.getItem("token");
   const userRaw = localStorage.getItem("user");
+
+  let user: User | null = null;
+  let guard: JSX.Element | null = null;
 
   // 1) token y user existen
   if (!token || !userRaw) {
     safeClearAuth();
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+    guard = <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
   // 2) token válido y no expirado
-  if (isTokenExpired(token)) {
+  if (!guard && isTokenExpired(token!)) {
     safeClearAuth();
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+    guard = <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
   // 3) parse + shape check del user
-  let user: User | null = null;
-  try {
-    const parsed = JSON.parse(userRaw);
-    if (!isValidUser(parsed)) throw new Error("user shape invalid");
-    user = parsed;
-  } catch {
-    safeClearAuth();
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  if (!guard) {
+    try {
+      const parsed = JSON.parse(userRaw!);
+      if (!isValidUser(parsed)) throw new Error("user shape invalid");
+      user = parsed;
+    } catch {
+      safeClearAuth();
+      guard = <Navigate to="/login" replace state={{ from: location.pathname }} />;
+    }
+  }
+
+  // ✅ Si editorial entra a "/" => lo mandamos a /libros
+  if (!guard && user!.role === "editorial" && location.pathname === "/") {
+    guard = <Navigate to="/libros" replace />;
   }
 
   // 4) ACL
-  if (!hasAccess(location.pathname, user.role)) {
-    return <Navigate to={defaultHomeByRole[user.role]} replace />;
+  if (!guard && !hasAccess(location.pathname, user!.role)) {
+    guard = <Navigate to={defaultHomeByRole[user!.role]} replace />;
   }
 
-  const logout = () => {
+  // ✅ LOGOUT con confirm premium
+  const logout = async () => {
+    // (por si quedó un Swal abierto)
+    alertService.close();
+
+    const res = await alertService.confirm({
+      title: "Cerrar sesión",
+      text: "¿Seguro que deseas salir?",
+      icon: "question",
+      confirmText: "Sí, salir",
+      cancelText: "Cancelar",
+    });
+
+    if (!res.isConfirmed) return;
+
     safeClearAuth();
     nav("/login", { replace: true });
   };
@@ -180,92 +215,40 @@ export default function PrivateLayout() {
     nav(path);
   };
 
-  const isActive = (path: string) => location.pathname === path;
   const isStarts = (prefix: string) => location.pathname.startsWith(prefix);
 
+  // ✅ MENU sin Constancias ni Comunicaciones
   const menu = useMemo(() => {
-    if (user!.role === "editorial") {
+    if (!user) return [];
+    if (user.role === "editorial") {
       return [
-        { label: "Dashboard", path: "/" },
-        { label: "Convocatorias", path: "/convocatorias" },
         { label: "Libros", path: "/libros" },
         { label: "Capítulos", path: "/capitulos" },
         { label: "Dictámenes", path: "/dictamenes" },
-        { label: "Constancias", path: "/constancias" },
-        { label: "Comunicaciones", path: "/comunicaciones" },
         { label: "Usuarios", path: "/usuarios" },
       ];
     }
-    if (user!.role === "dictaminador") {
+    if (user.role === "dictaminador") {
       return [{ label: "Mis asignaciones", path: "/dictaminador" }];
     }
     return [{ label: "Mis envíos", path: "/autor/mis-envios" }];
   }, [user]);
-
-  // Header + buscador (tu topbar)
-  const [query, setQuery] = useState("");
-  const [panelOpen, setPanelOpen] = useState(false);
-  const [selectedAction, setSelectedAction] = useState<QuickAction | null>(null);
-  const [form, setForm] = useState({
-    folio: "",
-    tituloCapitulo: "",
-    autor: "",
-    dictaminador: "",
-    estado: "RECIBIDO",
-    comentario: "",
-  });
 
   const onSearch = (e: React.FormEvent) => {
     e.preventDefault();
     alert(`(UI) Buscar: ${query}\nLuego se conectará al backend.`);
   };
 
-  const headerTitle =
-    user.role === "editorial"
-      ? isActive("/")
-        ? "Dashboard"
-        : isStarts("/convocatorias")
-        ? "Convocatorias"
-        : isStarts("/libros")
-        ? "Libros"
-        : isStarts("/capitulos")
-        ? "Capítulos"
-        : isStarts("/dictamenes")
-        ? "Dictámenes"
-        : isStarts("/constancias")
-        ? "Constancias"
-        : isStarts("/usuarios")
-        ? "Usuarios"
-        : isStarts("/comunicaciones")
-        ? "Comunicaciones"
-        : "Panel"
-      : user.role === "dictaminador"
-      ? "Dictaminador"
-      : "Autor";
-
-  const headerSubtitle =
-    user.role === "editorial"
-      ? isStarts("/comunicaciones")
-        ? "Envío masivo y automatizado de correos"
-        : "Gestión editorial y dictámenes"
-      : user.role === "dictaminador"
-      ? "Revisión y dictámenes asignados"
-      : "Seguimiento y envío de capítulos";
-
   const avatarLetter = (user?.name?.trim()?.[0] ?? "U").toUpperCase();
 
-  // (opcional) título accesible del panel rápido si lo usas luego para acciones
-  const quickPanelTitle =
-    selectedAction === "generar_constancia"
-      ? "Generar constancia"
-      : selectedAction === "subir_dictamen_firmado"
-      ? "Subir dictamen firmado"
-      : "Panel rápido";
-
+  // (opcional) si luego lo usas
+  void selectedAction;
   void setSelectedAction;
-  void setForm;
   void form;
-  void quickPanelTitle;
+  void setForm;
+
+  /* ✅ AHORA SÍ: retornos al final */
+  if (guard) return guard;
 
   return (
     <div className={styles.shell}>
@@ -299,7 +282,7 @@ export default function PrivateLayout() {
 
         <nav className={styles.nav}>
           {menu.map((item) => {
-            const active = item.path === "/" ? isActive("/") : isStarts(item.path);
+            const active = isStarts(item.path);
             return (
               <button
                 key={item.path}
@@ -331,7 +314,6 @@ export default function PrivateLayout() {
       {/* Main */}
       <main className={styles.main}>
         <header className={styles.header}>
-          {/* botón hamburguesa solo móvil */}
           <button
             type="button"
             className={styles.menuBtn}
@@ -341,12 +323,9 @@ export default function PrivateLayout() {
             ☰
           </button>
 
-          <div className={styles.headerLeft}>
-            <h1 className={styles.headerTitle}>{headerTitle}</h1>
-            <p className={styles.headerSubtitle}>{headerSubtitle}</p>
-          </div>
+          {/* ✅ QUITADO: títulos del header (headerLeft) */}
 
-          {user.role === "editorial" && (
+          {user?.role === "editorial" && (
             <div className={styles.headerRight}>
               <form onSubmit={onSearch} className={styles.searchWrap}>
                 <input
@@ -372,12 +351,12 @@ export default function PrivateLayout() {
           )}
         </header>
 
-        <div className={styles.body} data-panel={panelOpen && user.role === "editorial" ? "1" : "0"}>
+        <div className={styles.body} data-panel={panelOpen && user?.role === "editorial" ? "1" : "0"}>
           <section className={styles.content}>
             <Outlet />
           </section>
 
-          {user.role === "editorial" && panelOpen && (
+          {user?.role === "editorial" && panelOpen && (
             <aside className={styles.rightPanel}>
               <div className={styles.panelCard}>
                 <div className={styles.panelTitle}>Panel rápido</div>

@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../services/api";
-import styles from './Usuarios.module.css';
+import styles from "./Usuarios.module.css";
+
+// ✅ ALERTA PREMIUM con verificación
+import { alertService } from "../utils/alerts";
 
 type Role = "editorial" | "dictaminador" | "autor";
 
@@ -53,7 +56,7 @@ function fmtDate(dateStr: string) {
 // ✅ Funciones para obtener clases de pills
 function getRolePillClass(role: Role): string {
   const baseClass = styles.pill;
-  
+
   if (role === "editorial") return `${baseClass} ${styles.pillEditorial}`;
   if (role === "dictaminador") return `${baseClass} ${styles.pillDictaminador}`;
   return `${baseClass} ${styles.pillAutor}`;
@@ -61,33 +64,119 @@ function getRolePillClass(role: Role): string {
 
 function getActivePillClass(active: boolean): string {
   const baseClass = styles.pill;
-  
+
   if (active) return `${baseClass} ${styles.pillActive}`;
   return `${baseClass} ${styles.pillInactive}`;
 }
 
+// ✅ Versión segura de canvasHasInk con try-catch
 function canvasHasInk(canvas: HTMLCanvasElement) {
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return false;
-  const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  for (let i = 3; i < img.data.length; i += 4) {
-    if (img.data[i] !== 0) return true;
+  try {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return false;
+    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    for (let i = 3; i < img.data.length; i += 4) {
+      if (img.data[i] !== 0) return true;
+    }
+  } catch (e) {
+    console.error("Error al leer canvas:", e);
+    return false;
   }
   return false;
 }
 
+// ✅ Versión mejorada de fileFromCanvas con manejo de errores
 function fileFromCanvas(canvas: HTMLCanvasElement, filename = "signature.png"): Promise<File> {
   return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) return reject(new Error("No se pudo convertir el canvas a imagen"));
-        resolve(new File([blob], filename, { type: "image/png" }));
-      },
-      "image/png",
-      1
-    );
+    try {
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error("No se pudo convertir el canvas a imagen"));
+            return;
+          }
+          resolve(new File([blob], filename, { type: "image/png" }));
+        },
+        "image/png",
+        1
+      );
+    } catch (e) {
+      reject(e);
+    }
   });
 }
+
+// ✅ Helper seguro para alertService
+const safeAlert = {
+  loading: (msg: string) => {
+    try {
+      if (alertService?.loading) alertService.loading(msg);
+    } catch (e) {
+      console.warn("alertService.loading error:", e);
+    }
+  },
+  close: () => {
+    try {
+      if (alertService?.close) alertService.close();
+    } catch (e) {
+      console.warn("alertService.close error:", e);
+    }
+  },
+  error: async (msg: string, title?: string) => {
+    try {
+      if (alertService?.error) return await alertService.error(msg, title);
+    } catch (e) {
+      console.warn("alertService.error error:", e);
+    }
+    return null;
+  },
+  success: async (msg: string, title?: string) => {
+    try {
+      if (alertService?.success) return await alertService.success(msg, title);
+    } catch (e) {
+      console.warn("alertService.success error:", e);
+    }
+    return null;
+  },
+  warning: async (msg: string, title?: string) => {
+    try {
+      if (alertService?.warning) return await alertService.warning(msg, title);
+    } catch (e) {
+      console.warn("alertService.warning error:", e);
+    }
+    return null;
+  },
+  info: async (msg: string, title?: string) => {
+    try {
+      if (alertService?.info) return await alertService.info(msg, title);
+    } catch (e) {
+      console.warn("alertService.info error:", e);
+    }
+    return null;
+  },
+  confirm: async (options: any) => {
+    try {
+      if (alertService?.confirm) return await alertService.confirm(options);
+    } catch (e) {
+      console.warn("alertService.confirm error:", e);
+    }
+    return { isConfirmed: false };
+  },
+  toastSuccess: (msg: string) => {
+    try {
+      if (alertService?.toastSuccess) alertService.toastSuccess(msg);
+    } catch (e) {
+      console.warn("alertService.toastSuccess error:", e);
+    }
+  },
+  toastInfo: (msg: string) => {
+    try {
+      if (alertService?.toastInfo) alertService.toastInfo(msg);
+    } catch (e) {
+      console.warn("alertService.toastInfo error:", e);
+    }
+  },
+};
 
 export default function Usuarios() {
   const [tab, setTab] = useState<"DICTAMINADORES" | "AUTORES">("DICTAMINADORES");
@@ -125,36 +214,48 @@ export default function Usuarios() {
   const drawingRef = useRef(false);
 
   const clearCanvas = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    try {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    } catch (e) {
+      console.error("Error al limpiar canvas:", e);
+    }
   };
 
   const startDraw = (x: number, y: number) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    try {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
 
-    drawingRef.current = true;
-    ctx.lineWidth = 3;
-    ctx.lineCap = "round";
-    ctx.strokeStyle = "#111827";
-    ctx.beginPath();
-    ctx.moveTo(x, y);
+      drawingRef.current = true;
+      ctx.lineWidth = 3;
+      ctx.lineCap = "round";
+      ctx.strokeStyle = "#111827";
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+    } catch (e) {
+      console.error("Error al iniciar dibujo:", e);
+    }
   };
 
   const moveDraw = (x: number, y: number) => {
     if (!drawingRef.current) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    try {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
 
-    ctx.lineTo(x, y);
-    ctx.stroke();
+      ctx.lineTo(x, y);
+      ctx.stroke();
+    } catch (e) {
+      console.error("Error al dibujar:", e);
+    }
   };
 
   const endDraw = () => {
@@ -162,16 +263,23 @@ export default function Usuarios() {
   };
 
   const getPos = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-    const rect = canvas.getBoundingClientRect();
+    try {
+      const canvas = canvasRef.current;
+      if (!canvas) return { x: 0, y: 0 };
+      const rect = canvas.getBoundingClientRect();
 
-    if ("clientX" in e) {
-      return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      if ("clientX" in e) {
+        return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      }
+
+      if (e.touches.length > 0) {
+        const t = e.touches[0];
+        return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+      }
+    } catch (e) {
+      console.error("Error al obtener posición:", e);
     }
-
-    const t = e.touches[0];
-    return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+    return { x: 0, y: 0 };
   };
 
   // ---------------- API ----------------
@@ -183,7 +291,10 @@ export default function Usuarios() {
   const fetchUsers = async () => {
     setErrorMsg(null);
     setLoadingList(true);
+
     try {
+      safeAlert.loading("Cargando usuarios...");
+
       const main = await fetchUsersForRole(roleForTab);
       const extra = roleForTab === "autor" ? await fetchUsersForRole("dictaminador") : [];
       const merged = [...main, ...extra];
@@ -192,9 +303,12 @@ export default function Usuarios() {
       for (const u of merged) map.set(u.id, u);
 
       setUsers(Array.from(map.values()).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)));
+      safeAlert.close();
     } catch (err: any) {
+      safeAlert.close();
       const msg = err?.response?.data?.detail ?? "No se pudieron cargar los usuarios.";
       setErrorMsg(msg);
+      await safeAlert.error(msg, "Error");
     } finally {
       setLoadingList(false);
     }
@@ -216,16 +330,22 @@ export default function Usuarios() {
 
     setSavingSignature(true);
     try {
+      safeAlert.loading("Subiendo firma...");
+
       const { data } = await api.post<{ signature_url: string }>(`/admin/users/${userId}/signature`, fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
+      safeAlert.close();
+
       setSignaturePreview(data.signature_url);
       setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, signatureUrl: data.signature_url } : u)));
-      alert("Firma guardada para este dictaminador.");
+
+      safeAlert.toastSuccess("Firma guardada ✅");
     } catch (err: any) {
+      safeAlert.close();
       const msg = err?.response?.data?.detail ?? "No se pudo subir la firma.";
-      alert(msg);
+      await safeAlert.error(msg, "No se pudo subir");
     } finally {
       setSavingSignature(false);
     }
@@ -258,17 +378,19 @@ export default function Usuarios() {
     const role: Role = roleForTab;
 
     if (!name.trim() || !email.trim()) {
-      alert("Nombre y correo son obligatorios.");
+      await safeAlert.warning("Nombre y correo son obligatorios.", "Faltan datos");
       return;
     }
 
     if (role === "dictaminador" && !cvoSnii.trim()) {
-      alert("Para dictaminador, CVU/SNII es obligatorio (será su contraseña).");
+      await safeAlert.warning("Para dictaminador, CVU/SNII es obligatorio (será su contraseña).", "Falta CVU/SNII");
       return;
     }
 
     setSavingUser(true);
     try {
+      safeAlert.loading("Creando usuario...");
+
       const payload: any = {
         name: name.trim(),
         email: email.trim().toLowerCase(),
@@ -280,6 +402,8 @@ export default function Usuarios() {
       const { data } = await api.post<ApiUser>("/admin/users", payload);
       const created = mapApiUser(data);
 
+      safeAlert.close();
+
       setUsers((prev) => [created, ...prev]);
 
       setName("");
@@ -288,13 +412,20 @@ export default function Usuarios() {
       setCvoSnii("");
 
       if (role === "dictaminador") {
-        alert(`Dictaminador creado.\n\nInicio de sesión:\nCorreo: ${created.email}\nContraseña: (su CVU/SNII)`);
+        await safeAlert.success(
+          `Inicio de sesión:\nCorreo: ${created.email}\nContraseña: su CVU/SNII`,
+          "Dictaminador creado ✅"
+        );
       } else {
-        alert(`Autor creado.\n\nInicio de sesión:\nCorreo: ${created.email}\nContraseña: (su nombre)`);
+        await safeAlert.success(
+          `Inicio de sesión:\nCorreo: ${created.email}\nContraseña: su nombre`,
+          "Autor creado ✅"
+        );
       }
     } catch (err: any) {
+      safeAlert.close();
       const msg = err?.response?.data?.detail ?? "No se pudo crear el usuario.";
-      alert(msg);
+      await safeAlert.error(msg, "Error");
     } finally {
       setSavingUser(false);
     }
@@ -304,28 +435,57 @@ export default function Usuarios() {
     const current = users.find((u) => u.id === id);
     if (!current) return;
 
+    const actionLabel = current.active ? "Desactivar" : "Activar";
+    const res = await safeAlert.confirm({
+      title: `${actionLabel} usuario`,
+      text: `¿Seguro que deseas ${actionLabel.toLowerCase()} a "${current.name}"?`,
+      icon: "question",
+      confirmText: `Sí, ${actionLabel.toLowerCase()}`,
+      cancelText: "Cancelar",
+    });
+
+    if (!res.isConfirmed) return;
+
     try {
+      safeAlert.loading("Actualizando estado...");
+
       const newActive = !current.active;
       const { data } = await api.patch<ApiUser>(`/admin/users/${id}`, { active: newActive ? 1 : 0 });
       const updated = mapApiUser(data);
+
+      safeAlert.close();
       setUsers((prev) => prev.map((u) => (u.id === id ? updated : u)));
+
+      safeAlert.toastSuccess(`Estado actualizado: ${updated.active ? "Activo" : "Inactivo"}`);
     } catch (err: any) {
+      safeAlert.close();
       const msg = err?.response?.data?.detail ?? "No se pudo actualizar el estado.";
-      alert(msg);
+      await safeAlert.error(msg, "Error");
     }
   };
 
   const deleteUser = async (u: User) => {
     if (u.role === "editorial") {
-      alert("No puedes eliminar un usuario editorial.");
+      await safeAlert.warning("No puedes eliminar un usuario editorial.", "Acción no permitida");
       return;
     }
 
-    const ok = confirm(`¿Eliminar a "${u.name}" (${u.email})?\n\nEsta acción NO se puede deshacer.`);
-    if (!ok) return;
+    const res = await safeAlert.confirm({
+      title: "Eliminar usuario",
+      text: `¿Eliminar a "${u.name}" (${u.email})?\n\nEsta acción NO se puede deshacer.`,
+      icon: "warning",
+      confirmText: "Sí, eliminar",
+      cancelText: "Cancelar",
+    });
+
+    if (!res.isConfirmed) return;
 
     try {
+      safeAlert.loading("Eliminando usuario...");
+
       await api.delete(`/admin/users/${u.id}`);
+
+      safeAlert.close();
 
       setUsers((prev) => prev.filter((x) => x.id !== u.id));
 
@@ -335,15 +495,16 @@ export default function Usuarios() {
         clearCanvas();
       }
 
-      alert("Usuario eliminado.");
+      safeAlert.toastSuccess("Usuario eliminado ✅");
     } catch (err: any) {
+      safeAlert.close();
       const msg = err?.response?.data?.detail ?? "No se pudo eliminar el usuario.";
-      alert(msg);
+      await safeAlert.error(msg, "Error");
     }
   };
 
-  const editUser = (u: User) => {
-    alert(`Después: modal editar usuario\n\n${u.name} (${u.role})`);
+  const editUser = async (u: User) => {
+    await safeAlert.info(`Después: modal editar usuario\n\n${u.name} (${u.role})`, "Pendiente");
   };
 
   // ---------------- FIRMA (DICTAMINADOR) ----------------
@@ -351,22 +512,22 @@ export default function Usuarios() {
 
   const onUploadSignatureImage = async (file: File | null) => {
     if (!selectedDictId) {
-      alert("Selecciona un dictaminador.");
+      await safeAlert.warning("Selecciona un dictaminador.", "Falta selección");
       return;
     }
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      alert("Sube una imagen (PNG/JPG).");
+      await safeAlert.warning("Sube una imagen (PNG/JPG).", "Archivo inválido");
       return;
     }
 
     await uploadSignatureFor(selectedDictId, file);
   };
 
-  const openFilePicker = () => {
+  const openFilePicker = async () => {
     if (!selectedDictId) {
-      alert("Selecciona un dictaminador.");
+      await safeAlert.warning("Selecciona un dictaminador.", "Falta selección");
       return;
     }
     if (savingSignature) return;
@@ -375,14 +536,14 @@ export default function Usuarios() {
 
   const saveCanvasAsSignature = async () => {
     if (!selectedDict) {
-      alert("Selecciona un dictaminador.");
+      await safeAlert.warning("Selecciona un dictaminador.", "Falta selección");
       return;
     }
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     if (!canvasHasInk(canvas)) {
-      alert("Dibuja la firma antes de guardar.");
+      await safeAlert.warning("Dibuja la firma antes de guardar.", "Sin firma");
       return;
     }
 
@@ -390,14 +551,14 @@ export default function Usuarios() {
       const file = await fileFromCanvas(canvas, `firma_dict_${selectedDict.id}.png`);
       await uploadSignatureFor(selectedDict.id, file);
     } catch (e: any) {
-      alert(e?.message ?? "No se pudo guardar la firma del canvas.");
+      await safeAlert.error(e?.message ?? "No se pudo guardar la firma del canvas.", "Error");
     }
   };
 
-  const clearSignature = () => {
+  const clearSignature = async () => {
     setSignaturePreview(null);
     clearCanvas();
-    alert("Firma eliminada (solo UI). Si quieres, agregamos DELETE en backend.");
+    safeAlert.toastInfo("Firma eliminada (solo UI). Si quieres, agregamos DELETE en backend.");
   };
 
   const showExtraCols = tab === "DICTAMINADORES";
@@ -409,11 +570,17 @@ export default function Usuarios() {
         <div>
           <h2 className={styles.h2}>Usuarios y roles</h2>
           <p className={styles.p}>Gestión de dictaminadores y autores. (solo editorial/admin)</p>
-          {errorMsg && <div className={styles.error} style={{ marginTop: 8 }}>{errorMsg}</div>}
+          {errorMsg && (
+            <div className={styles.error} style={{ marginTop: 8 }}>
+              {errorMsg}
+            </div>
+          )}
         </div>
 
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <span style={{ fontSize: 12, color: "#6B7280" }}>{loadingList ? "Cargando..." : "Actualizado"}</span>
+          <span style={{ fontSize: 12, color: "#6B7280" }}>
+            {loadingList ? "Cargando..." : "Actualizado"}
+          </span>
           <button className={styles.linkBtn} type="button" onClick={fetchUsers} disabled={loadingList}>
             Recargar
           </button>
@@ -425,12 +592,14 @@ export default function Usuarios() {
         <button
           className={`${styles.tabBtn} ${tab === "DICTAMINADORES" ? styles.tabActive : ""}`}
           onClick={() => setTab("DICTAMINADORES")}
+          type="button"
         >
           Dictaminadores
         </button>
         <button
           className={`${styles.tabBtn} ${tab === "AUTORES" ? styles.tabActive : ""}`}
           onClick={() => setTab("AUTORES")}
+          type="button"
         >
           Autores
         </button>
@@ -487,7 +656,7 @@ export default function Usuarios() {
                 </>
               )}
 
-              <button className={styles.primaryBtn} onClick={addUser} disabled={savingUser}>
+              <button className={styles.primaryBtn} onClick={addUser} disabled={savingUser} type="button">
                 {savingUser ? "Guardando..." : "Dar de alta"}
               </button>
 
@@ -539,10 +708,14 @@ export default function Usuarios() {
                   <button
                     className={styles.linkBtn}
                     type="button"
-                    onClick={() => {
+                    onClick={async () => {
                       if (!selectedDict) return;
-                      navigator.clipboard?.writeText(selectedDict.id);
-                      alert("ID copiado.");
+                      try {
+                        await navigator.clipboard?.writeText(selectedDict.id);
+                        safeAlert.toastSuccess("ID copiado ✅");
+                      } catch (e) {
+                        console.error("Error al copiar:", e);
+                      }
                     }}
                     disabled={!selectedDict}
                   >
@@ -656,10 +829,8 @@ export default function Usuarios() {
                   <th className={styles.th}>Nombre</th>
                   <th className={styles.th}>Correo</th>
                   <th className={styles.th}>Rol</th>
-
                   {showExtraCols && <th className={styles.th}>Institución</th>}
                   {showExtraCols && <th className={styles.th}>CVU/SNII</th>}
-
                   <th className={styles.th}>Activo</th>
                   <th className={styles.th}>Alta</th>
                   <th className={styles.th}>Acciones</th>
@@ -684,24 +855,22 @@ export default function Usuarios() {
                     {showExtraCols && <td className={styles.td}>{u.cvoSnii ?? "—"}</td>}
 
                     <td className={styles.td}>
-                      <span className={getActivePillClass(u.active)}>
-                        {u.active ? "Sí" : "No"}
-                      </span>
+                      <span className={getActivePillClass(u.active)}>{u.active ? "Sí" : "No"}</span>
                     </td>
 
                     <td className={styles.td}>{fmtDate(u.createdAt)}</td>
 
                     <td className={styles.td}>
                       <div className={styles.actions}>
-                        <button className={styles.linkBtn} onClick={() => editUser(u)}>
+                        <button className={styles.linkBtn} type="button" onClick={() => editUser(u)}>
                           Editar
                         </button>
 
-                        <button className={styles.ghostBtn} onClick={() => toggleActive(u.id)}>
+                        <button className={styles.ghostBtn} type="button" onClick={() => toggleActive(u.id)}>
                           {u.active ? "Desactivar" : "Activar"}
                         </button>
 
-                        <button className={styles.dangerBtn} onClick={() => deleteUser(u)}>
+                        <button className={styles.dangerBtn} type="button" onClick={() => deleteUser(u)}>
                           Eliminar
                         </button>
                       </div>

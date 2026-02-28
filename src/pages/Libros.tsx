@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
-import styles from './Libros.module.css';
+import styles from "./Libros.module.css";
+
+// ✅ AGREGA ESTO (ajusta la ruta si tu archivo está en otro lado)
+import { alertService } from "../utils/alerts"; // <-- cambia la ruta si no coincide
 
 type ChapterStatus =
   | "RECIBIDO"
@@ -56,7 +59,7 @@ type AdminChapterApi = {
 // ✅ Función para obtener la clase del pill según el estado
 function getPillClass(status: ChapterStatus): string {
   const baseClass = styles.pill;
-  
+
   if (status === "APROBADO") return `${baseClass} ${styles.pillApproved}`;
   if (status === "CORRECCIONES") return `${baseClass} ${styles.pillCorrections}`;
   if (status === "EN_REVISION") return `${baseClass} ${styles.pillRevision}`;
@@ -125,6 +128,9 @@ export default function Libros() {
           err?.response?.data?.detail ??
           "No se pudieron cargar los libros (admin). Revisa que el backend esté corriendo y tu token sea válido (rol editorial).";
         setErrorMsg(msg);
+
+        // ✅ ALERTA PREMIUM
+        alertService.toastError(msg);
       } finally {
         if (alive) setLoading(false);
       }
@@ -177,11 +183,19 @@ export default function Libros() {
         setBooks((prev) =>
           prev.map((b) => (b.id === selectedBookId ? { ...b, chapters } : b))
         );
-      } catch (err) {
+      } catch (err: any) {
         if (!alive) return;
+
         setBooks((prev) =>
           prev.map((b) => (b.id === selectedBookId ? { ...b, chapters: [] } : b))
         );
+
+        const msg =
+          err?.response?.data?.detail ??
+          "No se pudieron cargar los capítulos de este libro.";
+
+        // ✅ ALERTA PREMIUM (toast discreto)
+        alertService.toastWarning(msg);
       }
     };
 
@@ -220,24 +234,31 @@ export default function Libros() {
   }, [selectedBook]);
 
   // ⚠️ Crear libro (admin): deshabilitado por author_id requerido
-  const createBook = () => {
-    alert(
-      "Tu BD requiere author_id. Para que admin cree libro necesitas: selector de autor + POST /api/admin/books."
+  const createBook = async () => {
+    await alertService.info(
+      "Tu BD requiere author_id. Para que admin cree libro necesitas: selector de autor + POST /api/admin/books.",
+      "Acción deshabilitada"
     );
     setOpenCreateBook(false);
   };
 
   const confirmCreateBook = async () => {
-    alert("Deshabilitado: falta seleccionar autor (author_id).");
+    await alertService.warning(
+      "Deshabilitado: falta seleccionar autor (author_id).",
+      "No disponible"
+    );
   };
 
-  const openAddChapterModal = () => {
-    alert("En admin solo se visualiza. Los capítulos los sube el autor.");
+  const openAddChapterModal = async () => {
+    await alertService.info(
+      "En admin solo se visualiza. Los capítulos los sube el autor.",
+      "Solo lectura"
+    );
     setOpenAddChapter(false);
   };
 
-  const confirmAddChapter = () => {
-    alert("Deshabilitado.");
+  const confirmAddChapter = async () => {
+    await alertService.warning("Deshabilitado.", "No disponible");
   };
 
   const goToChapter = (id: string) => {
@@ -249,9 +270,7 @@ export default function Libros() {
       <div className={styles.top}>
         <div>
           <h2 className={styles.h2}>Libros (Admin)</h2>
-          <p className={styles.p}>
-            Lista de libros con su autor y capítulos desde backend.
-          </p>
+          <p className={styles.p}>Lista de libros con su autor y capítulos desde backend.</p>
         </div>
 
         <button className={styles.primaryBtn} onClick={createBook} type="button" disabled={saving}>
@@ -426,9 +445,7 @@ export default function Libros() {
                           </td>
                           <td className={styles.td}>{c.author}</td>
                           <td className={styles.td}>
-                            <span className={getPillClass(c.status)}>
-                              {statusLabel(c.status)}
-                            </span>
+                            <span className={getPillClass(c.status)}>{statusLabel(c.status)}</span>
                           </td>
                           <td className={styles.td}>{fmtDate(c.updatedAt)}</td>
                           <td className={styles.td}>
@@ -455,7 +472,9 @@ export default function Libros() {
                 </div>
 
                 <div className={styles.hintRow}>
-                  <span className={styles.muted}>Límite recomendado: 10–12 capítulos por libro.</span>
+                  <span className={styles.muted}>
+                    Límite recomendado: 10–12 capítulos por libro.
+                  </span>
                 </div>
               </>
             )}
@@ -470,8 +489,8 @@ export default function Libros() {
             <div className={styles.modalTitle}>Crear libro</div>
 
             <div className={styles.errorBox}>
-              Este modal está deshabilitado porque tu BD requiere <b>author_id</b>.
-              Necesitas selector de autor + endpoint POST /api/admin/books.
+              Este modal está deshabilitado porque tu BD requiere <b>author_id</b>. Necesitas selector
+              de autor + endpoint POST /api/admin/books.
             </div>
 
             <label className={styles.modalLabel}>Nombre</label>
@@ -501,7 +520,12 @@ export default function Libros() {
               >
                 Cerrar
               </button>
-              <button className={styles.primaryBtn} type="button" onClick={confirmCreateBook} disabled>
+              <button
+                className={styles.primaryBtn}
+                type="button"
+                onClick={confirmCreateBook}
+                disabled
+              >
                 Crear
               </button>
             </div>
@@ -549,7 +573,11 @@ export default function Libros() {
             </select>
 
             <div className={styles.modalActions}>
-              <button className={styles.secondaryBtn} type="button" onClick={() => setOpenAddChapter(false)}>
+              <button
+                className={styles.secondaryBtn}
+                type="button"
+                onClick={() => setOpenAddChapter(false)}
+              >
                 Cancelar
               </button>
               <button className={styles.primaryBtn} type="button" onClick={confirmAddChapter}>
@@ -581,7 +609,7 @@ function fmtDate(dateStr: string) {
 }
 
 function countStatuses(chapters: Chapter[]) {
-  const out = {
+  const out: Record<ChapterStatus, number> = {
     RECIBIDO: 0,
     ASIGNADO_A_DICTAMINADOR: 0,
     EN_REVISION: 0,

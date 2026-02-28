@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../services/api";
-import styles from './DictamenDocumento.module.css';
+import styles from "./DictamenDocumento.module.css";
+
+// ✅ ALERTA PREMIUM (ajusta ruta si es necesario)
+import { alertService } from "../utils/alerts";
 
 type DictamenStatus = "BORRADOR" | "GENERADO" | "FIRMADO";
 
@@ -55,7 +58,7 @@ export default function DictamenDocumento() {
   const [saving, setSaving] = useState(false);
   const [detail, setDetail] = useState<Detail | null>(null);
 
-  // ✅ Campos de tu compañera (más completos)
+  // ✅ Campos (más completos)
   const [folioEdit, setFolioEdit] = useState("");
   const [recipientName, setRecipientName] = useState("");
   const [ciudadEstado, setCiudadEstado] = useState("");
@@ -71,9 +74,12 @@ export default function DictamenDocumento() {
   const [firma1Nombre, setFirma1Nombre] = useState("");
   const [firma2Nombre, setFirma2Nombre] = useState("");
 
-  // ✅ UI para plantilla (de tu compañera)
+  // ✅ UI para plantilla
   const [storedTemplateName, setStoredTemplateName] = useState<string | null>(null);
   const [selectedTemplateName, setSelectedTemplateName] = useState<string | null>(null);
+
+  const apiMsg = (err: any, fallback: string) =>
+    err?.response?.data?.detail || err?.message || fallback;
 
   const load = async () => {
     try {
@@ -86,7 +92,6 @@ export default function DictamenDocumento() {
       const json = data.constancia_data_json || {};
       setRecipientName(data.recipient_name || "");
 
-      // ✅ Todos los campos de tu compañera
       setCiudadEstado(json.ciudad_estado || "");
       setFechaEmisionTexto(json.fecha_emision_texto || "");
       setRecipientInstitucion(json.recipient_institucion || "");
@@ -108,7 +113,8 @@ export default function DictamenDocumento() {
         setStoredTemplateName(null);
       }
     } catch (err: any) {
-      alert(err?.response?.data?.detail ?? "No se pudo cargar el dictamen.");
+      const msg = apiMsg(err, "No se pudo cargar el dictamen.");
+      await alertService.error(msg, "Error");
     } finally {
       setLoading(false);
     }
@@ -126,14 +132,23 @@ export default function DictamenDocumento() {
 
     try {
       setSaving(true);
+
+      alertService.loading("Subiendo plantilla...");
+
       await api.post(`/admin/dictamenes/${dictamenId}/template`, fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
+
+      alertService.close();
+
       await load();
       setSelectedTemplateName(null);
-      alert("Plantilla subida correctamente.");
+
+      alertService.toastSuccess("Plantilla subida correctamente ✅");
     } catch (err: any) {
-      alert(err?.response?.data?.detail ?? "Error al subir plantilla.");
+      alertService.close();
+      const msg = apiMsg(err, "Error al subir plantilla.");
+      await alertService.error(msg, "Error");
     } finally {
       setSaving(false);
     }
@@ -141,7 +156,27 @@ export default function DictamenDocumento() {
 
   const saveData = async () => {
     try {
+      // ✅ validaciones rápidas (opcionales pero útiles)
+      if (!folioEdit.trim()) {
+        await alertService.warning("El folio no puede ir vacío.", "Falta un dato");
+        return;
+      }
+      if (!recipientName.trim()) {
+        await alertService.warning("Escribe el nombre del destinatario.", "Falta un dato");
+        return;
+      }
+
+      const confirm = await alertService.confirm({
+        title: "¿Guardar datos del dictamen?",
+        text: "Se actualizarán los campos del documento.",
+        icon: "question",
+        confirmText: "Sí, guardar",
+        cancelText: "Cancelar",
+      });
+      if (!confirm.isConfirmed) return;
+
       setSaving(true);
+      alertService.loading("Guardando datos...");
 
       await api.put(`/admin/dictamenes/${dictamenId}/document-data`, {
         folio: folioEdit,
@@ -162,10 +197,14 @@ export default function DictamenDocumento() {
         },
       });
 
+      alertService.close();
       await load();
-      alert("Datos guardados.");
+
+      alertService.toastSuccess("Datos guardados ✅");
     } catch (err: any) {
-      alert(err?.response?.data?.detail ?? "No se pudieron guardar los datos.");
+      alertService.close();
+      const msg = apiMsg(err, "No se pudieron guardar los datos.");
+      await alertService.error(msg, "Error");
     } finally {
       setSaving(false);
     }
@@ -173,12 +212,33 @@ export default function DictamenDocumento() {
 
   const renderDocument = async () => {
     try {
+      if (!detail?.template_docx_path) {
+        await alertService.warning("Primero sube una plantilla .docx.", "Falta plantilla");
+        return;
+      }
+
+      const confirm = await alertService.confirm({
+        title: "¿Generar DOCX y PDF?",
+        text: "Esto renderiza el documento con los datos actuales.",
+        icon: "question",
+        confirmText: "Sí, generar",
+        cancelText: "Cancelar",
+      });
+      if (!confirm.isConfirmed) return;
+
       setSaving(true);
+      alertService.loading("Generando documento...");
+
       await api.post(`/admin/dictamenes/${dictamenId}/render-document`);
+
+      alertService.close();
       await load();
-      alert("Documento generado correctamente.");
+
+      alertService.toastSuccess("Documento generado correctamente ✅");
     } catch (err: any) {
-      alert(err?.response?.data?.detail ?? "No se pudo generar el documento.");
+      alertService.close();
+      const msg = apiMsg(err, "No se pudo generar el documento.");
+      await alertService.error(msg, "Error");
     } finally {
       setSaving(false);
     }
@@ -186,10 +246,19 @@ export default function DictamenDocumento() {
 
   const download = async (format: "docx" | "pdf") => {
     try {
+      if (!detail || detail.status === "BORRADOR") {
+        await alertService.warning("Debes generar el documento antes de descargar.", "Aún no generado");
+        return;
+      }
+
+      alertService.loading(`Preparando descarga (${format.toUpperCase()})...`);
+
       const res = await api.get(
         `/admin/dictamenes/${dictamenId}/download?format=${format}`,
         { responseType: "blob" }
       );
+
+      alertService.close();
 
       const blob = new Blob([res.data]);
       const url = window.URL.createObjectURL(blob);
@@ -200,8 +269,12 @@ export default function DictamenDocumento() {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
+
+      alertService.toastSuccess(`Descarga iniciada ✅ (${format.toUpperCase()})`);
     } catch (err: any) {
-      alert(err?.response?.data?.detail ?? "No se pudo descargar.");
+      alertService.close();
+      const msg = apiMsg(err, "No se pudo descargar.");
+      await alertService.error(msg, "Error");
     }
   };
 
@@ -217,30 +290,36 @@ export default function DictamenDocumento() {
             <b>Folio:</b> {detail.folio} · <b>Estatus:</b> {detail.status}
           </div>
           <div className={styles.sub}>
-            <b>Capítulo:</b> {detail.capitulo} · <b>Libro:</b> {detail.libro} · <b>Evaluador:</b> {detail.evaluador}
+            <b>Capítulo:</b> {detail.capitulo} · <b>Libro:</b> {detail.libro} · <b>Evaluador:</b>{" "}
+            {detail.evaluador}
           </div>
         </div>
 
-        <button className={styles.backBtn} onClick={() => nav("/dictamenes")}>
+        <button className={styles.backBtn} onClick={() => nav("/dictamenes")} disabled={saving}>
           Volver
         </button>
       </div>
 
-      {/* 1 Plantilla - Versión mejorada de tu compañera */}
+      {/* 1 Plantilla */}
       <div className={styles.card}>
         <h3>1) Subir Plantilla Word (.docx)</h3>
-        
-        {/* ✅ Input file sin disabled para que funcione correctamente */}
+
         <div style={{ pointerEvents: saving ? "none" : "auto", opacity: saving ? 0.85 : 1 }}>
           <input
             type="file"
             accept=".docx"
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) {
-                setSelectedTemplateName(file.name);
-                uploadTemplate(file);
+              if (!file) return;
+
+              // validación rápida
+              if (!file.name.toLowerCase().endsWith(".docx")) {
+                alertService.warning("Solo se permite .docx", "Archivo inválido");
+                return;
               }
+
+              setSelectedTemplateName(file.name);
+              uploadTemplate(file);
             }}
             className={styles.fileInput}
           />
@@ -257,17 +336,27 @@ export default function DictamenDocumento() {
         </div>
       </div>
 
-      {/* 2 Datos - Versión completa de tu compañera con tus estilos */}
+      {/* 2 Datos */}
       <div className={styles.card}>
         <h3>2) Datos editables</h3>
 
         <div className={styles.grid}>
           <Field label="Folio (único)" value={folioEdit} onChange={setFolioEdit} disabled={saving} />
           <Field label="Dirigida a (nombre)" value={recipientName} onChange={setRecipientName} disabled={saving} />
-          <Field label="Institución (destinatario)" value={recipientInstitucion} onChange={setRecipientInstitucion} disabled={saving} />
+          <Field
+            label="Institución (destinatario)"
+            value={recipientInstitucion}
+            onChange={setRecipientInstitucion}
+            disabled={saving}
+          />
           <Field label="CVU / SNII" value={cvu} onChange={setCvu} disabled={saving} />
           <Field label="Ciudad y Estado" value={ciudadEstado} onChange={setCiudadEstado} disabled={saving} />
-          <Field label="Fecha de emisión (texto)" value={fechaEmisionTexto} onChange={setFechaEmisionTexto} disabled={saving} />
+          <Field
+            label="Fecha de emisión (texto)"
+            value={fechaEmisionTexto}
+            onChange={setFechaEmisionTexto}
+            disabled={saving}
+          />
           <Field label="Capítulo (título)" value={capituloTitulo} onChange={setCapituloTitulo} disabled={saving} />
           <Field label="Libro (título)" value={libroTitulo} onChange={setLibroTitulo} disabled={saving} />
           <Field label="Entrega (texto)" value={entregaTexto} onChange={setEntregaTexto} disabled={saving} />
@@ -282,39 +371,26 @@ export default function DictamenDocumento() {
           <button className={styles.btn} onClick={saveData} disabled={saving}>
             Guardar datos
           </button>
-          <button
-            className={styles.btnStrong}
-            onClick={renderDocument}
-            disabled={saving || !detail.template_docx_path}
-          >
+          <button className={styles.btnStrong} onClick={renderDocument} disabled={saving || !detail.template_docx_path}>
             Generar DOCX + PDF
           </button>
         </div>
       </div>
 
-      {/* 3 Descargas - Tus botones con PDF incluido */}
+      {/* 3 Descargas */}
       <div className={styles.card}>
         <h3>3) Descargas</h3>
         <div className={styles.actions}>
-          <button 
-            className={styles.btn} 
-            onClick={() => download("docx")} 
-            disabled={detail.status === "BORRADOR" || saving}
-          >
+          <button className={styles.btn} onClick={() => download("docx")} disabled={saving}>
             Descargar DOCX
           </button>
-          <button 
-            className={styles.btn} 
-            onClick={() => download("pdf")} 
-            disabled={detail.status === "BORRADOR" || saving}
-          >
+          <button className={styles.btn} onClick={() => download("pdf")} disabled={saving}>
             Descargar PDF
           </button>
         </div>
+
         {detail.status === "BORRADOR" && (
-          <div className={styles.muted}>
-            ⚠️ Debes generar el documento antes de poder descargarlo.
-          </div>
+          <div className={styles.muted}>⚠️ Debes generar el documento antes de poder descargarlo.</div>
         )}
       </div>
     </div>

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../services/api";
-import styles from './CapituloDetalle.module.css';
+import styles from "./CapituloDetalle.module.css";
 
 type Status =
   | "RECIBIDO"
@@ -45,7 +45,6 @@ type DictamenCompleto = {
   evaluadorId: string;
   evaluadorNombre: string;
   evaluadorEmail: string;
-  evaluadorCvu: string;
   tipo: string;
   titulo: string;
   criterios: CriterioEvaluacion[];
@@ -82,7 +81,6 @@ type Constancia = {
   id: string;
   folio: string;
   evaluadorNombre: string;
-  evaluadorCvu: string;
   capituloTitulo: string;
   fechaEmision: string;
   pdfUrl?: string;
@@ -98,7 +96,6 @@ type Chapter = {
   status: Status;
   evaluatorName: string | null;
   evaluatorEmail: string | null;
-  evaluatorCvu: string | null;
   versions: VersionFile[];
   dictamenes: DictamenHistorico[];
   dictamenActual?: DictamenCompleto;
@@ -109,6 +106,7 @@ type Chapter = {
 const endpoints = {
   chapterDetail: (chapterId: string) => `/admin/chapters/${chapterId}`,
   chapterStatus: (chapterId: string) => `/admin/chapters/${chapterId}/status`,
+  // se deja por compatibilidad aunque ya no se usa en UI
   assignEvaluator: (chapterId: string) => `/admin/chapters/${chapterId}/assign`,
   sendToEvaluator: (chapterId: string) => `/admin/chapters/${chapterId}/send-to-evaluator`,
   requestCorrections: (chapterId: string) => `/admin/chapters/${chapterId}/request-corrections`,
@@ -130,7 +128,7 @@ const endpoints = {
   markResentByAuthor: (chapterId: string) => `/admin/chapters/${chapterId}/mark-resent`,
   findDictaminadorByEmail: (email: string) =>
     `/admin/users/dictaminador/by-email?email=${encodeURIComponent(email)}`,
-  // ✅ NUEVO: evaluación (añadido por tu compañera)
+  // ✅ evaluación
   upsertEvaluacion: (chapterId: string) => `/admin/chapters/${chapterId}/evaluacion/upsert`,
 };
 
@@ -142,7 +140,6 @@ function toStatus(v: any): Status {
   return v as Status;
 }
 
-// Generador de folio para dictamen
 function generarFolioDictamen(): string {
   const now = new Date();
   const year = now.getFullYear();
@@ -152,7 +149,6 @@ function generarFolioDictamen(): string {
   return `DICT-${year}-${month}-${day}-${random}`;
 }
 
-// Generador de folio para constancia
 function generarFolioConstancia(): string {
   const now = new Date();
   const year = now.getFullYear();
@@ -170,7 +166,6 @@ function mapChapterResponseToChapter(payload: any): Chapter {
   const bookName = payload?.book?.name ?? payload?.book_name ?? payload?.bookName ?? payload?.book ?? "";
   const evaluatorName = payload?.evaluator?.name ?? payload?.evaluator_name ?? payload?.evaluatorName ?? null;
   const evaluatorEmail = payload?.evaluator?.email ?? payload?.evaluator_email ?? payload?.evaluatorEmail ?? null;
-  const evaluatorCvu = payload?.evaluator?.cvu ?? payload?.evaluator_cvu ?? payload?.evaluatorCvu ?? null;
 
   const versions: VersionFile[] = Array.isArray(payload?.versions)
     ? payload.versions.map((v: any) => ({
@@ -203,7 +198,6 @@ function mapChapterResponseToChapter(payload: any): Chapter {
         evaluadorId: ensureString(payload.dictamen_actual.evaluador_id),
         evaluadorNombre: ensureString(payload.dictamen_actual.evaluador_nombre),
         evaluadorEmail: ensureString(payload.dictamen_actual.evaluador_email),
-        evaluadorCvu: ensureString(payload.dictamen_actual.evaluador_cvu),
         tipo: ensureString(payload.dictamen_actual.tipo),
         titulo: ensureString(payload.dictamen_actual.titulo),
         criterios: Array.isArray(payload.dictamen_actual.criterios)
@@ -231,7 +225,6 @@ function mapChapterResponseToChapter(payload: any): Chapter {
         id: ensureString(c.id),
         folio: ensureString(c.folio),
         evaluadorNombre: ensureString(c.evaluador_nombre),
-        evaluadorCvu: ensureString(c.evaluador_cvu),
         capituloTitulo: ensureString(c.capitulo_titulo),
         fechaEmision: ensureString((c.fecha_emision ?? "").slice(0, 10)),
         pdfUrl: ensureString(c.pdf_url),
@@ -258,7 +251,6 @@ function mapChapterResponseToChapter(payload: any): Chapter {
     status: toStatus(payload?.status ?? "RECIBIDO"),
     evaluatorName: evaluatorName ? ensureString(evaluatorName) : null,
     evaluatorEmail: evaluatorEmail ? ensureString(evaluatorEmail) : null,
-    evaluatorCvu: evaluatorCvu ? ensureString(evaluatorCvu) : null,
     versions,
     dictamenes,
     dictamenActual,
@@ -267,34 +259,22 @@ function mapChapterResponseToChapter(payload: any): Chapter {
   };
 }
 
-// ✅ FUNCIONES PARA OBTENER CLASES CSS (agregadas por ti)
+// ✅ FUNCIONES PARA OBTENER CLASES CSS
 function getPillClass(status: Status): string {
   const baseClass = styles.pill;
-  
-  if (status === "APROBADO" || status === "FIRMADO") {
-    return `${baseClass} ${styles.pillApproved}`;
-  }
-  if (status.includes("CORRECCIONES")) {
-    return `${baseClass} ${styles.pillCorrections}`;
-  }
-  if (status.includes("REVISION") || status.includes("ENVIADO") || status.includes("ASIGNADO")) {
+
+  if (status === "APROBADO" || status === "FIRMADO") return `${baseClass} ${styles.pillApproved}`;
+  if (status.includes("CORRECCIONES")) return `${baseClass} ${styles.pillCorrections}`;
+  if (status.includes("REVISION") || status.includes("ENVIADO") || status.includes("ASIGNADO"))
     return `${baseClass} ${styles.pillRevision}`;
-  }
-  if (status === "RECHAZADO") {
-    return `${baseClass} ${styles.pillRejected}`;
-  }
+  if (status === "RECHAZADO") return `${baseClass} ${styles.pillRejected}`;
   return `${baseClass} ${styles.pillDefault}`;
 }
 
 function getDictamenPillClass(decision: "APROBADO" | "CORRECCIONES" | "RECHAZADO"): string {
   const baseClass = styles.pill;
-  
-  if (decision === "APROBADO") {
-    return `${baseClass} ${styles.pillApproved}`;
-  }
-  if (decision === "CORRECCIONES") {
-    return `${baseClass} ${styles.pillCorrections}`;
-  }
+  if (decision === "APROBADO") return `${baseClass} ${styles.pillApproved}`;
+  if (decision === "CORRECCIONES") return `${baseClass} ${styles.pillCorrections}`;
   return `${baseClass} ${styles.pillRejected}`;
 }
 
@@ -320,7 +300,6 @@ export default function CapituloDetalle() {
     status: "RECIBIDO",
     evaluatorName: null,
     evaluatorEmail: null,
-    evaluatorCvu: null,
     versions: [],
     dictamenes: [],
     dictamenActual: undefined,
@@ -332,13 +311,12 @@ export default function CapituloDetalle() {
     "VERSIONES"
   );
 
-  // Estados para asignación
+  // Estados (solo nombre y correo)
   const [evaluatorName, setEvaluatorName] = useState<string>("");
   const [evaluatorEmail, setEvaluatorEmail] = useState<string>("");
-  const [evaluatorCvu, setEvaluatorCvu] = useState<string>("");
 
   // ============================
-  // ✅ EVALUACIÓN (nuevo) - AGREGADO POR TU COMPAÑERA (NO BORRAR)
+  // ✅ EVALUACIÓN (NO BORRAR)
   // ============================
   const [evalTipo, setEvalTipo] = useState<string>("");
   const [evalCriterios, setEvalCriterios] = useState<CriterioEvaluacion[]>(
@@ -354,7 +332,7 @@ export default function CapituloDetalle() {
     return Number((suma / evalCriterios.length).toFixed(1));
   }, [evalCriterios]);
 
-  // ✅ Estado para el dictamen actual (tuyo)
+  // ✅ Estado para el dictamen actual
   const [dictamenTipo, setDictamenTipo] = useState<string>("");
   const [criterios, setCriterios] = useState<CriterioEvaluacion[]>(
     CRITERIOS_PREDEFINIDOS.map((c) => ({ ...c, puntaje: 3 }))
@@ -377,11 +355,11 @@ export default function CapituloDetalle() {
 
   const applyChapterToUI = (c: Chapter) => {
     setChapter(c);
+
     setEvaluatorName(c.evaluatorName ?? "");
     setEvaluatorEmail(c.evaluatorEmail ?? "");
-    setEvaluatorCvu(c.evaluatorCvu ?? "");
 
-    // TU PARTE: dictamenActual
+    // dictamenActual
     if (c.dictamenActual) {
       setDictamenTipo(c.dictamenActual.tipo || "");
       setCriterios(c.dictamenActual.criterios);
@@ -398,9 +376,8 @@ export default function CapituloDetalle() {
       setDictamenFolio(generarFolioDictamen());
     }
 
-    // ✅ PARTE DE TU COMPAÑERA: Precarga EVALUACIÓN desde backend si existe
+    // Precarga EVALUACIÓN
     const src = (c as any).evaluacionActual ?? (c as any).dictamenActual ?? null;
-
     if (src) {
       setEvalTipo(src.tipo || "");
       setEvalCriterios(
@@ -449,13 +426,7 @@ export default function CapituloDetalle() {
     setChapter((prev) => ({
       ...prev,
       history: [
-        {
-          id: `h-${Date.now()}`,
-          at: new Date().toISOString(),
-          by,
-          action,
-          detail,
-        },
+        { id: `h-${Date.now()}`, at: new Date().toISOString(), by, action, detail },
         ...prev.history,
       ],
     }));
@@ -467,7 +438,6 @@ export default function CapituloDetalle() {
 
     try {
       await api.patch(endpoints.chapterStatus(chapterId), { status: s });
-
       setChapter((prev) => ({ ...prev, status: s }));
       pushHistory("Editorial", "Cambio de estado", `${statusLabel(s)}${reason ? ` — ${reason}` : ""}`);
       setSuccessMsg(`Estado actualizado a: ${statusLabel(s)}`);
@@ -480,50 +450,7 @@ export default function CapituloDetalle() {
   };
 
   // ============================================================
-  // ASIGNAR DICTAMINADOR
-  // ============================================================
-  const assignEvaluator = async () => {
-    if (!evaluatorName.trim()) return alert("Escribe el nombre del dictaminador.");
-    if (!evaluatorEmail.trim()) return alert("Escribe el correo del dictaminador.");
-    if (!evaluatorCvu.trim()) return alert("Escribe el CVU SNII del dictaminador.");
-
-    setSaving(true);
-    setErrMsg(null);
-
-    try {
-      await api.get(endpoints.findDictaminadorByEmail(evaluatorEmail.trim()));
-
-      await api.post(endpoints.assignEvaluator(chapterId), {
-        evaluator_name: evaluatorName.trim(),
-        evaluator_email: evaluatorEmail.trim(),
-        evaluator_cvu: evaluatorCvu.trim(),
-      });
-
-      await setNewStatus("ASIGNADO_A_DICTAMINADOR");
-
-      const nuevoFolio = generarFolioDictamen();
-      setDictamenFolio(nuevoFolio);
-
-      pushHistory(
-        "Editorial",
-        "Asignación",
-        `Se asignó dictaminador: ${evaluatorName} (${evaluatorEmail}) - CVU: ${evaluatorCvu}`
-      );
-
-      await reloadAll();
-    } catch (e: any) {
-      setErrMsg(
-        e?.response?.data?.detail ??
-          e?.message ??
-          "No se pudo asignar dictaminador. Verifica que exista en users y sea dictaminador."
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // ============================================================
-  // GUARDAR DICTAMEN (tuyo)
+  // GUARDAR DICTAMEN
   // ============================================================
   const guardarDictamen = async () => {
     if (!chapter.evaluatorEmail) return alert("Primero asigna un dictaminador.");
@@ -539,7 +466,6 @@ export default function CapituloDetalle() {
         folio: dictamenFolio,
         evaluador_email: chapter.evaluatorEmail,
         evaluador_nombre: chapter.evaluatorName,
-        evaluador_cvu: evaluatorCvu,
         tipo: tipoFinal,
         titulo: chapter.title,
         criterios: criterios.map((c) => ({ id: c.id, nombre: c.nombre, puntaje: c.puntaje })),
@@ -569,7 +495,7 @@ export default function CapituloDetalle() {
   };
 
   // ============================================================
-  // ✅ GUARDAR EVALUACIÓN (NUEVO) - AGREGADO POR TU COMPAÑERA (NO BORRAR)
+  // ✅ GUARDAR EVALUACIÓN (NO BORRAR)
   // ============================================================
   const guardarEvaluacion = async () => {
     if (!chapterId) return;
@@ -593,11 +519,7 @@ export default function CapituloDetalle() {
 
       await api.post(endpoints.upsertEvaluacion(chapterId), payload);
 
-      pushHistory(
-        "Editorial",
-        "Evaluación guardada",
-        `Se guardó evaluación (${evalDecision}) con promedio ${promedioEvaluacion}.`
-      );
+      pushHistory("Editorial", "Evaluación guardada", `Se guardó evaluación (${evalDecision}) con promedio ${promedioEvaluacion}.`);
 
       setSuccessMsg("Evaluación guardada correctamente ✅");
       setTimeout(() => setSuccessMsg(null), 3000);
@@ -605,73 +527,6 @@ export default function CapituloDetalle() {
       await reloadAll();
     } catch (e: any) {
       setErrMsg(e?.response?.data?.detail ?? e?.message ?? "No se pudo guardar la evaluación.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // ============================================================
-  // ENVIAR A DICTAMINADOR
-  // ============================================================
-  const sendToEvaluator = async () => {
-    if (!chapter.evaluatorEmail) return alert("Falta correo del dictaminador.");
-
-    setSaving(true);
-    setErrMsg(null);
-
-    try {
-      await api.post(endpoints.sendToEvaluator(chapterId));
-      await setNewStatus("ENVIADO_A_DICTAMINADOR");
-      pushHistory(
-        "Editorial",
-        "Envío",
-        `Se envió al dictaminador: ${chapter.evaluatorName} (${chapter.evaluatorEmail})`
-      );
-    } catch (e: any) {
-      setErrMsg(e?.response?.data?.detail ?? e?.message ?? "No se pudo enviar al dictaminador.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // ============================================================
-  // SOLICITAR CORRECCIONES AL AUTOR
-  // ============================================================
-  const requestCorrectionsToAuthor = async () => {
-    setSaving(true);
-    setErrMsg(null);
-
-    try {
-      await api.post(endpoints.requestCorrections(chapterId), {
-        comment: dictamenComentarios?.trim() || "Se solicitan correcciones al autor.",
-      });
-
-      await setNewStatus("CORRECCIONES_SOLICITADAS_A_AUTOR");
-      pushHistory(
-        "Editorial",
-        "Correcciones solicitadas",
-        dictamenComentarios?.trim() || "Se solicitaron correcciones al autor."
-      );
-    } catch (e: any) {
-      setErrMsg(e?.response?.data?.detail ?? e?.message ?? "No se pudo solicitar correcciones.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // ============================================================
-  // AUTOR REENVÍA VERSIÓN CORREGIDA
-  // ============================================================
-  const markResentByAuthor = async () => {
-    setSaving(true);
-    setErrMsg(null);
-    try {
-      await api.post(endpoints.markResentByAuthor(chapterId));
-      await setNewStatus("REENVIADO_POR_AUTOR");
-      pushHistory("Autor", "Reenvío", "El autor subió una versión corregida.");
-      await reloadAll();
-    } catch (e: any) {
-      setErrMsg(e?.response?.data?.detail ?? e?.message ?? "Error al marcar reenvío.");
     } finally {
       setSaving(false);
     }
@@ -1086,17 +941,13 @@ export default function CapituloDetalle() {
                                 setSaving(true);
                                 setErrMsg(null);
                                 try {
-                                  const r = await api.get(endpoints.viewDictamenPdfSigned(d.id), {
-                                    responseType: "blob",
-                                  });
+                                  const r = await api.get(endpoints.viewDictamenPdfSigned(d.id), { responseType: "blob" });
                                   const blob = new Blob([r.data], { type: "application/pdf" });
                                   const url = URL.createObjectURL(blob);
                                   window.open(url, "_blank");
                                   setTimeout(() => URL.revokeObjectURL(url), 30000);
                                 } catch (e: any) {
-                                  setErrMsg(
-                                    e?.response?.data?.detail ?? e?.message ?? "No se pudo abrir el PDF firmado."
-                                  );
+                                  setErrMsg(e?.response?.data?.detail ?? e?.message ?? "No se pudo abrir el PDF firmado.");
                                 } finally {
                                   setSaving(false);
                                 }
@@ -1122,7 +973,7 @@ export default function CapituloDetalle() {
               </div>
             )}
 
-            {/* ✅ TAB: EVALUACIÓN (con funcionalidad de tu compañera + tus estilos) */}
+            {/* ✅ TAB: EVALUACIÓN */}
             {tab === "EVALUACION" && (
               <div className={styles.section}>
                 <div className={styles.sectionTop}>
@@ -1139,7 +990,6 @@ export default function CapituloDetalle() {
                 </div>
 
                 <div className={styles.evaluacionGrid}>
-                  {/* Información básica */}
                   <div className={styles.evaluacionSection}>
                     <h4 className={styles.h4}>Información de la evaluación</h4>
 
@@ -1159,7 +1009,6 @@ export default function CapituloDetalle() {
                     </div>
                   </div>
 
-                  {/* Criterios */}
                   <div className={styles.evaluacionSection}>
                     <h4 className={styles.h4}>Criterios de evaluación (1-5)</h4>
 
@@ -1194,7 +1043,6 @@ export default function CapituloDetalle() {
                     </div>
                   </div>
 
-                  {/* Decisión + comentarios */}
                   <div className={styles.evaluacionSection}>
                     <h4 className={styles.h4}>Decisión</h4>
 
@@ -1260,7 +1108,6 @@ export default function CapituloDetalle() {
                     </div>
                   </div>
 
-                  {/* Firma (tu parte) */}
                   <div className={styles.evaluacionSection}>
                     <h4 className={styles.h4}>Firma del dictamen</h4>
                     {chapter.dictamenActual?.firmado ? (
@@ -1305,7 +1152,12 @@ export default function CapituloDetalle() {
                     <h3 className={styles.h3}>Constancias</h3>
                     <p className={styles.p}>Documentos de reconocimiento para dictaminadores.</p>
                   </div>
-                  <button className={styles.primaryBtn} onClick={generateConstancia} type="button" disabled={saving || !chapter.dictamenActual?.firmado}>
+                  <button
+                    className={styles.primaryBtn}
+                    onClick={generateConstancia}
+                    type="button"
+                    disabled={saving || !chapter.dictamenActual?.firmado}
+                  >
                     🏆 Generar constancia
                   </button>
                 </div>
@@ -1316,7 +1168,6 @@ export default function CapituloDetalle() {
                       <tr>
                         <th className={styles.th}>Folio</th>
                         <th className={styles.th}>Dictaminador</th>
-                        <th className={styles.th}>CVU SNII</th>
                         <th className={styles.th}>Capítulo</th>
                         <th className={styles.th}>Fecha emisión</th>
                         <th className={styles.th}>Acción</th>
@@ -1329,11 +1180,15 @@ export default function CapituloDetalle() {
                             <b>{c.folio}</b>
                           </td>
                           <td className={styles.td}>{c.evaluadorNombre}</td>
-                          <td className={styles.td}>{c.evaluadorCvu}</td>
                           <td className={styles.td}>{c.capituloTitulo}</td>
                           <td className={styles.td}>{fmtDate(c.fechaEmision)}</td>
                           <td className={styles.td}>
-                            <button className={styles.linkBtn} onClick={() => window.open(c.pdfUrl, "_blank")} type="button" disabled={!c.pdfUrl}>
+                            <button
+                              className={styles.linkBtn}
+                              onClick={() => window.open(c.pdfUrl, "_blank")}
+                              type="button"
+                              disabled={!c.pdfUrl}
+                            >
                               Ver PDF
                             </button>
                           </td>
@@ -1341,7 +1196,7 @@ export default function CapituloDetalle() {
                       ))}
                       {chapter.constancias.length === 0 && (
                         <tr>
-                          <td className={styles.td} colSpan={6}>
+                          <td className={styles.td} colSpan={5}>
                             No hay constancias generadas aún.
                           </td>
                         </tr>
@@ -1350,7 +1205,9 @@ export default function CapituloDetalle() {
                   </table>
                 </div>
 
-                {!chapter.dictamenActual?.firmado && <div className={styles.warningBox}>⚠️ Las constancias solo se pueden generar cuando el dictamen está FIRMADO.</div>}
+                {!chapter.dictamenActual?.firmado && (
+                  <div className={styles.warningBox}>⚠️ Las constancias solo se pueden generar cuando el dictamen está FIRMADO.</div>
+                )}
               </div>
             )}
 
@@ -1390,42 +1247,23 @@ export default function CapituloDetalle() {
           <h3 className={styles.h3}>Acciones rápidas</h3>
           <p className={styles.p}>Flujo editorial simplificado</p>
 
-          {/* Asignar dictaminador */}
+          {/* Asignar dictaminador (solo inputs: nombre + correo; SIN CVU y SIN botón) */}
           <div className={styles.actionBox}>
-            <div className={styles.actionTitle}>👤 Asignar dictaminador</div>
-            <input className={styles.input} value={evaluatorName} onChange={(e) => setEvaluatorName(e.target.value)} placeholder="Nombre completo" disabled={saving} />
-            <input className={styles.input} value={evaluatorEmail} onChange={(e) => setEvaluatorEmail(e.target.value)} placeholder="Correo electrónico" disabled={saving} />
-            <input className={styles.input} value={evaluatorCvu} onChange={(e) => setEvaluatorCvu(e.target.value)} placeholder="CVU SNII" disabled={saving} />
-            <button className={styles.primaryBtn} onClick={assignEvaluator} type="button" disabled={saving || loading}>
-              Asignar dictaminador
-            </button>
-          </div>
-
-          {/* Envíos */}
-          <div className={styles.actionBox}>
-            <div className={styles.actionTitle}>📧 Envíos</div>
-            <button className={styles.secondaryBtnFull} onClick={sendToEvaluator} type="button" disabled={saving || loading}>
-              Enviar a dictaminador
-            </button>
-            <button className={styles.secondaryBtnFull} onClick={requestCorrectionsToAuthor} type="button" disabled={saving || loading}>
-              Solicitar correcciones al autor
-            </button>
-          </div>
-
-          {/* Flujo automático */}
-          <div className={styles.actionBox}>
-            <div className={styles.actionTitle}>🔄 Flujo automático</div>
-            <button
-              className={styles.primaryBtn}
-              onClick={() => alert("Luego lo revisamos (flujo automático).")}
-              type="button"
-              disabled={saving || loading}
-              title="Avanza 1 paso según el estado actual"
-            >
-              Avanzar al siguiente estado
-            </button>
-
-            <div className={styles.mutedSmall}>Estados: Reenviado → Revisado editorial → Listo para firma → Firmado</div>
+            <div className={styles.actionTitle}>👤 Dictaminador</div>
+            <input
+              className={styles.input}
+              value={evaluatorName}
+              onChange={(e) => setEvaluatorName(e.target.value)}
+              placeholder="Nombre completo"
+              disabled={saving}
+            />
+            <input
+              className={styles.input}
+              value={evaluatorEmail}
+              onChange={(e) => setEvaluatorEmail(e.target.value)}
+              placeholder="Correo electrónico"
+              disabled={saving}
+            />
           </div>
 
           {/* Decisión final */}
@@ -1444,7 +1282,12 @@ export default function CapituloDetalle() {
           {/* Cambiar estado manual */}
           <div className={styles.actionBox}>
             <div className={styles.actionTitle}>🔄 Cambiar estado</div>
-            <select className={styles.input} value={chapter.status} onChange={(e) => setNewStatus(e.target.value as Status)} disabled={saving || loading}>
+            <select
+              className={styles.input}
+              value={chapter.status}
+              onChange={(e) => setNewStatus(e.target.value as Status)}
+              disabled={saving || loading}
+            >
               {statusOptions().map((s) => (
                 <option key={s} value={s}>
                   {statusLabel(s)}

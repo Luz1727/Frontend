@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
-import styles from './Capitulos.module.css';
+import styles from "./Capitulos.module.css";
+
+// ✅ ALERTA PREMIUM (ajusta la ruta si es diferente)
+import { alertService } from "../utils/alerts";
 
 type Status =
   | "RECIBIDO"
@@ -15,7 +18,9 @@ type Status =
   | "LISTO_PARA_FIRMA"
   | "FIRMADO"
   | "APROBADO"
-  | "RECHAZADO";
+  | "RECHAZADO"
+  // ✅ tu código usa EN_REVISION en UI, así que lo incluyo para evitar conflictos TS
+  | "EN_REVISION";
 
 type ChapterRow = {
   id: string;
@@ -42,7 +47,7 @@ type AdminChapterApi = {
   status: Status;
   updated_at: string;
   evaluator_email?: string | null;
-  // ✅ NUEVO (añadido por tu compañera)
+  // ✅ NUEVO
   deadline_at?: string | null; // DATETIME o DATE
   deadline_stage?: string | null;
 };
@@ -50,8 +55,8 @@ type AdminChapterApi = {
 // ✅ Función para obtener la clase del chip según el estado (TUYA)
 function getChipClass(status: Status): string {
   const baseClass = styles.chip;
-  
-  const statusMap: Record<Status, string> = {
+
+  const statusMap: Partial<Record<Status, string>> = {
     RECIBIDO: styles.chipRecibido,
     ASIGNADO_A_DICTAMINADOR: styles.chipAsignado,
     ENVIADO_A_DICTAMINADOR: styles.chipEnviado,
@@ -66,24 +71,32 @@ function getChipClass(status: Status): string {
     APROBADO: styles.chipAprobado,
     RECHAZADO: styles.chipRechazado,
   };
-  
+
   return `${baseClass} ${statusMap[status] || styles.chipRecibido}`;
 }
 
 // ✅ Función para obtener la clase del pill según el estado (TUYA)
 function getPillClass(status: Status): string {
   const baseClass = styles.pill;
-  
+
   if (status === "APROBADO" || status === "FIRMADO") {
     return `${baseClass} ${styles.pillApproved}`;
   }
   if (status === "CORRECCIONES" || status === "CORRECCIONES_SOLICITADAS_A_AUTOR") {
     return `${baseClass} ${styles.pillCorrections}`;
   }
-  if (status === "EN_REVISION" || status === "EN_REVISION_DICTAMINADOR" || status === "ENVIADO_A_DICTAMINADOR") {
+  if (
+    status === "EN_REVISION" ||
+    status === "EN_REVISION_DICTAMINADOR" ||
+    status === "ENVIADO_A_DICTAMINADOR"
+  ) {
     return `${baseClass} ${styles.pillRevision}`;
   }
-  if (status === "ASIGNADO_A_DICTAMINADOR" || status === "REVISADO_POR_EDITORIAL" || status === "LISTO_PARA_FIRMA") {
+  if (
+    status === "ASIGNADO_A_DICTAMINADOR" ||
+    status === "REVISADO_POR_EDITORIAL" ||
+    status === "LISTO_PARA_FIRMA"
+  ) {
     return `${baseClass} ${styles.pillAsignado}`;
   }
   if (status === "REENVIADO_POR_AUTOR") {
@@ -122,7 +135,7 @@ export default function Capitulos() {
   const [actionForm, setActionForm] = useState({
     dictaminador: "",
     comentario: "",
-    // ✅ NUEVO (añadido por tu compañera)
+    // ✅ NUEVO
     deadlineAt: "", // yyyy-mm-dd
   });
 
@@ -146,7 +159,6 @@ export default function Capitulos() {
         status: c.status,
         updatedAt: (c.updated_at || "").slice(0, 10),
         evaluatorEmail: c.evaluator_email ?? null,
-        // ✅ NUEVO (añadido por tu compañera)
         deadlineAt: c.deadline_at ? (c.deadline_at || "").slice(0, 10) : null,
         deadlineStage: c.deadline_stage ?? null,
       }));
@@ -162,7 +174,9 @@ export default function Capitulos() {
         return next;
       });
     } catch (err: any) {
-      setErrorMsg(apiMsg(err, "No se pudieron cargar los capítulos."));
+      const msg = apiMsg(err, "No se pudieron cargar los capítulos.");
+      setErrorMsg(msg);
+      alertService.toastError(msg);
     } finally {
       setLoading(false);
     }
@@ -222,7 +236,6 @@ export default function Capitulos() {
   const openAction = (type: "ASIGNAR", row: ChapterRow) => {
     setSelected(row);
     setActionType(type);
-    // ✅ NUEVO (añadido por tu compañera)
     setActionForm({ dictaminador: "", comentario: "", deadlineAt: "" });
     setActionOpen(true);
   };
@@ -240,28 +253,32 @@ export default function Capitulos() {
     status: data.status,
     updatedAt: (data.updated_at || "").slice(0, 10),
     evaluatorEmail: data.evaluator_email ?? null,
-    // ✅ NUEVO (añadido por tu compañera)
     deadlineAt: data.deadline_at ? (data.deadline_at || "").slice(0, 10) : null,
     deadlineStage: data.deadline_stage ?? null,
   });
 
   // guardar folio
   const saveFolioBackend = async (chapterId: string, folio: string) => {
-    const { data } = await api.patch<AdminChapterApi>(`/admin/chapters/${Number(chapterId)}/folio`, { folio });
+    const { data } = await api.patch<AdminChapterApi>(
+      `/admin/chapters/${Number(chapterId)}/folio`,
+      { folio }
+    );
     const updated = mapApiToRow(data);
 
     setAll((prev) => prev.map((x) => (x.id === chapterId ? updated : x)));
     setFolioDraft((p) => ({ ...p, [chapterId]: updated.folio }));
   };
 
-  // ✅ CAMBIADO por tu compañera: asignar dictaminador + fecha límite
+  // asignar dictaminador + fecha límite
   const assignEvaluatorBackend = async (chapterId: string, evaluatorEmail: string, deadlineAt: string) => {
-    const { data } = await api.post<AdminChapterApi>(`/admin/chapters/${Number(chapterId)}/assign`, {
-      evaluator_email: evaluatorEmail,
-      // ✅ NUEVO (añadido por tu compañera)
-      deadline_at: deadlineAt,
-      deadline_stage: "DICTAMEN",
-    });
+    const { data } = await api.post<AdminChapterApi>(
+      `/admin/chapters/${Number(chapterId)}/assign`,
+      {
+        evaluator_email: evaluatorEmail,
+        deadline_at: deadlineAt,
+        deadline_stage: "DICTAMEN",
+      }
+    );
 
     const updated = mapApiToRow(data);
     setAll((prev) => prev.map((x) => (x.id === chapterId ? updated : x)));
@@ -276,21 +293,43 @@ export default function Capitulos() {
 
       if (actionType === "ASIGNAR") {
         const email = actionForm.dictaminador.trim().toLowerCase();
-        if (!email) return alert("Escribe el correo del dictaminador.");
+        if (!email) {
+          await alertService.warning("Escribe el correo del dictaminador.", "Falta un dato");
+          return;
+        }
 
-        // ✅ NUEVO (añadido por tu compañera)
         const deadlineAt = actionForm.deadlineAt.trim();
-        if (!deadlineAt) return alert("Selecciona la fecha límite.");
+        if (!deadlineAt) {
+          await alertService.warning("Selecciona la fecha límite.", "Falta un dato");
+          return;
+        }
+
+        // ✅ confirmación premium
+        const confirm = await alertService.confirm({
+          title: "¿Asignar dictaminador?",
+          text: `Se asignará a: ${email}\nFecha límite: ${fmtDate(deadlineAt)}`,
+          icon: "question",
+          confirmText: "Sí, asignar",
+          cancelText: "Cancelar",
+        });
+
+        if (!confirm.isConfirmed) return;
+
+        // ✅ loading premium
+        alertService.loading("Asignando...");
 
         await assignEvaluatorBackend(selected.id, email, deadlineAt);
-        alert("Dictaminador asignado ✅");
+        alertService.close();
+
+        alertService.toastSuccess("Dictaminador asignado ✅");
         setActionOpen(false);
         return;
       }
     } catch (err: any) {
+      alertService.close();
       const msg = apiMsg(err, "No se pudo ejecutar la acción.");
       setErrorMsg(msg);
-      alert(msg);
+      await alertService.error(msg, "Error");
     } finally {
       setBusyId(null);
     }
@@ -411,7 +450,6 @@ export default function Capitulos() {
                   <th className={styles.th}>Dictaminador</th>
                   <th className={styles.th}>Estado</th>
                   <th className={styles.th}>Actualizado</th>
-                  {/* ✅ NUEVO (añadido por tu compañera) */}
                   <th className={styles.th}>Fecha límite</th>
                   <th className={styles.th}>Acción</th>
                 </tr>
@@ -440,13 +478,21 @@ export default function Capitulos() {
                             disabled={!changed || busyId === x.id}
                             onClick={async () => {
                               const v = (folioDraft[x.id] || "").trim();
-                              if (!v) return alert("El folio no puede ir vacío.");
+                              if (!v) {
+                                await alertService.warning("El folio no puede ir vacío.", "Falta un dato");
+                                return;
+                              }
                               try {
                                 setBusyId(x.id);
+
+                                alertService.loading("Guardando folio...");
                                 await saveFolioBackend(x.id, v);
-                                alert("Folio guardado ✅");
+                                alertService.close();
+
+                                alertService.toastSuccess("Folio guardado ✅");
                               } catch (err: any) {
-                                alert(apiMsg(err, "No se pudo guardar el folio."));
+                                alertService.close();
+                                await alertService.error(apiMsg(err, "No se pudo guardar el folio."), "Error");
                               } finally {
                                 setBusyId(null);
                               }
@@ -472,7 +518,6 @@ export default function Capitulos() {
 
                       <td className={styles.td}>{fmtDate(x.updatedAt)}</td>
 
-                      {/* ✅ NUEVO (añadido por tu compañera) */}
                       <td className={styles.td}>{x.deadlineAt ? fmtDate(x.deadlineAt) : "—"}</td>
 
                       <td className={styles.td}>
@@ -484,8 +529,6 @@ export default function Capitulos() {
                           <button className={styles.secondaryBtn} onClick={() => openAction("ASIGNAR", x)} type="button">
                             Asignar
                           </button>
-
-                          {/* ✅ QUITADOS por tu compañera: Corrección y Enviar */}
                         </div>
                       </td>
                     </tr>
@@ -494,7 +537,7 @@ export default function Capitulos() {
 
                 {filtered.length === 0 && (
                   <tr>
-                    <td className={styles.td} colSpan={9}> {/* Cambiado de 8 a 9 por la nueva columna */}
+                    <td className={styles.td} colSpan={9}>
                       No hay resultados con esos filtros.
                     </td>
                   </tr>
@@ -526,7 +569,6 @@ export default function Capitulos() {
               El correo debe existir en la tabla <b>users</b> y tener <b>role=dictaminador</b>.
             </div>
 
-            {/* ✅ NUEVO (añadido por tu compañera) */}
             <label className={styles.modalLabel}>Fecha límite (dictaminador)</label>
             <input
               className={styles.modalInput}

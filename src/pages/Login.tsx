@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
-import styles from './Login.module.css';
+import styles from "./Login.module.css";
+
+// ✅ ALERTA PREMIUM
+import { alertService } from "../utils/alerts";
 
 // ===== TYPES =====
 type User = {
@@ -126,11 +129,17 @@ export default function Login() {
 
     if (!email.trim() || !password.trim()) {
       setErrorMsg("Ingresa tu correo y contraseña.");
+      // ✅ alert opcional (no cambia lógica)
+      await alertService.warning("Ingresa tu correo y contraseña.", "Faltan datos");
       return;
     }
 
     try {
       setLoading(true);
+
+      // ✅ ALERT LOADING (premium)
+      alertService.loading("Iniciando sesión...");
+
       const { data } = await api.post<LoginResponse>("/auth/login", {
         email: email.trim().toLowerCase(),
         password: password.trim(),
@@ -147,8 +156,13 @@ export default function Login() {
     } catch (err: any) {
       const msg = err?.response?.data?.detail ?? "No se pudo iniciar sesión. Verifica tus credenciales.";
       setErrorMsg(msg);
+
+      // ✅ ALERT ERROR (premium)
+      await alertService.error(msg, "Error al iniciar sesión");
     } finally {
       setLoading(false);
+      // ✅ cerrar loading SIEMPRE
+      alertService.close();
     }
   };
 
@@ -173,12 +187,11 @@ export default function Login() {
   return (
     <div className={styles.page} data-scope="login-luxe">
       {/* ===== Left: Brand / Story ===== */}
-      <section 
-        className={styles.left} 
+      <section
+        className={styles.left}
         ref={leftRef as any}
         style={{ "--mx": 0, "--my": 0 } as React.CSSProperties}
       >
-        {/* Aurora + noise layer */}
         <div className={styles.fxAurora} aria-hidden />
         <div className={styles.fxNoise} aria-hidden />
 
@@ -186,7 +199,6 @@ export default function Login() {
         <div className={`${styles.leftBlob1} ${styles.blob}`} aria-hidden />
         <div className={`${styles.leftBlob2} ${styles.blob}`} aria-hidden />
 
-        {/* Partículas decorativas */}
         <div className={styles.luxeParticles} aria-hidden>
           <span className={`${styles.particle} ${styles.particle1}`} />
           <span className={`${styles.particle} ${styles.particle2}`} />
@@ -262,15 +274,17 @@ export default function Login() {
 
       {/* ===== Right: Form ===== */}
       <section className={styles.right}>
-        <div 
-          ref={cardRef} 
+        <div
+          ref={cardRef}
           className={`${styles.formShell} ${styles.glassShell}`}
-          style={{ 
-            "--rx": "0deg", 
-            "--ry": "0deg", 
-            "--gx": "50%", 
-            "--gy": "25%" 
-          } as React.CSSProperties}
+          style={
+            {
+              "--rx": "0deg",
+              "--ry": "0deg",
+              "--gx": "50%",
+              "--gy": "25%",
+            } as React.CSSProperties
+          }
         >
           <div className={styles.borderGlow} aria-hidden />
 
