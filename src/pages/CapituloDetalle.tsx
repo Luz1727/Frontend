@@ -39,51 +39,12 @@ const CRITERIOS_PREDEFINIDOS = [
   { id: "c5", nombre: "Calidad de las referencias y fuentes" },
 ];
 
-type DictamenCompleto = {
-  id: string;
-  folio: string;
-  evaluadorId: string;
-  evaluadorNombre: string;
-  evaluadorEmail: string;
-  tipo: string;
-  titulo: string;
-  criterios: CriterioEvaluacion[];
-  promedio: number;
-  decision: "APROBADO" | "CORRECCIONES" | "RECHAZADO";
-  comentarios: string;
-  conflictosInteres: string;
-  fechaEvaluacion: string;
-  fechaFirma?: string;
-  firmado: boolean;
-  archivoFirma?: string;
-};
-
-type DictamenHistorico = {
-  id: string;
-  evaluador: string;
-  type: string;
-  scoreAvg: number;
-  decision: "APROBADO" | "CORRECCIONES" | "RECHAZADO";
-  createdAt: string;
-  firmado: boolean;
-  folio: string;
-};
-
 type HistoryItem = {
   id: string;
   at: string;
   by: string;
   action: string;
   detail: string;
-};
-
-type Constancia = {
-  id: string;
-  folio: string;
-  evaluadorNombre: string;
-  capituloTitulo: string;
-  fechaEmision: string;
-  pdfUrl?: string;
 };
 
 type Chapter = {
@@ -94,40 +55,36 @@ type Chapter = {
   author: string;
   authorEmail: string;
   status: Status;
+
   evaluatorName: string | null;
   evaluatorEmail: string | null;
+
+  deadline_at: string | null;
+  deadline_stage: string | null;
+
   versions: VersionFile[];
-  dictamenes: DictamenHistorico[];
-  dictamenActual?: DictamenCompleto;
   history: HistoryItem[];
-  constancias: Constancia[];
+
+  // si tu backend manda evaluación guardada, la usamos para precarga
+  evaluacionActual?: {
+    tipo?: string;
+    criterios?: CriterioEvaluacion[];
+    promedio?: number;
+    decision?: "APROBADO" | "CORRECCIONES" | "RECHAZADO";
+    comentarios?: string;
+    conflictosInteres?: string;
+    conflictos_interes?: string;
+  } | null;
 };
 
 const endpoints = {
   chapterDetail: (chapterId: string) => `/admin/chapters/${chapterId}`,
   chapterStatus: (chapterId: string) => `/admin/chapters/${chapterId}/status`,
-  // se deja por compatibilidad aunque ya no se usa en UI
-  assignEvaluator: (chapterId: string) => `/admin/chapters/${chapterId}/assign`,
-  sendToEvaluator: (chapterId: string) => `/admin/chapters/${chapterId}/send-to-evaluator`,
-  requestCorrections: (chapterId: string) => `/admin/chapters/${chapterId}/request-corrections`,
-  markEditorialReview: (chapterId: string) => `/admin/chapters/${chapterId}/mark-editorial-review`,
-  sendForSignature: (chapterId: string) => `/admin/chapters/${chapterId}/send-for-signature`,
-  markSigned: (chapterId: string) => `/admin/chapters/${chapterId}/mark-signed`,
   versions: (chapterId: string) => `/admin/chapters/${chapterId}/versions`,
   downloadVersion: (chapterId: string, versionId: string) =>
     `/admin/chapters/${chapterId}/versions/${versionId}/download`,
-  history: (chapterId: string) => `/admin/chapters/${chapterId}/history`,
-  viewDictamenPdf: (dictamenId: string) => `/dictamenes/${dictamenId}/pdf`,
-  viewDictamenPdfSigned: (dictamenId: string) => `/dictamenes/${dictamenId}/pdf-signed`,
-  subirDictamenFirmado: (dictamenId: string) => `/dictaminador/dictamenes/${dictamenId}/upload-signed`,
-  crearDictamen: (chapterId: string) => `/admin/chapters/${chapterId}/dictamen`,
-  guardarDictamen: (dictamenId: string) => `/dictamenes/${dictamenId}`,
-  upsertDictamen: (chapterId: string) => `/admin/chapters/${chapterId}/dictamen/upsert`,
   uploadVersion: (chapterId: string) => `/admin/chapters/${chapterId}/versions/upload`,
-  generarConstancia: (chapterId: string) => `/admin/chapters/${chapterId}/constancias/generate`,
-  markResentByAuthor: (chapterId: string) => `/admin/chapters/${chapterId}/mark-resent`,
-  findDictaminadorByEmail: (email: string) =>
-    `/admin/users/dictaminador/by-email?email=${encodeURIComponent(email)}`,
+  history: (chapterId: string) => `/admin/chapters/${chapterId}/history`,
   // ✅ evaluación
   upsertEvaluacion: (chapterId: string) => `/admin/chapters/${chapterId}/evaluacion/upsert`,
 };
@@ -138,24 +95,6 @@ function ensureString(v: any): string {
 }
 function toStatus(v: any): Status {
   return v as Status;
-}
-
-function generarFolioDictamen(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  const random = Math.floor(Math.random() * 100000).toString().padStart(5, "0");
-  return `DICT-${year}-${month}-${day}-${random}`;
-}
-
-function generarFolioConstancia(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  const random = Math.floor(Math.random() * 100000).toString().padStart(5, "0");
-  return `CONST-${year}-${month}-${day}-${random}`;
 }
 
 function normalizeTipo(s: string): string {
@@ -175,59 +114,6 @@ function mapChapterResponseToChapter(payload: any): Chapter {
         uploadedAt: ensureString((v.uploaded_at ?? v.uploadedAt ?? "").slice(0, 10)),
         note: ensureString(v.note ?? v.comentario ?? ""),
         uploadedBy: v.uploaded_by ?? "autor",
-      }))
-    : [];
-
-  const dictamenes: DictamenHistorico[] = Array.isArray(payload?.dictamenes)
-    ? payload.dictamenes.map((d: any) => ({
-        id: ensureString(d.id),
-        evaluador: ensureString(d.evaluator_name ?? d.evaluator ?? d.evaluador ?? ""),
-        type: ensureString(d.tipo ?? d.type ?? "Investigación"),
-        scoreAvg: Number(d.promedio ?? d.scoreAvg ?? 0),
-        decision: (d.decision ?? d.decision_status ?? "CORRECCIONES") as any,
-        createdAt: ensureString((d.created_at ?? d.createdAt ?? "").slice(0, 10)),
-        firmado: Boolean(d.status === "FIRMADO" || d.firmado === true || d.signed_at),
-        folio: ensureString(d.folio ?? ""),
-      }))
-    : [];
-
-  const dictamenActual = payload?.dictamen_actual
-    ? {
-        id: ensureString(payload.dictamen_actual.id),
-        folio: ensureString(payload.dictamen_actual.folio),
-        evaluadorId: ensureString(payload.dictamen_actual.evaluador_id),
-        evaluadorNombre: ensureString(payload.dictamen_actual.evaluador_nombre),
-        evaluadorEmail: ensureString(payload.dictamen_actual.evaluador_email),
-        tipo: ensureString(payload.dictamen_actual.tipo),
-        titulo: ensureString(payload.dictamen_actual.titulo),
-        criterios: Array.isArray(payload.dictamen_actual.criterios)
-          ? payload.dictamen_actual.criterios.map((c: any) => ({
-              id: ensureString(c.id),
-              nombre: ensureString(c.nombre),
-              puntaje: c.puntaje as 1 | 2 | 3 | 4 | 5,
-            }))
-          : [],
-        promedio: Number(payload.dictamen_actual.promedio ?? 0),
-        decision: payload.dictamen_actual.decision as any,
-        comentarios: ensureString(payload.dictamen_actual.comentarios),
-        conflictosInteres: ensureString(payload.dictamen_actual.conflictos_interes),
-        fechaEvaluacion: ensureString((payload.dictamen_actual.fecha_evaluacion ?? "").slice(0, 10)),
-        fechaFirma: payload.dictamen_actual.fecha_firma
-          ? ensureString(payload.dictamen_actual.fecha_firma.slice(0, 10))
-          : undefined,
-        firmado: Boolean(payload.dictamen_actual.firmado),
-        archivoFirma: ensureString(payload.dictamen_actual.archivo_firma),
-      }
-    : undefined;
-
-  const constancias: Constancia[] = Array.isArray(payload?.constancias)
-    ? payload.constancias.map((c: any) => ({
-        id: ensureString(c.id),
-        folio: ensureString(c.folio),
-        evaluadorNombre: ensureString(c.evaluador_nombre),
-        capituloTitulo: ensureString(c.capitulo_titulo),
-        fechaEmision: ensureString((c.fecha_emision ?? "").slice(0, 10)),
-        pdfUrl: ensureString(c.pdf_url),
       }))
     : [];
 
@@ -251,15 +137,15 @@ function mapChapterResponseToChapter(payload: any): Chapter {
     status: toStatus(payload?.status ?? "RECIBIDO"),
     evaluatorName: evaluatorName ? ensureString(evaluatorName) : null,
     evaluatorEmail: evaluatorEmail ? ensureString(evaluatorEmail) : null,
+    deadline_at: payload?.deadline_at ? ensureString(payload.deadline_at).slice(0, 10) : null,
+    deadline_stage: payload?.deadline_stage ? ensureString(payload.deadline_stage) : null,
     versions,
-    dictamenes,
-    dictamenActual,
     history,
-    constancias,
+    evaluacionActual: payload?.evaluacion_actual ?? payload?.evaluacionActual ?? null,
   };
 }
 
-// ✅ FUNCIONES PARA OBTENER CLASES CSS
+// ✅ FUNCIONES PARA CLASES CSS
 function getPillClass(status: Status): string {
   const baseClass = styles.pill;
 
@@ -271,7 +157,7 @@ function getPillClass(status: Status): string {
   return `${baseClass} ${styles.pillDefault}`;
 }
 
-function getDictamenPillClass(decision: "APROBADO" | "CORRECCIONES" | "RECHAZADO"): string {
+function getDecisionPillClass(decision: "APROBADO" | "CORRECCIONES" | "RECHAZADO"): string {
   const baseClass = styles.pill;
   if (decision === "APROBADO") return `${baseClass} ${styles.pillApproved}`;
   if (decision === "CORRECCIONES") return `${baseClass} ${styles.pillCorrections}`;
@@ -300,24 +186,20 @@ export default function CapituloDetalle() {
     status: "RECIBIDO",
     evaluatorName: null,
     evaluatorEmail: null,
+    deadline_at: null,
+    deadline_stage: null,
     versions: [],
-    dictamenes: [],
-    dictamenActual: undefined,
     history: [],
-    constancias: [],
+    evaluacionActual: null,
   }));
 
-  const [tab, setTab] = useState<"VERSIONES" | "DICTAMENES" | "HISTORIAL" | "EVALUACION" | "CONSTANCIAS">(
-    "VERSIONES"
-  );
+  const [tab, setTab] = useState<"VERSIONES" | "EVALUACION" | "HISTORIAL">("VERSIONES");
 
-  // Estados (solo nombre y correo)
+  // Estados (solo nombre y correo) — (UI)
   const [evaluatorName, setEvaluatorName] = useState<string>("");
   const [evaluatorEmail, setEvaluatorEmail] = useState<string>("");
 
-  // ============================
-  // ✅ EVALUACIÓN (NO BORRAR)
-  // ============================
+  // ✅ EVALUACIÓN
   const [evalTipo, setEvalTipo] = useState<string>("");
   const [evalCriterios, setEvalCriterios] = useState<CriterioEvaluacion[]>(
     CRITERIOS_PREDEFINIDOS.map((c) => ({ ...c, puntaje: 3 }))
@@ -332,24 +214,7 @@ export default function CapituloDetalle() {
     return Number((suma / evalCriterios.length).toFixed(1));
   }, [evalCriterios]);
 
-  // ✅ Estado para el dictamen actual
-  const [dictamenTipo, setDictamenTipo] = useState<string>("");
-  const [criterios, setCriterios] = useState<CriterioEvaluacion[]>(
-    CRITERIOS_PREDEFINIDOS.map((c) => ({ ...c, puntaje: 3 }))
-  );
-  const [dictamenDecision, setDictamenDecision] = useState<"APROBADO" | "CORRECCIONES" | "RECHAZADO">("CORRECCIONES");
-  const [dictamenComentarios, setDictamenComentarios] = useState("");
-  const [conflictosInteres, setConflictosInteres] = useState("NO");
-  const [dictamenFolio, setDictamenFolio] = useState("");
-
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const firmaInputRef = useRef<HTMLInputElement | null>(null);
-
-  const promedioCriterios = useMemo(() => {
-    if (criterios.length === 0) return 0;
-    const suma = criterios.reduce((acc, c) => acc + c.puntaje, 0);
-    return Number((suma / criterios.length).toFixed(1));
-  }, [criterios]);
 
   const chapterSeed = useMemo(() => chapter, [chapter]);
 
@@ -359,25 +224,8 @@ export default function CapituloDetalle() {
     setEvaluatorName(c.evaluatorName ?? "");
     setEvaluatorEmail(c.evaluatorEmail ?? "");
 
-    // dictamenActual
-    if (c.dictamenActual) {
-      setDictamenTipo(c.dictamenActual.tipo || "");
-      setCriterios(c.dictamenActual.criterios);
-      setDictamenDecision(c.dictamenActual.decision);
-      setDictamenComentarios(c.dictamenActual.comentarios);
-      setConflictosInteres(c.dictamenActual.conflictosInteres);
-      setDictamenFolio(c.dictamenActual.folio);
-    } else {
-      setDictamenTipo("");
-      setCriterios(CRITERIOS_PREDEFINIDOS.map((c) => ({ ...c, puntaje: 3 })));
-      setDictamenDecision("CORRECCIONES");
-      setDictamenComentarios("");
-      setConflictosInteres("NO");
-      setDictamenFolio(generarFolioDictamen());
-    }
-
-    // Precarga EVALUACIÓN
-    const src = (c as any).evaluacionActual ?? (c as any).dictamenActual ?? null;
+    // Precarga EVALUACIÓN desde backend si existe
+    const src = (c as any).evaluacionActual ?? null;
     if (src) {
       setEvalTipo(src.tipo || "");
       setEvalCriterios(
@@ -399,6 +247,7 @@ export default function CapituloDetalle() {
 
   const reloadAll = async () => {
     if (!chapterId) return;
+
     const stamp = Date.now();
     lastLoadRef.current = stamp;
 
@@ -408,6 +257,7 @@ export default function CapituloDetalle() {
     try {
       const r = await api.get(endpoints.chapterDetail(chapterId));
       if (lastLoadRef.current !== stamp) return;
+
       const mapped = mapChapterResponseToChapter(r.data);
       applyChapterToUI(mapped);
     } catch (e: any) {
@@ -425,10 +275,7 @@ export default function CapituloDetalle() {
   const pushHistory = (by: string, action: string, detail: string) => {
     setChapter((prev) => ({
       ...prev,
-      history: [
-        { id: `h-${Date.now()}`, at: new Date().toISOString(), by, action, detail },
-        ...prev.history,
-      ],
+      history: [{ id: `h-${Date.now()}`, at: new Date().toISOString(), by, action, detail }, ...prev.history],
     }));
   };
 
@@ -449,54 +296,7 @@ export default function CapituloDetalle() {
     }
   };
 
-  // ============================================================
-  // GUARDAR DICTAMEN
-  // ============================================================
-  const guardarDictamen = async () => {
-    if (!chapter.evaluatorEmail) return alert("Primero asigna un dictaminador.");
-
-    const tipoFinal = normalizeTipo(dictamenTipo);
-    if (!tipoFinal) return alert("Escribe el tipo de dictamen.");
-
-    setSaving(true);
-    setErrMsg(null);
-
-    try {
-      const dictamenData = {
-        folio: dictamenFolio,
-        evaluador_email: chapter.evaluatorEmail,
-        evaluador_nombre: chapter.evaluatorName,
-        tipo: tipoFinal,
-        titulo: chapter.title,
-        criterios: criterios.map((c) => ({ id: c.id, nombre: c.nombre, puntaje: c.puntaje })),
-        promedio: promedioCriterios,
-        decision: dictamenDecision,
-        comentarios: dictamenComentarios,
-        conflictos_interes: conflictosInteres,
-      };
-
-      if (chapter.dictamenActual) {
-        await api.patch(endpoints.guardarDictamen(chapter.dictamenActual.id), dictamenData);
-        pushHistory("Editorial", "Dictamen actualizado", `Se actualizó el dictamen (folio: ${dictamenFolio})`);
-      } else {
-        const response = await api.post(endpoints.crearDictamen(chapterId), dictamenData);
-        setDictamenFolio(response.data.folio);
-        pushHistory("Editorial", "Dictamen creado", `Se creó nuevo dictamen (folio: ${response.data.folio})`);
-      }
-
-      setSuccessMsg("Dictamen guardado correctamente");
-      setTimeout(() => setSuccessMsg(null), 3000);
-      await reloadAll();
-    } catch (e: any) {
-      setErrMsg(e?.response?.data?.detail ?? e?.message ?? "No se pudo guardar el dictamen.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // ============================================================
-  // ✅ GUARDAR EVALUACIÓN (NO BORRAR)
-  // ============================================================
+  // ✅ GUARDAR EVALUACIÓN
   const guardarEvaluacion = async () => {
     if (!chapterId) return;
 
@@ -532,67 +332,7 @@ export default function CapituloDetalle() {
     }
   };
 
-  // ============================================================
-  // FIRMAR DICTAMEN
-  // ============================================================
-  const firmarDictamen = async (file: File) => {
-    if (!chapter.dictamenActual) return alert("No hay dictamen para firmar.");
-
-    setSaving(true);
-    setErrMsg(null);
-
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("note", "Firmado por dictaminador");
-
-      await api.post(endpoints.subirDictamenFirmado(chapter.dictamenActual.id), fd, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      pushHistory("Dictaminador", "Firma", "Se subió el dictamen firmado.");
-      await reloadAll();
-    } catch (e: any) {
-      setErrMsg(e?.response?.data?.detail ?? e?.message ?? "No se pudo subir el dictamen firmado.");
-    } finally {
-      setSaving(false);
-      if (firmaInputRef.current) firmaInputRef.current.value = "";
-    }
-  };
-
-  // ============================================================
-  // GENERAR CONSTANCIA
-  // ============================================================
-  const generateConstancia = async () => {
-    if (!chapter.dictamenActual?.firmado) return alert("El dictamen debe estar firmado para generar constancia.");
-
-    setSaving(true);
-    setErrMsg(null);
-
-    try {
-      const response = await api.post(endpoints.generarConstancia(chapterId), {}, { responseType: "blob" });
-
-      const contentType = response.headers?.["content-type"] as string | undefined;
-      if (contentType?.includes("pdf")) {
-        const blob = new Blob([response.data], { type: "application/pdf" });
-        const url = URL.createObjectURL(blob);
-        window.open(url, "_blank");
-        setTimeout(() => URL.revokeObjectURL(url), 30000);
-      }
-
-      const folioConstancia = generarFolioConstancia();
-      pushHistory("Editorial", "Constancia", `Se generó constancia (folio: ${folioConstancia})`);
-      await reloadAll();
-    } catch (e: any) {
-      setErrMsg(e?.response?.data?.detail ?? e?.message ?? "No se pudo generar la constancia.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // ============================================================
   // SUBIR NUEVA VERSIÓN
-  // ============================================================
   const addNewVersion = async (note: string, file?: File) => {
     if (!file) {
       await reloadAll();
@@ -683,23 +423,6 @@ export default function CapituloDetalle() {
     }
   };
 
-  const viewDictamenPdf = async (dictamenId: string) => {
-    setSaving(true);
-    setErrMsg(null);
-    try {
-      const r = await api.get(endpoints.viewDictamenPdf(dictamenId), { responseType: "blob" });
-
-      const blob = new Blob([r.data], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
-      window.open(url, "_blank");
-      setTimeout(() => URL.revokeObjectURL(url), 30000);
-    } catch (e: any) {
-      setErrMsg(e?.response?.data?.detail ?? e?.message ?? "No se pudo abrir el PDF.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const renderTopInfo = () => {
     if (loading) return <div className={styles.mutedSmall}>Cargando…</div>;
     if (errMsg) return <div className={styles.mutedSmall} style={{ color: "#B42318" }}>{errMsg}</div>;
@@ -728,6 +451,15 @@ export default function CapituloDetalle() {
               <span className={styles.metaItem}>
                 <b>Autor:</b> {chapterSeed.author}
               </span>
+              {chapterSeed.deadline_at && (
+                <>
+                  <span className={styles.metaDot}>•</span>
+                  <span className={styles.metaItem}>
+                    <b>Fecha límite:</b> {fmtDate(chapterSeed.deadline_at)}{" "}
+                    {chapterSeed.deadline_stage ? `(${chapterSeed.deadline_stage})` : ""}
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -760,30 +492,12 @@ export default function CapituloDetalle() {
             </button>
 
             <button
-              className={`${styles.tabBtn} ${tab === "DICTAMENES" ? styles.tabActive : ""}`}
-              onClick={() => setTab("DICTAMENES")}
-              type="button"
-              disabled={saving}
-            >
-              📋 Dictámenes
-            </button>
-
-            <button
               className={`${styles.tabBtn} ${tab === "EVALUACION" ? styles.tabActive : ""}`}
               onClick={() => setTab("EVALUACION")}
               type="button"
               disabled={saving}
             >
               ✍️ Evaluación
-            </button>
-
-            <button
-              className={`${styles.tabBtn} ${tab === "CONSTANCIAS" ? styles.tabActive : ""}`}
-              onClick={() => setTab("CONSTANCIAS")}
-              type="button"
-              disabled={saving}
-            >
-              🏆 Constancias
             </button>
 
             <button
@@ -805,6 +519,7 @@ export default function CapituloDetalle() {
                     <h3 className={styles.h3}>Versiones del capítulo</h3>
                     <p className={styles.p}>Archivos subidos por autor, dictaminador o editorial.</p>
                   </div>
+
                   <button
                     className={styles.secondaryBtn}
                     onClick={() => fileInputRef.current?.click()}
@@ -813,6 +528,7 @@ export default function CapituloDetalle() {
                   >
                     Subir nueva versión
                   </button>
+
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -891,89 +607,7 @@ export default function CapituloDetalle() {
               </div>
             )}
 
-            {/* TAB: DICTAMENES (HISTÓRICO) */}
-            {tab === "DICTAMENES" && (
-              <div className={styles.section}>
-                <div className={styles.sectionTop}>
-                  <div>
-                    <h3 className={styles.h3}>Historial de dictámenes</h3>
-                    <p className={styles.p}>Todas las evaluaciones realizadas.</p>
-                  </div>
-                </div>
-
-                <div className={styles.tableCard}>
-                  <table className={styles.table}>
-                    <thead>
-                      <tr>
-                        <th className={styles.th}>Folio</th>
-                        <th className={styles.th}>Evaluador</th>
-                        <th className={styles.th}>Tipo</th>
-                        <th className={styles.th}>Promedio</th>
-                        <th className={styles.th}>Dictamen</th>
-                        <th className={styles.th}>Firmado</th>
-                        <th className={styles.th}>Fecha</th>
-                        <th className={styles.th}>Acción</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {chapter.dictamenes.map((d) => (
-                        <tr key={d.id}>
-                          <td className={styles.td}>
-                            <b>{d.folio}</b>
-                          </td>
-                          <td className={styles.td}>{d.evaluador}</td>
-                          <td className={styles.td}>{d.type || "—"}</td>
-                          <td className={styles.td}>{Number.isFinite(d.scoreAvg) ? d.scoreAvg.toFixed(1) : "—"}</td>
-                          <td className={styles.td}>
-                            <span className={getDictamenPillClass(d.decision)}>{dictamenLabel(d.decision)}</span>
-                          </td>
-                          <td className={styles.td}>{d.firmado ? "✅ Sí" : "❌ No"}</td>
-                          <td className={styles.td}>{fmtDate(d.createdAt)}</td>
-                          <td className={styles.td}>
-                            <button className={styles.linkBtn} onClick={() => viewDictamenPdf(d.id)} type="button" disabled={saving}>
-                              Ver PDF
-                            </button>
-
-                            <button
-                              className={styles.linkBtn}
-                              style={{ marginLeft: 8 }}
-                              onClick={async () => {
-                                setSaving(true);
-                                setErrMsg(null);
-                                try {
-                                  const r = await api.get(endpoints.viewDictamenPdfSigned(d.id), { responseType: "blob" });
-                                  const blob = new Blob([r.data], { type: "application/pdf" });
-                                  const url = URL.createObjectURL(blob);
-                                  window.open(url, "_blank");
-                                  setTimeout(() => URL.revokeObjectURL(url), 30000);
-                                } catch (e: any) {
-                                  setErrMsg(e?.response?.data?.detail ?? e?.message ?? "No se pudo abrir el PDF firmado.");
-                                } finally {
-                                  setSaving(false);
-                                }
-                              }}
-                              type="button"
-                              disabled={saving}
-                            >
-                              Ver firmado
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                      {chapter.dictamenes.length === 0 && (
-                        <tr>
-                          <td className={styles.td} colSpan={8}>
-                            Aún no hay dictámenes.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* ✅ TAB: EVALUACIÓN */}
+            {/* TAB: EVALUACIÓN */}
             {tab === "EVALUACION" && (
               <div className={styles.section}>
                 <div className={styles.sectionTop}>
@@ -1056,7 +690,7 @@ export default function CapituloDetalle() {
                           onChange={() => setEvalDecision("APROBADO")}
                           disabled={saving}
                         />
-                        <span className={`${styles.decisionTag} ${getDictamenPillClass("APROBADO")}`}>Aprobado</span>
+                        <span className={`${styles.decisionTag} ${getDecisionPillClass("APROBADO")}`}>Aprobado</span>
                       </label>
 
                       <label className={styles.radioLabel}>
@@ -1068,7 +702,7 @@ export default function CapituloDetalle() {
                           onChange={() => setEvalDecision("CORRECCIONES")}
                           disabled={saving}
                         />
-                        <span className={`${styles.decisionTag} ${getDictamenPillClass("CORRECCIONES")}`}>Correcciones</span>
+                        <span className={`${styles.decisionTag} ${getDecisionPillClass("CORRECCIONES")}`}>Correcciones</span>
                       </label>
 
                       <label className={styles.radioLabel}>
@@ -1080,7 +714,7 @@ export default function CapituloDetalle() {
                           onChange={() => setEvalDecision("RECHAZADO")}
                           disabled={saving}
                         />
-                        <span className={`${styles.decisionTag} ${getDictamenPillClass("RECHAZADO")}`}>Rechazado</span>
+                        <span className={`${styles.decisionTag} ${getDecisionPillClass("RECHAZADO")}`}>Rechazado</span>
                       </label>
                     </div>
 
@@ -1107,107 +741,7 @@ export default function CapituloDetalle() {
                       />
                     </div>
                   </div>
-
-                  <div className={styles.evaluacionSection}>
-                    <h4 className={styles.h4}>Firma del dictamen</h4>
-                    {chapter.dictamenActual?.firmado ? (
-                      <div className={styles.successBox}>
-                        ✅ Dictamen firmado el {fmtDate(chapter.dictamenActual.fechaFirma || "")}
-                      </div>
-                    ) : (
-                      <>
-                        <p className={styles.p}>Sube el dictamen firmado en PDF</p>
-                        <button
-                          className={styles.secondaryBtn}
-                          onClick={() => firmaInputRef.current?.click()}
-                          type="button"
-                          disabled={saving || !chapter.dictamenActual}
-                        >
-                          📎 Seleccionar archivo firmado
-                        </button>
-                        <input
-                          ref={firmaInputRef}
-                          type="file"
-                          style={{ display: "none" }}
-                          accept=".pdf"
-                          onChange={(e) => {
-                            const f = e.target.files?.[0];
-                            if (!f || !chapter.dictamenActual) return;
-                            firmarDictamen(f);
-                          }}
-                        />
-                        {!chapter.dictamenActual && <div className={styles.mutedSmall}>Primero guarda el dictamen</div>}
-                      </>
-                    )}
-                  </div>
                 </div>
-              </div>
-            )}
-
-            {/* TAB: CONSTANCIAS */}
-            {tab === "CONSTANCIAS" && (
-              <div className={styles.section}>
-                <div className={styles.sectionTop}>
-                  <div>
-                    <h3 className={styles.h3}>Constancias</h3>
-                    <p className={styles.p}>Documentos de reconocimiento para dictaminadores.</p>
-                  </div>
-                  <button
-                    className={styles.primaryBtn}
-                    onClick={generateConstancia}
-                    type="button"
-                    disabled={saving || !chapter.dictamenActual?.firmado}
-                  >
-                    🏆 Generar constancia
-                  </button>
-                </div>
-
-                <div className={styles.tableCard}>
-                  <table className={styles.table}>
-                    <thead>
-                      <tr>
-                        <th className={styles.th}>Folio</th>
-                        <th className={styles.th}>Dictaminador</th>
-                        <th className={styles.th}>Capítulo</th>
-                        <th className={styles.th}>Fecha emisión</th>
-                        <th className={styles.th}>Acción</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {chapter.constancias.map((c) => (
-                        <tr key={c.id}>
-                          <td className={styles.td}>
-                            <b>{c.folio}</b>
-                          </td>
-                          <td className={styles.td}>{c.evaluadorNombre}</td>
-                          <td className={styles.td}>{c.capituloTitulo}</td>
-                          <td className={styles.td}>{fmtDate(c.fechaEmision)}</td>
-                          <td className={styles.td}>
-                            <button
-                              className={styles.linkBtn}
-                              onClick={() => window.open(c.pdfUrl, "_blank")}
-                              type="button"
-                              disabled={!c.pdfUrl}
-                            >
-                              Ver PDF
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                      {chapter.constancias.length === 0 && (
-                        <tr>
-                          <td className={styles.td} colSpan={5}>
-                            No hay constancias generadas aún.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                {!chapter.dictamenActual?.firmado && (
-                  <div className={styles.warningBox}>⚠️ Las constancias solo se pueden generar cuando el dictamen está FIRMADO.</div>
-                )}
               </div>
             )}
 
@@ -1247,7 +781,7 @@ export default function CapituloDetalle() {
           <h3 className={styles.h3}>Acciones rápidas</h3>
           <p className={styles.p}>Flujo editorial simplificado</p>
 
-          {/* Asignar dictaminador (solo inputs: nombre + correo; SIN CVU y SIN botón) */}
+          {/* Inputs (solo UI, no asigna en backend aquí) */}
           <div className={styles.actionBox}>
             <div className={styles.actionTitle}>👤 Dictaminador</div>
             <input
@@ -1264,16 +798,29 @@ export default function CapituloDetalle() {
               placeholder="Correo electrónico"
               disabled={saving}
             />
+            <div className={styles.mutedSmall}>
+              *Estos campos se muestran aquí, pero en este archivo no se hace el POST de asignación (para no tocar tu flujo).
+            </div>
           </div>
 
           {/* Decisión final */}
           <div className={styles.actionBox}>
             <div className={styles.actionTitle}>✅ Decisión final</div>
             <div className={styles.actionRow}>
-              <button className={styles.approveBtn} onClick={() => setNewStatus("APROBADO")} type="button" disabled={saving || loading}>
+              <button
+                className={styles.approveBtn}
+                onClick={() => setNewStatus("APROBADO")}
+                type="button"
+                disabled={saving || loading}
+              >
                 Aprobar
               </button>
-              <button className={styles.rejectBtn} onClick={() => setNewStatus("RECHAZADO")} type="button" disabled={saving || loading}>
+              <button
+                className={styles.rejectBtn}
+                onClick={() => setNewStatus("RECHAZADO")}
+                type="button"
+                disabled={saving || loading}
+              >
                 Rechazar
               </button>
             </div>
@@ -1337,12 +884,6 @@ function statusLabel(s: Status): string {
     RECHAZADO: "❌ Rechazado",
   };
   return map[s];
-}
-
-function dictamenLabel(d: "APROBADO" | "CORRECCIONES" | "RECHAZADO") {
-  if (d === "APROBADO") return "✅ Aprobado";
-  if (d === "CORRECCIONES") return "✏️ Correcciones";
-  return "❌ Rechazado";
 }
 
 function fmtDate(dateStr: string) {
