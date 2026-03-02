@@ -1,7 +1,7 @@
 import axios from "axios";
 
 export const api = axios.create({
-  baseURL: "https://editorial-production.up.railway.app",
+  baseURL: "https://editorial-production.up.railway.app/api",
 });
 
 api.interceptors.request.use((config) => {
