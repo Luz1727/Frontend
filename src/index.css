@@ -1,11 +1,44 @@
 /* =========================================================
-   SWEETALERT2 PREMIUM (FULL)
-   - Popups premium centrados
-   - Toast premium centrado abajo
-   - Botones Aceptar / Sí continuar / Cancelar pro
+   ===== FIX GLOBAL APP (QUITAR BORDES BLANCOS) =====
 ========================================================= */
 
-/* Animaciones para SweetAlert */
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: #0B0B10; /* mismo fondo oscuro que tu login */
+}
+
+body {
+  overflow-x: hidden;
+}
+
+
+/* =========================================================
+   ===== AUTOFILL FIX (CHROME / EDGE) =====
+========================================================= */
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px rgba(0,0,0,.22) inset !important;
+  box-shadow: 0 0 0 1000px rgba(0,0,0,.22) inset !important;
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #ffffff !important;
+  transition: background-color 9999s ease-in-out 0s !important;
+}
+
+
+/* =========================================================
+   SWEETALERT2 PREMIUM (FULL)
+========================================================= */
+
 @keyframes fadeInRight {
   from { opacity: 0; transform: translate3d(100%, 0, 0); }
   to   { opacity: 1; transform: translate3d(0, 0, 0); }
@@ -14,8 +47,6 @@
   from { opacity: 0; transform: translate3d(0, -20px, 0); }
   to   { opacity: 1; transform: translate3d(0, 0, 0); }
 }
-
-/* Animaciones mejoradas */
 @keyframes zoomIn {
   from { opacity: 0; transform: scale3d(0.3, 0.3, 0.3); }
   50%  { opacity: 1; }
@@ -44,7 +75,6 @@
   to   { transform: scale3d(1, 1, 1); }
 }
 
-/* Base helpers */
 .animated { animation-fill-mode: both; animation-duration: 0.4s; }
 .faster { animation-duration: 0.3s; }
 .fadeInRight { animation-name: fadeInRight; }
@@ -56,9 +86,7 @@
 .shake { animation-name: shake; }
 .pulse { animation-name: pulse; }
 
-/* =========================================================
-   Popup base (SweetAlert)
-========================================================= */
+/* Popup base */
 .swal2-popup{
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   border-radius: 16px !important;
@@ -70,7 +98,6 @@
   font-size: 18px !important;
   font-weight: 600 !important;
   color: #1e293b !important;
-  letter-spacing: -0.2px;
 }
 
 .swal2-html-container{
@@ -78,9 +105,7 @@
   color: #64748b !important;
 }
 
-/* =========================================================
-   Estilos premium para alertas (tu clase custom)
-========================================================= */
+/* Alert premium */
 .alert-premium{
   background: linear-gradient(135deg, rgba(15,23,42,0.96) 0%, rgba(2,6,23,0.96) 100%) !important;
   border: 1px solid rgba(148,163,184,0.18) !important;
@@ -92,262 +117,70 @@
   font-size: 22px !important;
   font-weight: 800 !important;
   color: #0f172a !important;
-  margin-bottom: 8px !important;
-  letter-spacing: -0.35px !important;
 }
 
 .alert-text{
   font-size: 15px !important;
   color: #475569 !important;
   line-height: 1.6 !important;
-  margin-top: 4px !important;
 }
 
-
-/* =========================================================
-   ✅ BOTONES PREMIUM (ACEPTAR / SI CONTINUAR / CANCELAR)
-   Estas clases son las que ya usas en alerts.ts
-========================================================= */
-
-/* Contenedor de acciones más premium */
+/* Acciones */
 .swal2-actions{
   gap: 10px !important;
   margin-top: 18px !important;
 }
 
-/* Base común para ambos botones */
 .swal2-confirm-btn-premium,
 .swal2-cancel-btn-premium{
-  position: relative !important;
   border-radius: 14px !important;
   padding: 12px 18px !important;
   min-height: 44px !important;
   font-weight: 700 !important;
   font-size: 14.5px !important;
-  letter-spacing: -0.15px !important;
-  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease, background .18s ease !important;
-  user-select: none !important;
-  outline: none !important;
-  -webkit-tap-highlight-color: transparent;
+  transition: all .18s ease !important;
 }
 
-/* ✅ Confirm (Aceptar / Sí, continuar / Continuar) */
+/* Confirm */
 .swal2-confirm-btn-premium{
   border: none !important;
   color: #fff !important;
-
-  /* gradiente premium */
   background: linear-gradient(135deg, #2d9cdb 0%, #2389c4 45%, #1e6fa4 100%) !important;
-
-  /* sombra + glow */
-  box-shadow:
-    0 10px 22px -8px rgba(45,156,219,0.55),
-    0 2px 0 rgba(255,255,255,0.10) inset !important;
+  box-shadow: 0 10px 22px -8px rgba(45,156,219,0.55) !important;
 }
 
-/* brillo superior ligero (efecto glass) */
-.swal2-confirm-btn-premium::before{
-  content: "" !important;
-  position: absolute !important;
-  left: 10px !important;
-  right: 10px !important;
-  top: 7px !important;
-  height: 35% !important;
-  border-radius: 999px !important;
-  background: linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0)) !important;
-  pointer-events: none !important;
-}
-
-/* hover confirm */
 .swal2-confirm-btn-premium:hover{
   transform: translateY(-2px) !important;
-  filter: brightness(1.03) !important;
-  box-shadow:
-    0 14px 28px -10px rgba(45,156,219,0.70),
-    0 2px 0 rgba(255,255,255,0.12) inset !important;
 }
 
-/* active confirm */
-.swal2-confirm-btn-premium:active{
-  transform: translateY(0px) scale(0.99) !important;
-  box-shadow:
-    0 10px 22px -10px rgba(45,156,219,0.50),
-    0 2px 0 rgba(255,255,255,0.08) inset !important;
-}
-
-/* focus visible confirm */
-.swal2-confirm-btn-premium:focus-visible{
-  box-shadow:
-    0 0 0 4px rgba(45,156,219,0.25),
-    0 14px 28px -10px rgba(45,156,219,0.70) !important;
-}
-
-/* ✅ Cancel (Cancelar) */
+/* Cancel */
 .swal2-cancel-btn-premium{
   background: rgba(255,255,255,0.92) !important;
   color: #475569 !important;
   border: 1px solid rgba(148,163,184,0.45) !important;
-
-  box-shadow:
-    0 10px 22px -12px rgba(2,6,23,0.18),
-    0 1px 0 rgba(255,255,255,0.55) inset !important;
 }
 
-/* hover cancel */
 .swal2-cancel-btn-premium:hover{
   transform: translateY(-2px) !important;
-  background: #ffffff !important;
-  border-color: rgba(148,163,184,0.70) !important;
-  color: #334155 !important;
-  box-shadow:
-    0 14px 28px -14px rgba(2,6,23,0.22),
-    0 1px 0 rgba(255,255,255,0.60) inset !important;
 }
 
-/* active cancel */
-.swal2-cancel-btn-premium:active{
-  transform: translateY(0px) scale(0.99) !important;
-}
-
-/* focus visible cancel */
-.swal2-cancel-btn-premium:focus-visible{
-  box-shadow:
-    0 0 0 4px rgba(148,163,184,0.25),
-    0 14px 28px -14px rgba(2,6,23,0.22) !important;
-}
-
-/* Disabled (si se llega a usar) */
-.swal2-confirm-btn-premium[disabled],
-.swal2-cancel-btn-premium[disabled]{
-  opacity: 0.6 !important;
-  cursor: not-allowed !important;
-  transform: none !important;
-  filter: none !important;
-}
-
-/* En móvil, evita que queden apretados */
-@media (max-width: 520px){
-  .swal2-actions{
-    flex-wrap: wrap !important;
-  }
-  .swal2-confirm-btn-premium,
-  .swal2-cancel-btn-premium{
-    width: 100% !important;
-  }
-}
-
-/* =========================================================
-   Toast styling
-========================================================= */
+/* Toast */
 .swal2-toast{
   border-radius: 12px !important;
   box-shadow: 0 10px 40px -10px rgba(0,0,0,0.20) !important;
 }
-.swal2-toast .swal2-title{ font-size: 14px !important; }
-.swal2-toast .swal2-html-container{ font-size: 13px !important; }
 
-/* ✅ FORZAR TOAST CENTRADO ABAJO (PREMIUM) */
+/* Centrado abajo */
 .swal-toast-center{
   left: 50% !important;
   right: auto !important;
   transform: translateX(-50%) !important;
-  margin: 0 !important;
 }
 
-/* =========================================================
-   Barra de progreso personalizada (loading)
-========================================================= */
-.progress-bar-container{
-  width: 100%;
-  height: 8px;
-  background: #e2e8f0;
-  border-radius: 100px;
-  margin-top: 20px;
-  overflow: hidden;
-}
-.progress-bar{
-  width: 0%;
-  height: 100%;
-  background: linear-gradient(90deg, #2d9cdb, #764ba2);
-  border-radius: 100px;
-  animation: progress 2s ease-in-out infinite;
-}
-@keyframes progress{
-  0%   { width: 0%; margin-left: 0%; }
-  50%  { width: 70%; margin-left: 15%; }
-  100% { width: 0%; margin-left: 100%; }
-}
-
-/* =========================================================
-   Input personalizado
-========================================================= */
-.alert-input{
-  border-radius: 16px !important;
-  border: 2px solid #e2e8f0 !important;
-  padding: 14px 18px !important;
-  font-size: 15px !important;
-  margin-top: 16px !important;
-  transition: all 0.2s ease !important;
-}
-.alert-input:focus{
-  border-color: #2d9cdb !important;
-  box-shadow: 0 0 0 4px rgba(45,156,219,0.10) !important;
-  outline: none !important;
-}
-
-/* =========================================================
-   Iconos animados
-========================================================= */
-.swal2-icon{
-  margin: 0 auto 16px !important;
-  transform: scale(1.1);
-  animation: iconPop 0.4s ease;
-}
-@keyframes iconPop{
-  0%   { transform: scale(0); }
-  80%  { transform: scale(1.2); }
-  100% { transform: scale(1.1); }
-}
-
-/* =========================================================
-   Ajustes contenedor
-========================================================= */
-.swal2-container{
-  padding: 18px !important;
-}
-.swal2-height-auto{
-  height: auto !important;
-}
-
-/* =========================================================
-   Modo oscuro automático (si tu sistema está en dark)
-========================================================= */
-@media (prefers-color-scheme: dark){
-  .alert-premium{
-    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
-    border-color: rgba(255,255,255,0.10) !important;
-  }
-  .alert-title{ color: #f1f5f9 !important; }
-  .alert-text{ color: #cbd5e1 !important; }
-
-  .swal2-cancel-btn-premium{
-    background: rgba(30,41,59,0.92) !important;
-    color: #e2e8f0 !important;
-    border-color: rgba(51,65,85,0.85) !important;
-    box-shadow:
-      0 12px 26px -16px rgba(0,0,0,0.55),
-      0 1px 0 rgba(255,255,255,0.06) inset !important;
-  }
-
-  .swal2-cancel-btn-premium:hover{
-    background: rgba(51,65,85,0.92) !important;
-    border-color: rgba(148,163,184,0.25) !important;
-    color: #f1f5f9 !important;
-  }
-
-  .swal2-confirm-btn-premium{
-    box-shadow:
-      0 14px 30px -12px rgba(45,156,219,0.65),
-      0 2px 0 rgba(255,255,255,0.07) inset !important;
+/* Reduce motion */
+@media (prefers-reduced-motion: reduce){
+  *{
+    animation: none !important;
+    transition: none !important;
   }
 }
