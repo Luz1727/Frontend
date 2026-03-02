@@ -1,8 +1,16 @@
 {
   "routes": [
     { "handle": "filesystem" },
-    { "src": "/.*", "dest": "/index.html" }
+    { "src": "/login", "dest": "/index.html" },
+    { "src": "/autor/.*", "dest": "/index.html" },
+    { "src": "/dictaminador/.*", "dest": "/index.html" },
+    { "src": "/convocatorias", "dest": "/index.html" },
+    { "src": "/libros", "dest": "/index.html" },
+    { "src": "/capitulos/.*", "dest": "/index.html" },
+    { "src": "/dictamenes/.*", "dest": "/index.html" },
+    { "src": "/constancias", "dest": "/index.html" },
+    { "src": "/usuarios", "dest": "/index.html" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ],
-  "cleanUrls": true,
-  "trailingSlash": false
+  "cleanUrls": true
 }
