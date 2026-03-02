@@ -1,8 +1,8 @@
 {
   "routes": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ]
+    { "handle": "filesystem" },
+    { "src": "/.*", "dest": "/index.html" }
+  ],
+  "cleanUrls": true,
+  "trailingSlash": false
 }
