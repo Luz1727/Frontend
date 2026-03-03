@@ -4,7 +4,7 @@ import styles from './MisAsignacionesDictaminador.module.css';
 import { alertService } from "../../utils/alerts";
 
 /* =========================
-   Tipos
+  Tipos
 ========================= */
 type ChapterStatus =
   | "RECIBIDO"
@@ -30,8 +30,13 @@ type AssignedChapterApi = {
   book_name?: string | null;
   author_name?: string | null;
   author_email?: string | null;
+
+  // ✅ YA EXISTE: la editorial se la asigna al dictaminador (NO TOCAR)
   deadline_at?: string | null;
   deadline_stage?: string | null;
+
+  // ✅ NUEVO: la fecha límite que el dictaminador le asigna al autor
+  author_deadline_at?: string | null;
 };
 
 type AssignedChapterRow = {
@@ -43,8 +48,13 @@ type AssignedChapterRow = {
   book_name?: string | null;
   author_name?: string | null;
   author_email?: string | null;
+
+  // ✅ YA EXISTE: la editorial se la asigna al dictaminador (NO TOCAR)
   deadline_at?: string | null;
   deadline_stage?: string | null;
+
+  // ✅ NUEVO: la fecha límite que el dictaminador le asigna al autor
+  author_deadline_at?: string | null;
 };
 
 type Me = {
@@ -501,6 +511,24 @@ const ChapterItem = React.memo(
         ? "Vence hoy"
         : `Faltan ${dlDays} día(s)`;
 
+    // ✅ NUEVO: deadline para el AUTOR (asignada por el dictaminador)
+    const authorDlDays = daysUntil(chapter.author_deadline_at ?? null);
+    const authorDlTone = deadlineTone(authorDlDays);
+
+    const authorDeadlineText =
+      chapter.author_deadline_at
+        ? `Límite autor: ${fmtDateLong(chapter.author_deadline_at)}`
+        : null;
+
+    const authorDeadlineRemain =
+      authorDlDays === null
+        ? null
+        : authorDlDays < 0
+        ? `Vencido (${Math.abs(authorDlDays)} día(s))`
+        : authorDlDays === 0
+        ? "Vence hoy"
+        : `Faltan ${authorDlDays} día(s)`;
+
     return (
       <div className={styles.item}>
         <div className={styles.itemLeft}>
@@ -532,6 +560,19 @@ const ChapterItem = React.memo(
                   <span>{deadlineText}</span>
                   <span style={{ ...styles.deadlinePill, ...dlTone }}>
                     {deadlineRemain}
+                  </span>
+                </span>
+              </>
+            ) : null}
+
+            {/* ✅ NUEVO: fecha límite que el dictaminador asigna al AUTOR (sin tocar la de editorial) */}
+            {chapter.author_deadline_at ? (
+              <>
+                <span className={styles.metaSep}>•</span>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                  <span>{authorDeadlineText}</span>
+                  <span style={{ ...styles.deadlinePill, ...authorDlTone }}>
+                    {authorDeadlineRemain}
                   </span>
                 </span>
               </>
@@ -644,6 +685,9 @@ function MisAsignacionesDictaminadorContent() {
   const [selected, setSelected] = useState<AssignedChapterRow | null>(null);
   const [comment, setComment] = useState("");
 
+  // ✅ NUEVO: fecha límite que el dictaminador asigna al AUTOR (en modal de correcciones)
+  const [authorDeadline, setAuthorDeadline] = useState("");
+
   const authHeaders = useCallback(() => ({ Authorization: `Bearer ${getToken()}` }), []);
   const apiMsg = (err: any, fallback: string) => err?.response?.data?.detail || err?.message || fallback;
 
@@ -716,6 +760,9 @@ function MisAsignacionesDictaminadorContent() {
         author_email: c.author_email ?? null,
         deadline_at: c.deadline_at ?? null,
         deadline_stage: c.deadline_stage ?? null,
+
+        // ✅ NUEVO
+        author_deadline_at: c.author_deadline_at ?? null,
       }));
 
       setRows(mapped);
@@ -767,9 +814,17 @@ function MisAsignacionesDictaminadorContent() {
     return { total, pendientes, correcciones, resueltos };
   }, [rows]);
 
-  const patchStatus = async (chapterId: number, newStatus: ChapterStatus, extra?: { comment?: string }) => {
+  // ✅ SOLO AGREGAR: extra ahora puede traer author_deadline_at (no rompe lo anterior)
+  const patchStatus = async (
+    chapterId: number,
+    newStatus: ChapterStatus,
+    extra?: { comment?: string; author_deadline_at?: string }
+  ) => {
     const payload: any = { status: newStatus };
     if (extra?.comment) payload.comment = extra.comment;
+
+    // ✅ NUEVO
+    if (extra?.author_deadline_at) payload.author_deadline_at = extra.author_deadline_at;
 
     const { data } = await api.patch(`/dictaminador/chapters/${chapterId}/status`, payload, {
       headers: authHeaders(),
@@ -786,6 +841,9 @@ function MisAsignacionesDictaminadorContent() {
       author_email: data.author_email ?? selected?.author_email ?? null,
       deadline_at: data.deadline_at ?? selected?.deadline_at ?? null,
       deadline_stage: data.deadline_stage ?? selected?.deadline_stage ?? null,
+
+      // ✅ NUEVO
+      author_deadline_at: data.author_deadline_at ?? selected?.author_deadline_at ?? null,
     };
 
     setRows((prev) => prev.map((r) => (r.id === chapterId ? updated : r)));
@@ -795,6 +853,10 @@ function MisAsignacionesDictaminadorContent() {
     setSelected(row);
     setActionType(type);
     setComment("");
+
+    // ✅ NUEVO: reset del campo de fecha del autor
+    setAuthorDeadline("");
+
     setActionOpen(true);
   };
 
@@ -815,7 +877,20 @@ function MisAsignacionesDictaminadorContent() {
           alertService.warning("Escribe las observaciones / comentario.");
           return;
         }
-        await patchStatus(selected.id, "CORRECCIONES", { comment: comment.trim() });
+
+        // ✅ NUEVO: exigir fecha límite para el autor
+        if (!authorDeadline) {
+          alertService.warning("Selecciona la fecha límite para el autor.");
+          return;
+        }
+
+        // Se envía como datetime al final del día (si tu backend maneja datetime)
+        const author_deadline_at = `${authorDeadline}T23:59:59`;
+
+        await patchStatus(selected.id, "CORRECCIONES", {
+          comment: comment.trim(),
+          author_deadline_at,
+        });
         alertService.success("Correcciones solicitadas al autor");
       }
       
@@ -1409,6 +1484,20 @@ function MisAsignacionesDictaminadorContent() {
                         : "• No cumple criterios\n• Falta metodología..."
                     }
                   />
+
+                  {/* ✅ NUEVO: fecha límite que el dictaminador asigna al AUTOR (solo cuando es CORRECCIONES) */}
+                  {actionType === "CORRECCIONES" && (
+                    <>
+                      <div style={{ height: 10 }} />
+                      <label className={styles.modalLabel}>Fecha límite para el autor</label>
+                      <input
+                        className={styles.modalInput}
+                        type="date"
+                        value={authorDeadline}
+                        onChange={(e) => setAuthorDeadline(e.target.value)}
+                      />
+                    </>
+                  )}
                 </>
               )}
 
