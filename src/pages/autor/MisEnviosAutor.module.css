@@ -1653,3 +1653,129 @@
 .swal2-toast .swal2-html-container {
   font-size: 13px !important;
 }
+
+
+/* ===============================
+   Fecha límite (visual premium)
+=================================*/
+
+.deadlineWrap {
+  margin-top: 6px;
+}
+
+.deadlineBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .3px;
+  transition: all .25s ease;
+  backdrop-filter: blur(6px);
+}
+
+.deadlineBadge svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* 🟢 Normal */
+.deadlineNormal {
+  background: rgba(34, 197, 94, 0.12);
+  color: #15803d;
+  border: 1px solid rgba(34, 197, 94, 0.25);
+}
+
+/* 🟡 Próxima (menos de 5 días) */
+.deadlineSoon {
+  background: rgba(234, 179, 8, 0.15);
+  color: #a16207;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+/* 🔴 Vencida */
+.deadlineExpired {
+  background: rgba(239, 68, 68, 0.15);
+  color: #b91c1c;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* Animación suave si está vencida */
+.deadlineExpired {
+  animation: pulseDeadline 2s infinite;
+}
+
+@keyframes pulseDeadline {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+
+/* ===============================
+   Fecha límite (badge + días)
+=================================*/
+.deadlineWrap {
+  margin-top: 6px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.deadlineBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .2px;
+  line-height: 1;
+  backdrop-filter: blur(6px);
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.deadlineBadge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(2, 6, 23, .12);
+}
+
+.deadlineMeta {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px dashed rgba(100, 116, 139, .35);
+  color: #475569;
+  background: rgba(248, 250, 252, .8);
+}
+
+/* Estados */
+.deadlineNormal {
+  background: rgba(34, 197, 94, 0.12);
+  color: #15803d;
+  border: 1px solid rgba(34, 197, 94, 0.25);
+}
+
+.deadlineSoon {
+  background: rgba(234, 179, 8, 0.15);
+  color: #a16207;
+  border: 1px solid rgba(234, 179, 8, 0.30);
+}
+
+.deadlineExpired {
+  background: rgba(239, 68, 68, 0.15);
+  color: #b91c1c;
+  border: 1px solid rgba(239, 68, 68, 0.30);
+  animation: pulseDeadline 2s infinite;
+}
+
+@keyframes pulseDeadline {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.35); }
+  70% { box-shadow: 0 0 0 7px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
