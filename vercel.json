@@ -2,12 +2,12 @@
   "routes": [
     { "src": "/assets/(.*)", "dest": "/assets/$1" },
     { "src": "/login", "dest": "/index.html" },
-    { "src": "/autor/.*", "dest": "/index.html" },
-    { "src": "/dictaminador/.*", "dest": "/index.html" },
+    { "src": "/autor(/.*)?", "dest": "/index.html" },
+    { "src": "/dictaminador(/.*)?", "dest": "/index.html" },
     { "src": "/convocatorias", "dest": "/index.html" },
     { "src": "/libros", "dest": "/index.html" },
-    { "src": "/capitulos/.*", "dest": "/index.html" },
-    { "src": "/dictamenes/.*", "dest": "/index.html" },
+    { "src": "/capitulos(/.*)?", "dest": "/index.html" },
+    { "src": "/dictamenes(/.*)?", "dest": "/index.html" },
     { "src": "/constancias", "dest": "/index.html" },
     { "src": "/usuarios", "dest": "/index.html" }
   ]
