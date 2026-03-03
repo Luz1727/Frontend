@@ -4,7 +4,7 @@ import styles from './MisAsignacionesDictaminador.module.css';
 import { alertService } from "../../utils/alerts";
 
 /* =========================
-   Tipos
+  Tipos
 ========================= */
 type ChapterStatus =
   | "RECIBIDO"
@@ -554,41 +554,29 @@ const ChapterItem = React.memo(
             <span>Actualizado {fmtDate(chapter.updated_at)}</span>
 
             {chapter.deadline_at ? (
-  <>
-    <span className={styles.metaSep}>•</span>
-
-    <span className={styles.deadlineWrap}>
-      <span className={styles.deadlineTag}>Editorial</span>
-
-      <span className={styles.deadlineText}>
-        {deadlineText}
-      </span>
-
-      <span className={styles.deadlinePill} style={dlTone}>
-        {deadlineRemain}
-      </span>
-    </span>
-  </>
-) : null}
+              <>
+                <span className={styles.metaSep}>•</span>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                  <span>{deadlineText}</span>
+                  <span style={{ ...styles.deadlinePill, ...dlTone }}>
+                    {deadlineRemain}
+                  </span>
+                </span>
+              </>
+            ) : null}
 
             {/* ✅ NUEVO: fecha límite que el dictaminador asigna al AUTOR (sin tocar la de editorial) */}
-           {chapter.author_deadline_at ? (
-  <>
-    <span className={styles.metaSep}>•</span>
-
-    <span className={`${styles.deadlineWrap} ${styles.deadlineWrapAuthor}`}>
-      <span className={styles.deadlineTag}>Autor</span>
-
-      <span className={styles.deadlineText}>
-        {authorDeadlineText}
-      </span>
-
-      <span className={styles.deadlinePill} style={authorDlTone}>
-        {authorDeadlineRemain}
-      </span>
-    </span>
-  </>
-) : null}
+            {chapter.author_deadline_at ? (
+              <>
+                <span className={styles.metaSep}>•</span>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                  <span>{authorDeadlineText}</span>
+                  <span style={{ ...styles.deadlinePill, ...authorDlTone }}>
+                    {authorDeadlineRemain}
+                  </span>
+                </span>
+              </>
+            ) : null}
           </div>
         </div>
 

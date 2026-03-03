@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { api } from "../../services/api";
 import brandLogo from "../../assets/brand-logo.jpeg";
-import styles from "./MisEnviosAutor.module.css";
+import styles from './MisEnviosAutor.module.css';
 import { alertService } from "../../utils/alerts";
 
 type ChapterStatus =
@@ -25,9 +25,6 @@ type Chapter = {
   status: ChapterStatus;
   updated_at: string;
   file_path?: string | null;
-
-  // ✅ NUEVO: fecha límite que asignó el dictaminador
-  author_deadline_at?: string | null;
 };
 
 type Book = {
@@ -110,7 +107,7 @@ function statusLabel(s: ChapterStatus) {
 
 function getPillClass(status: ChapterStatus): string {
   const baseClass = styles.pill;
-
+  
   const statusMap: Record<ChapterStatus, string> = {
     APROBADO: styles.pillApproved,
     CORRECCIONES: styles.pillCorrections,
@@ -126,7 +123,7 @@ function getPillClass(status: ChapterStatus): string {
     LISTO_PARA_FIRMA: styles.pillReady,
     FIRMADO: styles.pillSigned,
   };
-
+  
   return `${baseClass} ${statusMap[status] || styles.pillDefault}`;
 }
 
@@ -180,7 +177,7 @@ function Icon({
   const color = tone === "light" ? "rgba(255,247,230,0.92)" : "#64748B";
   const size = 18;
   const common = { width: size, height: size, display: "inline-block" as const };
-
+  
   switch (name) {
     case "book":
       return (
@@ -276,7 +273,7 @@ function decisionLabel(d: DictamenDecision) {
 
 function getDictamenPillClass(decision: DictamenDecision): string {
   const baseClass = styles.pill;
-
+  
   if (decision === "APROBADO") return `${baseClass} ${styles.pillApproved}`;
   if (decision === "RECHAZADO") return `${baseClass} ${styles.pillRejected}`;
   return `${baseClass} ${styles.pillCorrections}`;
@@ -362,9 +359,7 @@ export default function MisEnviosAutor() {
       return (
         acc +
         ch.filter((c) =>
-          ["RECIBIDO", "ASIGNADO_A_DICTAMINADOR", "EN_REVISION", "CORRECCIONES", "REENVIADO_POR_AUTOR"].includes(
-            c.status
-          )
+          ["RECIBIDO", "ASIGNADO_A_DICTAMINADOR", "EN_REVISION", "CORRECCIONES", "REENVIADO_POR_AUTOR"].includes(c.status)
         ).length
       );
     }, 0);
@@ -498,7 +493,7 @@ export default function MisEnviosAutor() {
       setSelectedBookId(data.id);
       setOpenCreateBook(false);
       setNav("envios");
-
+      
       alertService.success("Libro creado correctamente");
     } catch (err: any) {
       const msg = apiMsg(err, "No se pudo crear el libro.");
@@ -547,15 +542,15 @@ export default function MisEnviosAutor() {
       fd.append("title", title);
       fd.append("file", file, file.name);
 
-      const { data } = await api.post<Chapter>(`/autor/books/${selectedBook.id}/chapters`, fd, {
-        headers: authHeaders(),
-      });
+      const { data } = await api.post<Chapter>(`/autor/books/${selectedBook.id}/chapters`, fd, { headers: authHeaders() });
 
-      setBooks((prev) => prev.map((b) => (b.id === selectedBook.id ? { ...b, chapters: [data, ...(b.chapters ?? [])] } : b)));
+      setBooks((prev) =>
+        prev.map((b) => (b.id === selectedBook.id ? { ...b, chapters: [data, ...(b.chapters ?? [])] } : b))
+      );
 
       setOpenUploadChapter(false);
       setNav("envios");
-
+      
       alertService.success("Capítulo subido correctamente");
     } catch (err: any) {
       const msg = apiMsg(err, "No se pudo subir el capítulo.");
@@ -615,7 +610,7 @@ export default function MisEnviosAutor() {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-
+      
       alertService.success("Descarga iniciada");
     } catch (err: any) {
       const msg = apiMsg(err, "No se pudo descargar el archivo.");
@@ -667,7 +662,7 @@ export default function MisEnviosAutor() {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-
+      
       alertService.success("Dictamen descargado");
     } catch (err: any) {
       const msg = apiMsg(err, "No se pudo descargar el dictamen.");
@@ -795,7 +790,7 @@ export default function MisEnviosAutor() {
 
   const logout = async () => {
     const result = await alertService.confirm("¿Seguro que quieres cerrar sesión?");
-
+    
     if (result.isConfirmed) {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
@@ -877,7 +872,12 @@ export default function MisEnviosAutor() {
 
           {nav === "envios" ? (
             <div className={styles.headerActions}>
-              <button className={styles.primaryBtn} onClick={openCreateBookModal} type="button" disabled={loading}>
+              <button
+                className={styles.primaryBtn}
+                onClick={openCreateBookModal}
+                type="button"
+                disabled={loading}
+              >
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
                   <Icon name="book" tone="light" /> Crear libro
                 </span>
@@ -1037,7 +1037,12 @@ export default function MisEnviosAutor() {
                     Recibir avisos cuando tu capítulo cambie de estado o te pidan correcciones.
                   </div>
                 </div>
-                <button type="button" className={styles.secondaryBtn} onClick={() => setOpenPrefs(true)} disabled={loading}>
+                <button
+                  type="button"
+                  className={styles.secondaryBtn}
+                  onClick={() => setOpenPrefs(true)}
+                  disabled={loading}
+                >
                   Configurar
                 </button>
               </div>
@@ -1051,7 +1056,12 @@ export default function MisEnviosAutor() {
                   </div>
                   <div className={styles.actionSub}>Controla qué datos se muestran en tu perfil.</div>
                 </div>
-                <button type="button" className={styles.secondaryBtn} onClick={() => setOpenPrivacy(true)} disabled={loading}>
+                <button
+                  type="button"
+                  className={styles.secondaryBtn}
+                  onClick={() => setOpenPrivacy(true)}
+                  disabled={loading}
+                >
                   Ajustar
                 </button>
               </div>
@@ -1069,7 +1079,11 @@ export default function MisEnviosAutor() {
               </div>
 
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 10, padding: 14 }}>
-                <button type="button" className={styles.secondaryBtn} onClick={() => setNav("envios")}>
+                <button
+                  type="button"
+                  className={styles.secondaryBtn}
+                  onClick={() => setNav("envios")}
+                >
                   Ir a Mis envíos
                 </button>
               </div>
@@ -1141,7 +1155,12 @@ export default function MisEnviosAutor() {
                       </div>
                     </div>
 
-                    <button className={styles.secondaryBtn} onClick={openUploadChapterModal} type="button" disabled={loading}>
+                    <button
+                      className={styles.secondaryBtn}
+                      onClick={openUploadChapterModal}
+                      type="button"
+                      disabled={loading}
+                    >
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
                         <Icon name="upload" /> Subir capítulo
                       </span>
@@ -1173,11 +1192,6 @@ export default function MisEnviosAutor() {
                             <td className={styles.td}>
                               <div className={styles.cellTitle}>{c.title}</div>
                               <div className={styles.cellSub}>ID: {c.id}</div>
-
-                              {/* ✅ NUEVO: fecha límite asignada por dictaminador */}
-                              <div className={styles.cellSub}>
-                                Fecha límite: {c.author_deadline_at ? fmtDate(c.author_deadline_at) : "—"}
-                              </div>
                             </td>
                             <td className={styles.td}>
                               <span className={getPillClass(c.status)}>{statusLabel(c.status)}</span>
@@ -1214,8 +1228,7 @@ export default function MisEnviosAutor() {
                                   type="button"
                                   className={styles.secondaryBtn}
                                   style={{
-                                    opacity:
-                                      c.status === "CORRECCIONES" || c.status === "CORRECCIONES_SOLICITADAS_A_AUTOR" ? 1 : 0.55,
+                                    opacity: c.status === "CORRECCIONES" || c.status === "CORRECCIONES_SOLICITADAS_A_AUTOR" ? 1 : 0.55,
                                   }}
                                   onClick={() => {
                                     if (c.status !== "CORRECCIONES" && c.status !== "CORRECCIONES_SOLICITADAS_A_AUTOR") return;
@@ -1281,10 +1294,19 @@ export default function MisEnviosAutor() {
               />
 
               <div className={styles.modalActions}>
-                <button className={styles.secondaryBtn} type="button" onClick={() => setOpenCreateBook(false)}>
+                <button
+                  className={styles.secondaryBtn}
+                  type="button"
+                  onClick={() => setOpenCreateBook(false)}
+                >
                   Cancelar
                 </button>
-                <button className={styles.primaryBtn} type="button" onClick={confirmCreateBook} disabled={loading}>
+                <button
+                  className={styles.primaryBtn}
+                  type="button"
+                  onClick={confirmCreateBook}
+                  disabled={loading}
+                >
                   {loading ? "Creando..." : "Crear"}
                 </button>
               </div>
@@ -1321,10 +1343,19 @@ export default function MisEnviosAutor() {
               </div>
 
               <div className={styles.modalActions}>
-                <button className={styles.secondaryBtn} type="button" onClick={() => setOpenUploadChapter(false)}>
+                <button
+                  className={styles.secondaryBtn}
+                  type="button"
+                  onClick={() => setOpenUploadChapter(false)}
+                >
                   Cancelar
                 </button>
-                <button className={styles.primaryBtn} type="button" onClick={confirmUploadChapter} disabled={loading}>
+                <button
+                  className={styles.primaryBtn}
+                  type="button"
+                  onClick={confirmUploadChapter}
+                  disabled={loading}
+                >
                   {loading ? "Subiendo..." : "Subir"}
                 </button>
               </div>
@@ -1349,22 +1380,15 @@ export default function MisEnviosAutor() {
                   <div className={styles.dictamenHeaderTitle}>
                     📋 Correcciones y Dictámenes
                     <span className={styles.dictamenHeaderBadge}>
-                      {dictamenes.length} {dictamenes.length === 1 ? "resultado" : "resultados"}
+                      {dictamenes.length} {dictamenes.length === 1 ? 'resultado' : 'resultados'}
                     </span>
                   </div>
                   <div className={styles.dictamenHeaderMeta}>
-                    <span>
-                      <strong>Capítulo:</strong> {corrChapter.title}
-                    </span>
+                    <span><strong>Capítulo:</strong> {corrChapter.title}</span>
                     <span>•</span>
-                    <span>
-                      <strong>ID:</strong> {corrChapter.id}
-                    </span>
+                    <span><strong>ID:</strong> {corrChapter.id}</span>
                     <span>•</span>
-                    <span>
-                      <strong>Estado:</strong>{" "}
-                      <span className={getPillClass(corrChapter.status)}>{statusLabel(corrChapter.status)}</span>
-                    </span>
+                    <span><strong>Estado:</strong> <span className={getPillClass(corrChapter.status)}>{statusLabel(corrChapter.status)}</span></span>
                   </div>
                 </div>
 
@@ -1383,10 +1407,7 @@ export default function MisEnviosAutor() {
                     type="button"
                     className={`${styles.dictamenActionBtn} ${styles.primary}`}
                     style={{
-                      opacity:
-                        corrChapter.status === "CORRECCIONES" || corrChapter.status === "CORRECCIONES_SOLICITADAS_A_AUTOR"
-                          ? 1
-                          : 0.55,
+                      opacity: corrChapter.status === "CORRECCIONES" || corrChapter.status === "CORRECCIONES_SOLICITADAS_A_AUTOR" ? 1 : 0.55,
                     }}
                     onClick={() => {
                       if (corrChapter.status !== "CORRECCIONES" && corrChapter.status !== "CORRECCIONES_SOLICITADAS_A_AUTOR") return;
@@ -1442,27 +1463,27 @@ export default function MisEnviosAutor() {
                         <div className={styles.dictamenCardHeaderLeft}>
                           <span className={styles.dictamenFolio}>{d.folio}</span>
                           <div className={styles.dictamenMetaPills}>
-                            <span className={`${styles.dictamenMetaPill} ${styles.tipo}`}>📌 {d.tipo}</span>
-                            <span className={`${styles.dictamenMetaPill} ${styles.estado}`}>⚡ {d.status}</span>
+                            <span className={`${styles.dictamenMetaPill} ${styles.tipo}`}>
+                              📌 {d.tipo}
+                            </span>
+                            <span className={`${styles.dictamenMetaPill} ${styles.estado}`}>
+                              ⚡ {d.status}
+                            </span>
                             <span className={`${styles.dictamenMetaPill} ${styles.fecha}`}>
-                              📅 {d.created_at ? fmtDate(d.created_at) : "—"}
+                              📅 {d.created_at ? fmtDate(d.created_at) : '—'}
                             </span>
                           </div>
                         </div>
 
                         <div className={styles.dictamenCardHeaderRight}>
-                          <span
-                            className={`${styles.dictamenDecisionBadge} ${
-                              d.decision === "APROBADO"
-                                ? styles.aprobado
-                                : d.decision === "CORRECCIONES"
-                                ? styles.correcciones
-                                : styles.rechazado
-                            }`}
-                          >
-                            {d.decision === "APROBADO" && "✅ Aprobado"}
-                            {d.decision === "CORRECCIONES" && "✏️ Correcciones"}
-                            {d.decision === "RECHAZADO" && "❌ Rechazado"}
+                          <span className={`${styles.dictamenDecisionBadge} ${
+                            d.decision === 'APROBADO' ? styles.aprobado : 
+                            d.decision === 'CORRECCIONES' ? styles.correcciones : 
+                            styles.rechazado
+                          }`}>
+                            {d.decision === 'APROBADO' && '✅ Aprobado'}
+                            {d.decision === 'CORRECCIONES' && '✏️ Correcciones'}
+                            {d.decision === 'RECHAZADO' && '❌ Rechazado'}
                           </span>
                         </div>
                       </div>
@@ -1475,8 +1496,8 @@ export default function MisEnviosAutor() {
                             <div className={styles.dictamenInfoLabel}>
                               <span>💬</span> Comentarios
                             </div>
-                            <div className={`${styles.dictamenInfoValue} ${!d.comentarios?.trim() ? styles.empty : ""}`}>
-                              {d.comentarios?.trim() || "Sin comentarios"}
+                            <div className={`${styles.dictamenInfoValue} ${!d.comentarios?.trim() ? styles.empty : ''}`}>
+                              {d.comentarios?.trim() || 'Sin comentarios'}
                             </div>
                           </div>
 
@@ -1485,10 +1506,8 @@ export default function MisEnviosAutor() {
                             <div className={styles.dictamenInfoLabel}>
                               <span>⚠️</span> Conflicto de interés
                             </div>
-                            <div
-                              className={`${styles.dictamenInfoValue} ${!d.conflicto_interes?.trim() ? styles.empty : ""}`}
-                            >
-                              {d.conflicto_interes?.trim() || "No especificado"}
+                            <div className={`${styles.dictamenInfoValue} ${!d.conflicto_interes?.trim() ? styles.empty : ''}`}>
+                              {d.conflicto_interes?.trim() || 'No especificado'}
                             </div>
                           </div>
 
@@ -1498,9 +1517,9 @@ export default function MisEnviosAutor() {
                               <span>📊</span> Promedio
                             </div>
                             <div className={styles.dictamenInfoValue}>
-                              <strong style={{ fontSize: "20px" }}>{d.promedio ?? "—"}</strong>
-                              <div style={{ marginTop: "8px", fontSize: "12px", color: "#64748b" }}>
-                                {d.signed_at ? `Firmado: ${fmtDate(d.signed_at)}` : "No firmado"}
+                              <strong style={{ fontSize: '20px' }}>{d.promedio ?? '—'}</strong>
+                              <div style={{ marginTop: '8px', fontSize: '12px', color: '#64748b' }}>
+                                {d.signed_at ? `Firmado: ${fmtDate(d.signed_at)}` : 'No firmado'}
                               </div>
                             </div>
                           </div>
@@ -1510,12 +1529,8 @@ export default function MisEnviosAutor() {
                       {/* Footer de la tarjeta */}
                       <div className={styles.dictamenCardFooter}>
                         <div className={styles.dictamenFooterLeft}>
-                          <span
-                            className={`${styles.dictamenFirmaInfo} ${
-                              d.signed_at ? styles.firmado : styles.noFirmado
-                            }`}
-                          >
-                            {d.signed_at ? "✅ Firmado" : "⏳ Pendiente de firma"}
+                          <span className={`${styles.dictamenFirmaInfo} ${d.signed_at ? styles.firmado : styles.noFirmado}`}>
+                            {d.signed_at ? '✅ Firmado' : '⏳ Pendiente de firma'}
                           </span>
                         </div>
 
@@ -1594,7 +1609,12 @@ export default function MisEnviosAutor() {
                 >
                   Cancelar
                 </button>
-                <button className={styles.primaryBtn} type="button" onClick={confirmReupload} disabled={loading}>
+                <button
+                  className={styles.primaryBtn}
+                  type="button"
+                  onClick={confirmReupload}
+                  disabled={loading}
+                >
                   {loading ? "Enviando..." : "Enviar versión"}
                 </button>
               </div>
@@ -1693,10 +1713,19 @@ export default function MisEnviosAutor() {
               </label>
 
               <div className={styles.modalActions}>
-                <button className={styles.secondaryBtn} type="button" onClick={() => setOpenPrivacy(false)}>
+                <button
+                  className={styles.secondaryBtn}
+                  type="button"
+                  onClick={() => setOpenPrivacy(false)}
+                >
                   Cancelar
                 </button>
-                <button className={styles.primaryBtn} type="button" onClick={savePrivacy} disabled={loading}>
+                <button
+                  className={styles.primaryBtn}
+                  type="button"
+                  onClick={savePrivacy}
+                  disabled={loading}
+                >
                   {loading ? "Guardando..." : "Guardar"}
                 </button>
               </div>
