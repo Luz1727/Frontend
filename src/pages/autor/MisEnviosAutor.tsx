@@ -26,8 +26,11 @@ type Chapter = {
   updated_at: string;
   file_path?: string | null;
 
-  // ✅ NUEVO: fecha límite que asignó el dictaminador
+  // ✅ fecha límite que asignó el dictaminador al autor
   author_deadline_at?: string | null;
+
+  // (opcional) si algún día agregas editorial deadline:
+  // editorial_deadline_at?: string | null;
 };
 
 type Book = {
@@ -90,6 +93,46 @@ function fmtDate(dateStr: string) {
   const [y, m, dd] = d.split("-");
   if (!dd) return dateStr;
   return `${dd}/${m}/${y}`;
+}
+
+/* =========================
+   ✅ HELPERS: deadline badge + meta
+========================= */
+function parseISO(dateStr?: string | null) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function startOfDay(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function daysDiffFromToday(dateStr?: string | null) {
+  const d = parseISO(dateStr);
+  if (!d) return null;
+
+  const today = startOfDay(new Date());
+  const target = startOfDay(d);
+
+  const ms = target.getTime() - today.getTime();
+  return Math.round(ms / (1000 * 60 * 60 * 24));
+}
+
+function deadlineVisualClass(dateStr?: string | null) {
+  const diff = daysDiffFromToday(dateStr);
+  if (diff == null) return styles.deadlineNormal;
+  if (diff < 0) return styles.deadlineExpired;
+  if (diff <= 5) return styles.deadlineSoon;
+  return styles.deadlineNormal;
+}
+
+function deadlineMetaText(dateStr?: string | null) {
+  const diff = daysDiffFromToday(dateStr);
+  if (diff == null) return "—";
+  if (diff < 0) return `Vencida hace ${Math.abs(diff)} día(s)`;
+  if (diff === 0) return "Vence hoy";
+  return `Faltan ${diff} día(s)`;
 }
 
 function statusLabel(s: ChapterStatus) {
@@ -268,20 +311,6 @@ function Icon({
   }
 }
 
-function decisionLabel(d: DictamenDecision) {
-  if (d === "APROBADO") return "Aprobado";
-  if (d === "CORRECCIONES") return "Correcciones";
-  return "Rechazado";
-}
-
-function getDictamenPillClass(decision: DictamenDecision): string {
-  const baseClass = styles.pill;
-
-  if (decision === "APROBADO") return `${baseClass} ${styles.pillApproved}`;
-  if (decision === "RECHAZADO") return `${baseClass} ${styles.pillRejected}`;
-  return `${baseClass} ${styles.pillCorrections}`;
-}
-
 export default function MisEnviosAutor() {
   const [nav, setNav] = useState<NavKey>("envios");
   const [me, setMe] = useState<Me | null>(null);
@@ -383,9 +412,9 @@ export default function MisEnviosAutor() {
     setErrorMsg(msg);
   };
 
-  // =========================
-  // LOADERS
-  // =========================
+  /* =========================
+     LOADERS
+  ========================= */
   const loadMe = async () => {
     try {
       const { data } = await api.get<Me>("/account/me", { headers: authHeaders() });
@@ -399,18 +428,14 @@ export default function MisEnviosAutor() {
     try {
       const { data } = await api.get<Preferences>("/account/preferences", { headers: authHeaders() });
       setPrefs(data);
-    } catch {
-      // opcional
-    }
+    } catch {}
   };
 
   const loadPrivacy = async () => {
     try {
       const { data } = await api.get<Privacy>("/account/privacy", { headers: authHeaders() });
       setPrivacy(data);
-    } catch {
-      // opcional
-    }
+    } catch {}
   };
 
   const loadBooks = async () => {
@@ -436,10 +461,9 @@ export default function MisEnviosAutor() {
     try {
       const res = await api.get<any>(`/autor/books/${bookId}/chapters`, { headers: authHeaders() });
       const items: Chapter[] = Array.isArray(res.data) ? res.data : res.data?.items ?? [];
+
       setBooks((prev) => prev.map((b) => (b.id === bookId ? { ...b, chapters: items } : b)));
-    } catch {
-      // opcional
-    }
+    } catch {}
   };
 
   const loadDictamenes = async (chapterId: number) => {
@@ -461,15 +485,17 @@ export default function MisEnviosAutor() {
     loadPrefs();
     loadPrivacy();
     loadBooks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (selectedBookId) loadChapters(selectedBookId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBookId]);
 
-  // =========================
-  // BOOKS / CHAPTERS
-  // =========================
+  /* =========================
+     BOOKS / CHAPTERS
+  ========================= */
   const openCreateBookModal = () => {
     setNewBook({ name: "", year: new Date().getFullYear() });
     setOpenCreateBook(true);
@@ -551,7 +577,9 @@ export default function MisEnviosAutor() {
         headers: authHeaders(),
       });
 
-      setBooks((prev) => prev.map((b) => (b.id === selectedBook.id ? { ...b, chapters: [data, ...(b.chapters ?? [])] } : b)));
+      setBooks((prev) =>
+        prev.map((b) => (b.id === selectedBook.id ? { ...b, chapters: [data, ...(b.chapters ?? [])] } : b))
+      );
 
       setOpenUploadChapter(false);
       setNav("envios");
@@ -565,9 +593,9 @@ export default function MisEnviosAutor() {
     }
   };
 
-  // =========================
-  // DOWNLOAD PROTEGIDO
-  // =========================
+  /* =========================
+     DOWNLOAD PROTEGIDO
+  ========================= */
   const downloadChapter = async (c: Chapter) => {
     try {
       setLoading(true);
@@ -581,9 +609,7 @@ export default function MisEnviosAutor() {
       const blob: Blob =
         res.data instanceof Blob
           ? res.data
-          : new Blob([res.data], {
-              type: res.headers?.["content-type"] || "application/octet-stream",
-            });
+          : new Blob([res.data], { type: res.headers?.["content-type"] || "application/octet-stream" });
 
       let filename = `capitulo_${c.id}`;
       const cd = res.headers?.["content-disposition"] as string | undefined;
@@ -638,9 +664,7 @@ export default function MisEnviosAutor() {
       const blob: Blob =
         res.data instanceof Blob
           ? res.data
-          : new Blob([res.data], {
-              type: res.headers?.["content-type"] || "application/pdf",
-            });
+          : new Blob([res.data], { type: res.headers?.["content-type"] || "application/pdf" });
 
       let filename = `dictamen_${d.folio || d.id}.pdf`;
       const cd = res.headers?.["content-disposition"] as string | undefined;
@@ -716,12 +740,9 @@ export default function MisEnviosAutor() {
       fd.append("file", reuploadFile, reuploadFile.name);
       if (reuploadNote.trim()) fd.append("note", reuploadNote.trim());
 
-      await api.post(`/autor/chapters/${reuploadChapter.id}/reupload`, fd, {
-        headers: authHeaders(),
-      });
+      await api.post(`/autor/chapters/${reuploadChapter.id}/reupload`, fd, { headers: authHeaders() });
 
       setOpenReupload(false);
-
       if (selectedBookId) await loadChapters(selectedBookId);
 
       alertService.success("Versión corregida enviada ✅");
@@ -733,9 +754,9 @@ export default function MisEnviosAutor() {
     }
   };
 
-  // =========================
-  // MI CUENTA - acciones
-  // =========================
+  /* =========================
+     MI CUENTA - acciones
+  ========================= */
   const savePrefs = async () => {
     try {
       setLoading(true);
@@ -795,7 +816,6 @@ export default function MisEnviosAutor() {
 
   const logout = async () => {
     const result = await alertService.confirm("¿Seguro que quieres cerrar sesión?");
-
     if (result.isConfirmed) {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
@@ -803,9 +823,9 @@ export default function MisEnviosAutor() {
     }
   };
 
-  // =========================
-  // RENDER
-  // =========================
+  /* =========================
+     RENDER
+  ========================= */
   return (
     <div className={styles.page}>
       {/* SIDEBAR */}
@@ -1170,19 +1190,26 @@ export default function MisEnviosAutor() {
                             }}
                           >
                             <td className={styles.td}>{idx + 1}</td>
+
                             <td className={styles.td}>
                               <div className={styles.cellTitle}>{c.title}</div>
                               <div className={styles.cellSub}>ID: {c.id}</div>
 
-                              {/* ✅ NUEVO: fecha límite asignada por dictaminador */}
-                              <div className={styles.cellSub}>
-                                Fecha límite: {c.author_deadline_at ? fmtDate(c.author_deadline_at) : "—"}
+                              {/* ✅ ✅ AQUÍ SE MUESTRA AUTOR LIMITE SIEMPRE */}
+                              <div className={styles.deadlineWrap}>
+                                <span className={`${styles.deadlineBadge} ${deadlineVisualClass(c.author_deadline_at)}`}>
+                                  Autor · Límite autor: {c.author_deadline_at ? fmtDate(c.author_deadline_at) : "—"}
+                                </span>
+                                <span className={styles.deadlineMeta}>{deadlineMetaText(c.author_deadline_at)}</span>
                               </div>
                             </td>
+
                             <td className={styles.td}>
                               <span className={getPillClass(c.status)}>{statusLabel(c.status)}</span>
                             </td>
+
                             <td className={styles.td}>{fmtDate(c.updated_at)}</td>
+
                             <td className={styles.td}>
                               <button
                                 type="button"
@@ -1196,6 +1223,7 @@ export default function MisEnviosAutor() {
                                 </span>
                               </button>
                             </td>
+
                             <td className={styles.td}>
                               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                                 <button
@@ -1257,7 +1285,8 @@ export default function MisEnviosAutor() {
           </div>
         )}
 
-        {/* MODAL: crear libro */}
+        {/* ===== MODALES (los tuyos) ===== */}
+        {/* Crear libro */}
         {openCreateBook && (
           <div className={styles.modalOverlay} onClick={() => setOpenCreateBook(false)}>
             <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -1292,7 +1321,7 @@ export default function MisEnviosAutor() {
           </div>
         )}
 
-        {/* MODAL: subir capítulo */}
+        {/* Subir capítulo */}
         {openUploadChapter && selectedBook && (
           <div className={styles.modalOverlay} onClick={() => setOpenUploadChapter(false)}>
             <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -1332,7 +1361,7 @@ export default function MisEnviosAutor() {
           </div>
         )}
 
-        {/* MODAL: ver correcciones - VERSIÓN MEJORADA */}
+        {/* Ver correcciones */}
         {openCorrections && corrChapter && (
           <div
             className={styles.modalOverlay}
@@ -1343,7 +1372,6 @@ export default function MisEnviosAutor() {
             }}
           >
             <div className={styles.modalWide} onClick={(e) => e.stopPropagation()}>
-              {/* Header mejorado */}
               <div className={styles.dictamenHeader}>
                 <div className={styles.dictamenHeaderInfo}>
                   <div className={styles.dictamenHeaderTitle}>
@@ -1437,14 +1465,14 @@ export default function MisEnviosAutor() {
                 <div className={styles.dictamenList}>
                   {dictamenes.map((d) => (
                     <div key={d.id} className={styles.dictamenCard}>
-                      {/* Cabecera de la tarjeta */}
                       <div className={styles.dictamenCardHeader}>
                         <div className={styles.dictamenCardHeaderLeft}>
                           <span className={styles.dictamenFolio}>{d.folio}</span>
+
                           <div className={styles.dictamenMetaPills}>
-                            <span className={`${styles.dictamenMetaPill} ${styles.tipo}`}>📌 {d.tipo}</span>
-                            <span className={`${styles.dictamenMetaPill} ${styles.estado}`}>⚡ {d.status}</span>
-                            <span className={`${styles.dictamenMetaPill} ${styles.fecha}`}>
+                            <span className={`${styles.dictamenMetaPill} ${styles.dictamenMetaPillTipo}`}>📌 {d.tipo}</span>
+                            <span className={`${styles.dictamenMetaPill} ${styles.dictamenMetaPillEstado}`}>⚡ {d.status}</span>
+                            <span className={`${styles.dictamenMetaPill} ${styles.dictamenMetaPillFecha}`}>
                               📅 {d.created_at ? fmtDate(d.created_at) : "—"}
                             </span>
                           </div>
@@ -1467,32 +1495,34 @@ export default function MisEnviosAutor() {
                         </div>
                       </div>
 
-                      {/* Cuerpo de la tarjeta */}
                       <div className={styles.dictamenCardBody}>
                         <div className={styles.dictamenInfoGrid}>
-                          {/* Comentarios */}
                           <div className={styles.dictamenInfoItem}>
                             <div className={styles.dictamenInfoLabel}>
                               <span>💬</span> Comentarios
                             </div>
-                            <div className={`${styles.dictamenInfoValue} ${!d.comentarios?.trim() ? styles.empty : ""}`}>
+                            <div
+                              className={`${styles.dictamenInfoValue} ${
+                                !d.comentarios?.trim() ? styles.dictamenInfoValueEmpty : ""
+                              }`}
+                            >
                               {d.comentarios?.trim() || "Sin comentarios"}
                             </div>
                           </div>
 
-                          {/* Conflicto de interés */}
                           <div className={styles.dictamenInfoItem}>
                             <div className={styles.dictamenInfoLabel}>
                               <span>⚠️</span> Conflicto de interés
                             </div>
                             <div
-                              className={`${styles.dictamenInfoValue} ${!d.conflicto_interes?.trim() ? styles.empty : ""}`}
+                              className={`${styles.dictamenInfoValue} ${
+                                !d.conflicto_interes?.trim() ? styles.dictamenInfoValueEmpty : ""
+                              }`}
                             >
                               {d.conflicto_interes?.trim() || "No especificado"}
                             </div>
                           </div>
 
-                          {/* Promedio y firma */}
                           <div className={styles.dictamenInfoItem}>
                             <div className={styles.dictamenInfoLabel}>
                               <span>📊</span> Promedio
@@ -1507,14 +1537,9 @@ export default function MisEnviosAutor() {
                         </div>
                       </div>
 
-                      {/* Footer de la tarjeta */}
                       <div className={styles.dictamenCardFooter}>
                         <div className={styles.dictamenFooterLeft}>
-                          <span
-                            className={`${styles.dictamenFirmaInfo} ${
-                              d.signed_at ? styles.firmado : styles.noFirmado
-                            }`}
-                          >
+                          <span className={`${styles.dictamenFirmaInfo} ${d.signed_at ? styles.firmado : styles.noFirmado}`}>
                             {d.signed_at ? "✅ Firmado" : "⏳ Pendiente de firma"}
                           </span>
                         </div>
@@ -1541,7 +1566,7 @@ export default function MisEnviosAutor() {
           </div>
         )}
 
-        {/* MODAL: reupload versión corregida */}
+        {/* Reupload */}
         {openReupload && reuploadChapter && (
           <div
             className={styles.modalOverlay}
@@ -1602,7 +1627,7 @@ export default function MisEnviosAutor() {
           </div>
         )}
 
-        {/* MODAL: preferencias */}
+        {/* Preferencias */}
         {openPrefs && (
           <div className={styles.modalOverlay} onClick={() => setOpenPrefs(false)}>
             <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -1667,7 +1692,7 @@ export default function MisEnviosAutor() {
           </div>
         )}
 
-        {/* MODAL: privacidad */}
+        {/* Privacidad */}
         {openPrivacy && (
           <div className={styles.modalOverlay} onClick={() => setOpenPrivacy(false)}>
             <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -1704,7 +1729,7 @@ export default function MisEnviosAutor() {
           </div>
         )}
 
-        {/* MODAL: cambiar contraseña */}
+        {/* Cambiar contraseña */}
         {openPwd && (
           <div className={styles.modalOverlay} onClick={() => setOpenPwd(false)}>
             <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
