@@ -11,49 +11,10 @@ type ConfirmOpts = {
 function blurActiveElement() {
   try {
     const el = document.activeElement as HTMLElement | null;
-    if (el && typeof el.blur === "function") el.blur();
-  } catch {}
-}
-
-function getRoot() {
-  return document.getElementById("root");
-}
-
-/**
- * ✅ INERT: evita que algún input retenga foco mientras Swal intenta
- * aplicar aria-hidden. Esto es lo que te está rompiendo el modal.
- */
-function setRootInert(on: boolean) {
-  const root = getRoot();
-  if (!root) return;
-
-  try {
-    if (on) {
-      root.setAttribute("inert", "");
-      // por si quedó pegado de antes:
-      root.removeAttribute("aria-hidden");
-      root.removeAttribute("data-previous-aria-hidden");
-    } else {
-      root.removeAttribute("inert");
-      root.removeAttribute("aria-hidden");
-      root.removeAttribute("data-previous-aria-hidden");
+    if (el && typeof el.blur === "function") {
+      el.blur();
     }
   } catch {}
-}
-
-function hardClose() {
-  try {
-    Swal.close();
-    document.querySelectorAll(".swal2-container").forEach((n) => n.remove());
-    document.querySelectorAll(".swal2-backdrop-show, .swal2-backdrop-hide").forEach((n) => n.remove());
-
-    document.body.classList.remove("swal2-shown", "swal2-height-auto", "swal2-no-backdrop");
-    document.body.style.removeProperty("overflow");
-    document.body.style.removeProperty("padding-right");
-  } catch {}
-
-  // ✅ deja la app “normal” siempre
-  setRootInert(false);
 }
 
 const base = Swal.mixin({
@@ -62,34 +23,27 @@ const base = Swal.mixin({
   allowOutsideClick: true,
   allowEscapeKey: true,
   heightAuto: false,
-
   returnFocus: false,
   focusConfirm: false,
   focusCancel: false,
+  buttonsStyling: false,
+  showConfirmButton: true,
+  confirmButtonText: "Aceptar",
 
   customClass: {
-    popup: "alert-premium animated fadeInDown",
+    popup: "alert-premium",
     title: "alert-title",
     htmlContainer: "alert-text",
     confirmButton: "swal2-confirm-btn-premium",
     cancelButton: "swal2-cancel-btn-premium",
   },
 
-  buttonsStyling: false,
-  showConfirmButton: true,
-  confirmButtonText: "Aceptar",
-
-  showClass: { popup: "animated fadeInDown faster" },
-  hideClass: { popup: "animated fadeOutUp faster" },
-
   didOpen: () => {
     blurActiveElement();
-    setTimeout(blurActiveElement, 0);
   },
 
-  didClose: () => {
-    // ✅ al cerrar, regresa la app a normal
-    setRootInert(false);
+  willClose: () => {
+    blurActiveElement();
   },
 });
 
@@ -102,41 +56,29 @@ const toast = Swal.mixin({
   timer: 2400,
   timerProgressBar: true,
   returnFocus: false,
+  buttonsStyling: false,
 
   customClass: {
-    popup: "alert-premium animated fadeIn faster swal-toast-center",
+    popup: "alert-premium swal-toast-center",
     title: "alert-title",
     htmlContainer: "alert-text",
   },
 
-  buttonsStyling: false,
-
   didOpen: () => {
     blurActiveElement();
-    setTimeout(blurActiveElement, 0);
   },
 
-  didClose: () => {
-    setRootInert(false);
+  willClose: () => {
+    blurActiveElement();
   },
 });
 
-async function prepareBeforeFire() {
-  hardClose();          // limpia restos
-  blurActiveElement();  // quita foco actual
-  setRootInert(true);   // 🔥 clave: evita foco dentro del root
-  await new Promise<void>((r) => setTimeout(() => r(), 0)); // deja aplicar inert/blur
-}
-
 function fire(icon: SweetAlertIcon, title: string, text?: string) {
-  return (async () => {
-    await prepareBeforeFire();
-    return base.fire({
-      icon,
-      title,
-      html: text ? `<div>${text}</div>` : undefined,
-    });
-  })();
+  return base.fire({
+    icon,
+    title,
+    html: text ? `<div>${text}</div>` : undefined,
+  });
 }
 
 export const alertService = {
@@ -145,26 +87,12 @@ export const alertService = {
   warning: (msg: string, title = "Atención") => fire("warning", title, msg),
   info: (msg: string, title = "Info") => fire("info", title, msg),
 
-  toastSuccess: async (msg: string) => {
-    await prepareBeforeFire();
-    return toast.fire({ icon: "success", title: msg });
-  },
-  toastError: async (msg: string) => {
-    await prepareBeforeFire();
-    return toast.fire({ icon: "error", title: msg });
-  },
-  toastWarning: async (msg: string) => {
-    await prepareBeforeFire();
-    return toast.fire({ icon: "warning", title: msg });
-  },
-  toastInfo: async (msg: string) => {
-    await prepareBeforeFire();
-    return toast.fire({ icon: "info", title: msg });
-  },
+  toastSuccess: (msg: string) => toast.fire({ icon: "success", title: msg }),
+  toastError: (msg: string) => toast.fire({ icon: "error", title: msg }),
+  toastWarning: (msg: string) => toast.fire({ icon: "warning", title: msg }),
+  toastInfo: (msg: string) => toast.fire({ icon: "info", title: msg }),
 
-  confirm: async (titleOrOpts: string | ConfirmOpts, textMaybe?: string) => {
-    await prepareBeforeFire();
-
+  confirm: (titleOrOpts: string | ConfirmOpts, textMaybe?: string) => {
     const opts: ConfirmOpts =
       typeof titleOrOpts === "string"
         ? { title: titleOrOpts, text: textMaybe }
@@ -177,22 +105,18 @@ export const alertService = {
       showCancelButton: true,
       confirmButtonText: opts.confirmText ?? "Sí, continuar",
       cancelButtonText: opts.cancelText ?? "Cancelar",
-      showClass: { popup: "animated zoomIn faster" },
-      hideClass: { popup: "animated zoomOut faster" },
-      returnFocus: false,
-      focusConfirm: false,
-      focusCancel: false,
+      reverseButtons: true,
     });
   },
 
-  loading: async (title = "Procesando...") => {
-    await prepareBeforeFire();
-
+  loading: (title = "Procesando...") => {
     return base.fire({
       title,
       html: `
         <div class="alert-text">Espera un momento…</div>
-        <div class="progress-bar-container"><div class="progress-bar"></div></div>
+        <div class="progress-bar-container">
+          <div class="progress-bar"></div>
+        </div>
       `,
       allowOutsideClick: false,
       allowEscapeKey: false,
@@ -204,6 +128,5 @@ export const alertService = {
     });
   },
 
-  close: () => hardClose(),
-  hardClose,
+  close: () => Swal.close(),
 };
