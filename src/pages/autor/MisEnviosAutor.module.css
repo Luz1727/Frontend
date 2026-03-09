@@ -528,13 +528,42 @@
   margin: 16px 20px 20px;
   border: 1px solid #eef2f6;
   border-radius: 10px;
+
+  /* scroll dentro de la tabla */
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: 420px;
+
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 #e2e8f0;
+}
+
+/* scroll chrome/edge */
+.tableCard::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.tableCard::-webkit-scrollbar-track {
+  background: #e2e8f0;
+  border-radius: 999px;
+}
+
+.tableCard::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 999px;
+}
+
+.tableCard::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 700px;
+  min-width: 1100px;
+  table-layout: auto;
 }
 
 .th {
@@ -547,6 +576,11 @@
   border-bottom: 1px solid #eef2f6;
   text-transform: uppercase;
   letter-spacing: 0.3px;
+
+  /* encabezado fijo */
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 .td {
@@ -554,6 +588,7 @@
   font-size: 13px;
   color: #1e293b;
   border-bottom: 1px solid #eef2f6;
+  vertical-align: top;
 }
 
 .cellTitle {
@@ -852,7 +887,7 @@
 }
 
 /* ===============================
-   Fecha límite (badge + días) ✅ (UNICA VERSION)
+   Fecha límite (badge + días)
 =================================*/
 .deadlineWrap {
   margin-top: 6px;
@@ -1011,7 +1046,6 @@
   flex-wrap: wrap;
 }
 
-/* ✅ FIX: usado en TSX */
 .dictamenCardHeaderRight {
   display: flex;
   align-items: center;
@@ -1077,7 +1111,6 @@
   color: #475569;
 }
 
-/* Badge de decisión */
 .dictamenDecisionBadge {
   font-size: 13px;
   font-weight: 800;
@@ -1089,7 +1122,6 @@
   white-space: nowrap;
 }
 
-/* ✅ FIX: estas clases se usan directo en TSX */
 .aprobado {
   background: #d1fae5;
   color: #065f46;
@@ -1203,7 +1235,6 @@
   flex-wrap: wrap;
 }
 
-/* Botones de acción */
 .dictamenActionBtn {
   padding: 8px 16px;
   border-radius: 30px;
@@ -1225,7 +1256,6 @@
   transform: translateY(-1px);
 }
 
-/* ✅ FIX: usados como styles.primary / styles.download */
 .primary {
   background: #2d9cdb;
   border-color: #2d9cdb;
@@ -1246,7 +1276,6 @@
   background: #e6f3ff;
 }
 
-/* Estado vacío */
 .dictamenEmpty {
   padding: 48px 24px;
   text-align: center;
@@ -1409,6 +1438,7 @@
 
   .tableCard {
     margin: 16px;
+    max-height: 360px;
   }
 
   .th,
@@ -1522,6 +1552,7 @@
   .tableCard {
     margin: 12px;
     border-radius: 8px;
+    max-height: 320px;
   }
 
   .th,

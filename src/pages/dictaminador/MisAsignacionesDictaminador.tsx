@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback, Suspense } from "react";
 import { api } from "../../services/api";
-import styles from './MisAsignacionesDictaminador.module.css';
+import styles from "./MisAsignacionesDictaminador.module.css";
 import { alertService } from "../../utils/alerts";
 
 /* =========================
@@ -30,12 +30,8 @@ type AssignedChapterApi = {
   book_name?: string | null;
   author_name?: string | null;
   author_email?: string | null;
-
-  // ✅ YA EXISTE: la editorial se la asigna al dictaminador (NO TOCAR)
   deadline_at?: string | null;
   deadline_stage?: string | null;
-
-  // ✅ NUEVO: la fecha límite que el dictaminador le asigna al autor
   author_deadline_at?: string | null;
 };
 
@@ -48,12 +44,8 @@ type AssignedChapterRow = {
   book_name?: string | null;
   author_name?: string | null;
   author_email?: string | null;
-
-  // ✅ YA EXISTE: la editorial se la asigna al dictaminador (NO TOCAR)
   deadline_at?: string | null;
   deadline_stage?: string | null;
-
-  // ✅ NUEVO: la fecha límite que el dictaminador le asigna al autor
   author_deadline_at?: string | null;
 };
 
@@ -79,7 +71,7 @@ type Privacy = {
 type NavKey = "asignaciones" | "cuenta";
 
 /* =========================
-   Error Boundary Component
+   Error Boundary
 ========================= */
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode; fallback?: React.ReactNode },
@@ -161,7 +153,7 @@ function fmtDateLong(dateStr?: string | null) {
   const d = dateStr.slice(0, 10);
   const [y, m, day] = d.split("-");
   if (!day) return dateStr;
-  
+
   const date = new Date(parseInt(y), parseInt(m) - 1, parseInt(day));
   return date.toLocaleDateString("es-MX", {
     weekday: "long",
@@ -196,11 +188,20 @@ function initials(name?: string) {
   return (a + b).toUpperCase();
 }
 
-// Función para obtener la clase del badge
 function getBadgeClass(status: ChapterStatus): string {
   const baseClass = styles.badge;
-  
-  if (["ASIGNADO_A_DICTAMINADOR", "ENVIADO_A_DICTAMINADOR", "EN_REVISION", "EN_REVISION_DICTAMINADOR", "REENVIADO_POR_AUTOR", "REVISADO_POR_EDITORIAL", "LISTO_PARA_FIRMA"].includes(status)) {
+
+  if (
+    [
+      "ASIGNADO_A_DICTAMINADOR",
+      "ENVIADO_A_DICTAMINADOR",
+      "EN_REVISION",
+      "EN_REVISION_DICTAMINADOR",
+      "REENVIADO_POR_AUTOR",
+      "REVISADO_POR_EDITORIAL",
+      "LISTO_PARA_FIRMA",
+    ].includes(status)
+  ) {
     return `${baseClass} ${styles.statusPending}`;
   }
   if (["CORRECCIONES", "CORRECCIONES_SOLICITADAS_A_AUTOR"].includes(status)) {
@@ -212,36 +213,24 @@ function getBadgeClass(status: ChapterStatus): string {
   return `${baseClass} ${styles.statusDefault}`;
 }
 
-// Función para obtener la clase del chip de estado
 function getStatusChipClass(status: ChapterStatus): string {
   const baseClass = styles.statusChip;
-  
+
   if (status === "APROBADO" || status === "FIRMADO") return `${baseClass} ${styles.statusResolved}`;
   if (status === "RECHAZADO") return `${baseClass} ${styles.statusRejected}`;
-  if (status === "CORRECCIONES" || status === "CORRECCIONES_SOLICITADAS_A_AUTOR") return `${baseClass} ${styles.statusCorrections}`;
-  if (status === "EN_REVISION" || status === "EN_REVISION_DICTAMINADOR") return `${baseClass} ${styles.statusPending}`;
+  if (status === "CORRECCIONES" || status === "CORRECCIONES_SOLICITADAS_A_AUTOR") {
+    return `${baseClass} ${styles.statusCorrections}`;
+  }
+  if (status === "EN_REVISION" || status === "EN_REVISION_DICTAMINADOR") {
+    return `${baseClass} ${styles.statusPending}`;
+  }
   if (status === "ENVIADO_A_DICTAMINADOR") return `${baseClass} ${styles.statusSent}`;
   if (status === "ASIGNADO_A_DICTAMINADOR") return `${baseClass} ${styles.statusAssigned}`;
   if (status === "REENVIADO_POR_AUTOR") return `${baseClass} ${styles.statusResent}`;
-  if (status === "RECIBIDO") return `${baseClass} ${styles.statusDefault}`;
   if (status === "REVISADO_POR_EDITORIAL") return `${baseClass} ${styles.statusEditorial}`;
   if (status === "LISTO_PARA_FIRMA") return `${baseClass} ${styles.statusReady}`;
-  
+
   return `${baseClass} ${styles.statusDefault}`;
-}
-
-/* =========================
-   Helpers nuevos (VER/DESCARGAR)
-========================= */
-function getApiBase(): string {
-  const base = (api as any)?.defaults?.baseURL || "";
-  return String(base).replace(/\/+$/, "");
-}
-
-function joinUrl(base: string, path: string) {
-  const b = String(base || "").replace(/\/+$/, "");
-  const p = String(path || "").replace(/^\/+/, "");
-  return b ? `${b}/${p}` : `/${p}`;
 }
 
 function guessExtFromContentType(ct: string) {
@@ -253,35 +242,6 @@ function guessExtFromContentType(ct: string) {
   if (s.includes("vnd.ms-excel")) return ".xls";
   if (s.includes("text/plain")) return ".txt";
   return "";
-}
-
-async function fetchBlobWithAuth(url: string, token: string) {
-  const u = url.includes("?") ? `${url}&ts=${Date.now()}` : `${url}?ts=${Date.now()}`;
-
-  const resp = await fetch(u, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!resp.ok) {
-    const txt = await resp.text().catch(() => "");
-    throw new Error(txt || `No se pudo obtener el archivo (${resp.status})`);
-  }
-
-  const ct = resp.headers.get("content-type") || "application/octet-stream";
-  const blob = await resp.blob();
-  return { blob, contentType: ct };
-}
-
-function openBlobInNewTab(blob: Blob) {
-  const url = window.URL.createObjectURL(blob);
-  const w = window.open(url, "_blank", "noopener,noreferrer");
-  if (!w) {
-    window.location.href = url;
-  }
-  setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
 }
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -303,9 +263,6 @@ function downloadBlob(blob: Blob, filename: string) {
   });
 }
 
-/* =========================
-   Helpers deadline
-========================= */
 function toDateOnly(dateOrDatetime?: string | null): Date | null {
   if (!dateOrDatetime) return null;
   const d = String(dateOrDatetime).slice(0, 10);
@@ -317,20 +274,26 @@ function daysUntil(deadlineAt?: string | null): number | null {
   const dl = toDateOnly(deadlineAt);
   if (!dl) return null;
   const now = new Date();
-  const today = new Date(`${now.toISOString().slice(0, 10)}T00:00:00`);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const ms = dl.getTime() - today.getTime();
   return Math.ceil(ms / (1000 * 60 * 60 * 24));
 }
 
 function deadlineTone(d: number | null) {
-  if (d === null) return { background: "rgba(148,163,184,.18)", borderColor: "rgba(148,163,184,.35)", color: "#334155" };
-  if (d < 0) return { background: "rgba(244,63,94,.12)", borderColor: "rgba(244,63,94,.30)", color: "#9F1239" };
-  if (d <= 3) return { background: "rgba(245,158,11,.14)", borderColor: "rgba(245,158,11,.35)", color: "#92400E" };
+  if (d === null) {
+    return { background: "rgba(148,163,184,.18)", borderColor: "rgba(148,163,184,.35)", color: "#334155" };
+  }
+  if (d < 0) {
+    return { background: "rgba(244,63,94,.12)", borderColor: "rgba(244,63,94,.30)", color: "#9F1239" };
+  }
+  if (d <= 3) {
+    return { background: "rgba(245,158,11,.14)", borderColor: "rgba(245,158,11,.35)", color: "#92400E" };
+  }
   return { background: "rgba(16,185,129,.12)", borderColor: "rgba(16,185,129,.28)", color: "#065F46" };
 }
 
 /* =========================
-   UI mini componentes
+   Iconos
 ========================= */
 function Icon({
   name,
@@ -476,7 +439,7 @@ function Stat({ label, value, sub }: { label: string; value: string | number; su
 }
 
 /* =========================
-   ChapterItem
+   Tarjeta
 ========================= */
 const ChapterItem = React.memo(
   ({
@@ -497,10 +460,7 @@ const ChapterItem = React.memo(
     const dlDays = daysUntil(chapter.deadline_at ?? null);
     const dlTone = deadlineTone(dlDays);
 
-    const deadlineText =
-      chapter.deadline_at
-        ? `Fecha límite: ${fmtDateLong(chapter.deadline_at)}`
-        : null;
+    const deadlineText = chapter.deadline_at ? `Fecha límite: ${fmtDateLong(chapter.deadline_at)}` : null;
 
     const deadlineRemain =
       dlDays === null
@@ -511,14 +471,12 @@ const ChapterItem = React.memo(
         ? "Vence hoy"
         : `Faltan ${dlDays} día(s)`;
 
-    // ✅ NUEVO: deadline para el AUTOR (asignada por el dictaminador)
     const authorDlDays = daysUntil(chapter.author_deadline_at ?? null);
     const authorDlTone = deadlineTone(authorDlDays);
 
-    const authorDeadlineText =
-      chapter.author_deadline_at
-        ? `Límite autor: ${fmtDateLong(chapter.author_deadline_at)}`
-        : null;
+    const authorDeadlineText = chapter.author_deadline_at
+      ? `Límite autor: ${fmtDateLong(chapter.author_deadline_at)}`
+      : null;
 
     const authorDeadlineRemain =
       authorDlDays === null
@@ -530,75 +488,61 @@ const ChapterItem = React.memo(
         : `Faltan ${authorDlDays} día(s)`;
 
     return (
-      <div className={styles.item}>
-        <div className={styles.itemLeft}>
-          <div className={styles.itemTop}>
-            <div className={styles.itemTitle}>
-              {chapter.title}
-              {chapter.book_name ? <span className={styles.itemMuted}> • {chapter.book_name}</span> : null}
-            </div>
-
-            <span className={statusClass}>
-              {statusLabel(chapter.status)}
-            </span>
+      <div className={styles.item} style={{ display: "block", width: "100%", minHeight: "auto" }}>
+        <div className={styles.itemTop} style={{ marginBottom: 12 }}>
+          <div className={styles.itemTitle}>
+            {chapter.title}
+            {chapter.book_name ? <span className={styles.itemMuted}> • {chapter.book_name}</span> : null}
           </div>
 
-          <div className={styles.itemMeta}>
-            <span className={styles.metaDot} />
-            <span>
-              {chapter.author_name
-                ? `${chapter.author_name}${chapter.author_email ? ` (${chapter.author_email})` : ""}`
-                : "Autor: —"}
-            </span>
-            <span className={styles.metaSep}>•</span>
-            <span>Actualizado {fmtDate(chapter.updated_at)}</span>
-
-            {chapter.deadline_at ? (
-  <>
-    <span className={styles.metaSep}>•</span>
-
-    <span className={styles.deadlineWrap}>
-      <span className={styles.deadlineTag}>Editorial</span>
-
-      <span className={styles.deadlineText}>
-        {deadlineText}
-      </span>
-
-      <span className={styles.deadlinePill} style={dlTone}>
-        {deadlineRemain}
-      </span>
-    </span>
-  </>
-) : null}
-
-            {/* ✅ NUEVO: fecha límite que el dictaminador asigna al AUTOR (sin tocar la de editorial) */}
-           {chapter.author_deadline_at ? (
-  <>
-    <span className={styles.metaSep}>•</span>
-
-    <span className={`${styles.deadlineWrap} ${styles.deadlineWrapAuthor}`}>
-      <span className={styles.deadlineTag}>Autor</span>
-
-      <span className={styles.deadlineText}>
-        {authorDeadlineText}
-      </span>
-
-      <span className={styles.deadlinePill} style={authorDlTone}>
-        {authorDeadlineRemain}
-      </span>
-    </span>
-  </>
-) : null}
-          </div>
+          <span className={statusClass}>{statusLabel(chapter.status)}</span>
         </div>
 
-        <div className={styles.itemActions}>
+        <div className={styles.itemMeta} style={{ marginBottom: 16 }}>
+          <span className={styles.metaDot} />
+          <span>
+            {chapter.author_name
+              ? `${chapter.author_name}${chapter.author_email ? ` (${chapter.author_email})` : ""}`
+              : "Autor: —"}
+          </span>
+
+          <span className={styles.metaSep}>•</span>
+          <span>Actualizado {fmtDate(chapter.updated_at)}</span>
+
+          {chapter.deadline_at ? (
+            <>
+              <span className={styles.metaSep}>•</span>
+              <span className={styles.deadlineWrap}>
+                <span className={styles.deadlineTag}>Editorial</span>
+                <span className={styles.deadlineText}>{deadlineText}</span>
+                <span className={styles.deadlinePill} style={dlTone}>
+                  {deadlineRemain}
+                </span>
+              </span>
+            </>
+          ) : null}
+
+          {chapter.author_deadline_at ? (
+            <>
+              <span className={styles.metaSep}>•</span>
+              <span className={`${styles.deadlineWrap} ${styles.deadlineWrapAuthor}`}>
+                <span className={styles.deadlineTag}>Autor</span>
+                <span className={styles.deadlineText}>{authorDeadlineText}</span>
+                <span className={styles.deadlinePill} style={authorDlTone}>
+                  {authorDeadlineRemain}
+                </span>
+              </span>
+            </>
+          ) : null}
+        </div>
+
+        <div className={styles.itemActions} style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "flex-start" }}>
           <button
             type="button"
             className={styles.btnSoft}
             onClick={() => onViewLatest(chapter)}
             disabled={loading}
-            title="Abrir el último archivo (original o corregido)"
+            title="Abrir el último archivo"
           >
             <span className={styles.btnInner}>
               <Icon name="eye" /> Ver último
@@ -610,7 +554,7 @@ const ChapterItem = React.memo(
             className={styles.btnSoft}
             onClick={() => onDownloadLatest(chapter)}
             disabled={loading}
-            title="Descargar el último archivo (original o corregido)"
+            title="Descargar el último archivo"
           >
             <span className={styles.btnInner}>
               <Icon name="download" /> Descargar último
@@ -653,11 +597,11 @@ const ChapterItem = React.memo(
             </span>
           </button>
 
-          <button 
-            type="button" 
-            className={styles.btnDanger} 
-            onClick={() => onAction("RECHAZAR", chapter)} 
-            disabled={loading} 
+          <button
+            type="button"
+            className={styles.btnDanger}
+            onClick={() => onAction("RECHAZAR", chapter)}
+            disabled={loading}
             title="Rechazar"
           >
             <span className={styles.btnInner}>
@@ -696,8 +640,6 @@ function MisAsignacionesDictaminadorContent() {
   const [actionType, setActionType] = useState<"REVISION" | "CORRECCIONES" | "APROBAR" | "RECHAZAR" | null>(null);
   const [selected, setSelected] = useState<AssignedChapterRow | null>(null);
   const [comment, setComment] = useState("");
-
-  // ✅ NUEVO: fecha límite que el dictaminador asigna al AUTOR (en modal de correcciones)
   const [authorDeadline, setAuthorDeadline] = useState("");
 
   const authHeaders = useCallback(() => ({ Authorization: `Bearer ${getToken()}` }), []);
@@ -758,8 +700,11 @@ function MisAsignacionesDictaminadorContent() {
   const loadAssignments = useCallback(async () => {
     setErrorMsg(null);
     setLoading(true);
+
     try {
-      const { data } = await api.get<AssignedChapterApi[]>("/dictaminador/chapters", { headers: authHeaders() });
+      const { data } = await api.get<AssignedChapterApi[]>("/dictaminador/chapters", {
+        headers: authHeaders(),
+      });
 
       const mapped: AssignedChapterRow[] = (data ?? []).map((c) => ({
         id: c.id,
@@ -772,13 +717,10 @@ function MisAsignacionesDictaminadorContent() {
         author_email: c.author_email ?? null,
         deadline_at: c.deadline_at ?? null,
         deadline_stage: c.deadline_stage ?? null,
-
-        // ✅ NUEVO
         author_deadline_at: c.author_deadline_at ?? null,
       }));
 
       setRows(mapped);
-      alertService.success("Asignaciones cargadas correctamente");
     } catch (err: any) {
       if (handleAuthMaybe(err)) return;
       showError(apiMsg(err, "No se pudieron cargar tus asignaciones."));
@@ -796,16 +738,19 @@ function MisAsignacionesDictaminadorContent() {
 
   const filtered = useMemo(() => {
     const norm = q.trim().toLowerCase();
+
     return rows
       .filter((r) => {
         if (status !== "ALL" && r.status !== status) return false;
         if (!norm) return true;
+
         const hay =
           String(r.id).includes(norm) ||
           (r.title || "").toLowerCase().includes(norm) ||
           (r.book_name || "").toLowerCase().includes(norm) ||
           (r.author_name || "").toLowerCase().includes(norm) ||
           (r.author_email || "").toLowerCase().includes(norm);
+
         return hay;
       })
       .slice()
@@ -814,19 +759,29 @@ function MisAsignacionesDictaminadorContent() {
 
   const stats = useMemo(() => {
     const total = rows.length;
-    const pendientes = rows.filter((r) => 
-      ["ASIGNADO_A_DICTAMINADOR", "ENVIADO_A_DICTAMINADOR", "EN_REVISION", "EN_REVISION_DICTAMINADOR", "REENVIADO_POR_AUTOR", "REVISADO_POR_EDITORIAL", "LISTO_PARA_FIRMA"].includes(r.status)
+    const pendientes = rows.filter((r) =>
+      [
+        "ASIGNADO_A_DICTAMINADOR",
+        "ENVIADO_A_DICTAMINADOR",
+        "EN_REVISION",
+        "EN_REVISION_DICTAMINADOR",
+        "REENVIADO_POR_AUTOR",
+        "REVISADO_POR_EDITORIAL",
+        "LISTO_PARA_FIRMA",
+      ].includes(r.status)
     ).length;
-    const correcciones = rows.filter((r) => 
+
+    const correcciones = rows.filter((r) =>
       ["CORRECCIONES", "CORRECCIONES_SOLICITADAS_A_AUTOR"].includes(r.status)
     ).length;
-    const resueltos = rows.filter((r) => 
+
+    const resueltos = rows.filter((r) =>
       ["APROBADO", "RECHAZADO", "FIRMADO"].includes(r.status)
     ).length;
+
     return { total, pendientes, correcciones, resueltos };
   }, [rows]);
 
-  // ✅ SOLO AGREGAR: extra ahora puede traer author_deadline_at (no rompe lo anterior)
   const patchStatus = async (
     chapterId: number,
     newStatus: ChapterStatus,
@@ -834,8 +789,6 @@ function MisAsignacionesDictaminadorContent() {
   ) => {
     const payload: any = { status: newStatus };
     if (extra?.comment) payload.comment = extra.comment;
-
-    // ✅ NUEVO
     if (extra?.author_deadline_at) payload.author_deadline_at = extra.author_deadline_at;
 
     const { data } = await api.patch(`/dictaminador/chapters/${chapterId}/status`, payload, {
@@ -853,8 +806,6 @@ function MisAsignacionesDictaminadorContent() {
       author_email: data.author_email ?? selected?.author_email ?? null,
       deadline_at: data.deadline_at ?? selected?.deadline_at ?? null,
       deadline_stage: data.deadline_stage ?? selected?.deadline_stage ?? null,
-
-      // ✅ NUEVO
       author_deadline_at: data.author_deadline_at ?? selected?.author_deadline_at ?? null,
     };
 
@@ -865,10 +816,7 @@ function MisAsignacionesDictaminadorContent() {
     setSelected(row);
     setActionType(type);
     setComment("");
-
-    // ✅ NUEVO: reset del campo de fecha del autor
     setAuthorDeadline("");
-
     setActionOpen(true);
   };
 
@@ -883,52 +831,46 @@ function MisAsignacionesDictaminadorContent() {
         await patchStatus(selected.id, "EN_REVISION");
         alertService.success("Capítulo marcado como 'En revisión'");
       }
-      
+
       if (actionType === "CORRECCIONES") {
         if (!comment.trim()) {
           alertService.warning("Escribe las observaciones / comentario.");
           return;
         }
 
-        // ✅ NUEVO: exigir fecha límite para el autor
         if (!authorDeadline) {
           alertService.warning("Selecciona la fecha límite para el autor.");
           return;
         }
 
-        // Se envía como datetime al final del día (si tu backend maneja datetime)
-        const author_deadline_at = `${authorDeadline}T23:59:59`;
-
         await patchStatus(selected.id, "CORRECCIONES", {
           comment: comment.trim(),
-          author_deadline_at,
+          author_deadline_at: authorDeadline,
         });
+
         alertService.success("Correcciones solicitadas al autor");
       }
-      
+
       if (actionType === "APROBAR") {
-        const result = await alertService.confirm(
-          "¿Estás seguro de aprobar este capítulo?",
-          "Aprobar capítulo"
-        );
+        const result = await alertService.confirm("¿Estás seguro de aprobar este capítulo?", "Aprobar capítulo");
         if (!result.isConfirmed) return;
-        
+
         await patchStatus(selected.id, "APROBADO");
         alertService.success("Capítulo aprobado correctamente");
       }
-      
+
       if (actionType === "RECHAZAR") {
         if (!comment.trim()) {
           alertService.warning("Escribe el motivo de rechazo.");
           return;
         }
-        
+
         const result = await alertService.confirm(
           "¿Estás seguro de rechazar este capítulo? Esta acción no se puede deshacer.",
           "Rechazar capítulo"
         );
         if (!result.isConfirmed) return;
-        
+
         await patchStatus(selected.id, "RECHAZADO", { comment: comment.trim() });
         alertService.success("Capítulo rechazado");
       }
@@ -937,8 +879,7 @@ function MisAsignacionesDictaminadorContent() {
       await loadAssignments();
     } catch (err: any) {
       if (handleAuthMaybe(err)) return;
-      const msg = apiMsg(err, "No se pudo ejecutar la acción.");
-      showError(msg);
+      showError(apiMsg(err, "No se pudo ejecutar la acción."));
     } finally {
       setLoading(false);
     }
@@ -952,19 +893,19 @@ function MisAsignacionesDictaminadorContent() {
       const res = await api.get(`/dictaminador/chapters/${c.id}/view-latest`, {
         headers: authHeaders(),
         responseType: "blob",
-        params: { ts: Date.now() }
+        params: { ts: Date.now() },
       });
 
-      const blob: Blob = res.data instanceof Blob 
-        ? res.data 
-        : new Blob([JSON.stringify(res.data)], {
-            type: res.headers?.["content-type"] || "application/octet-stream",
-          });
+      const blob: Blob =
+        res.data instanceof Blob
+          ? res.data
+          : new Blob([JSON.stringify(res.data)], {
+              type: res.headers?.["content-type"] || "application/octet-stream",
+            });
 
       const blobUrl = window.URL.createObjectURL(blob);
-      
       const newWindow = window.open(blobUrl, "_blank");
-      
+
       if (!newWindow) {
         alertService.warning("El navegador bloqueó la ventana emergente. Usa el botón 'Descargar último'.");
         setTimeout(() => window.URL.revokeObjectURL(blobUrl), 60000);
@@ -973,8 +914,7 @@ function MisAsignacionesDictaminadorContent() {
       }
     } catch (err: any) {
       if (handleAuthMaybe(err)) return;
-      const msg = apiMsg(err, "No se pudo abrir el archivo.");
-      showError(msg);
+      showError(apiMsg(err, "No se pudo abrir el archivo."));
     } finally {
       setLoading(false);
     }
@@ -1023,8 +963,7 @@ function MisAsignacionesDictaminadorContent() {
       alertService.success("Descarga iniciada");
     } catch (err: any) {
       if (handleAuthMaybe(err)) return;
-      const msg = apiMsg(err, "No se pudo descargar el archivo.");
-      showError(msg);
+      showError(apiMsg(err, "No se pudo descargar el archivo."));
     } finally {
       setLoading(false);
     }
@@ -1040,8 +979,7 @@ function MisAsignacionesDictaminadorContent() {
       alertService.success("Preferencias guardadas ✅");
     } catch (err: any) {
       if (handleAuthMaybe(err)) return;
-      const msg = apiMsg(err, "No se pudieron guardar notificaciones.");
-      showError(msg);
+      showError(apiMsg(err, "No se pudieron guardar notificaciones."));
     } finally {
       setLoading(false);
     }
@@ -1057,8 +995,7 @@ function MisAsignacionesDictaminadorContent() {
       alertService.success("Privacidad guardada ✅");
     } catch (err: any) {
       if (handleAuthMaybe(err)) return;
-      const msg = apiMsg(err, "No se pudo guardar privacidad.");
-      showError(msg);
+      showError(apiMsg(err, "No se pudo guardar privacidad."));
     } finally {
       setLoading(false);
     }
@@ -1083,8 +1020,7 @@ function MisAsignacionesDictaminadorContent() {
       alertService.success("Contraseña actualizada ✅");
     } catch (err: any) {
       if (handleAuthMaybe(err)) return;
-      const msg = apiMsg(err, "No se pudo cambiar la contraseña.");
-      showError(msg);
+      showError(apiMsg(err, "No se pudo cambiar la contraseña."));
     } finally {
       setLoading(false);
     }
@@ -1092,7 +1028,6 @@ function MisAsignacionesDictaminadorContent() {
 
   const logout = async () => {
     const result = await alertService.confirm("¿Seguro que quieres cerrar sesión?");
-    
     if (result.isConfirmed) {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
@@ -1115,8 +1050,7 @@ function MisAsignacionesDictaminadorContent() {
       : "Administra tu perfil, seguridad y preferencias del sistema.";
 
   return (
-    <div key={`main-${nav}`} className={styles.shell}>
-      {/* Sidebar */}
+    <div className={styles.shell}>
       <aside className={styles.side}>
         <div className={styles.sideTop}>
           <div className={styles.brandMark}>
@@ -1149,9 +1083,9 @@ function MisAsignacionesDictaminadorContent() {
             {nav === "asignaciones" ? <span className={styles.navGlow} /> : null}
           </button>
 
-          <button 
-            type="button" 
-            onClick={() => setNav("cuenta")} 
+          <button
+            type="button"
+            onClick={() => setNav("cuenta")}
             className={`${styles.navBtn} ${nav === "cuenta" ? styles.navBtnActive : ""}`}
           >
             <span className={styles.navIcon}>
@@ -1172,9 +1106,7 @@ function MisAsignacionesDictaminadorContent() {
         </div>
       </aside>
 
-      {/* Main */}
       <main className={styles.main}>
-        {/* Topbar */}
         <div className={styles.topbar}>
           <div style={{ minWidth: 0 }}>
             <div className={styles.topTitle}>{pageTitle}</div>
@@ -1215,7 +1147,8 @@ function MisAsignacionesDictaminadorContent() {
               <div className={styles.heroKicker}>Panel de dictámenes</div>
               <div className={styles.heroTitle}>Control claro y rápido del flujo editorial</div>
               <div className={styles.heroText}>
-                Descarga, revisa, solicita correcciones y emite dictamen. Mantén observaciones concretas para acelerar el ciclo.
+                Descarga, revisa, solicita correcciones y emite dictamen. Mantén observaciones concretas para acelerar
+                el ciclo.
               </div>
 
               <div className={styles.heroPills}>
@@ -1237,7 +1170,6 @@ function MisAsignacionesDictaminadorContent() {
 
         {nav === "cuenta" ? (
           <div className={styles.grid2}>
-            {/* Perfil */}
             <section className={styles.card}>
               <div className={styles.cardHead}>
                 <div className={styles.cardTitle}>Perfil</div>
@@ -1268,7 +1200,6 @@ function MisAsignacionesDictaminadorContent() {
               </div>
             </section>
 
-            {/* Seguridad */}
             <section className={styles.card}>
               <div className={styles.cardHead}>
                 <div className={styles.cardTitle}>Seguridad</div>
@@ -1314,7 +1245,6 @@ function MisAsignacionesDictaminadorContent() {
               </div>
             </section>
 
-            {/* Preferencias */}
             <section className={styles.card}>
               <div className={styles.cardHead}>
                 <div className={styles.cardTitle}>Preferencias</div>
@@ -1328,7 +1258,9 @@ function MisAsignacionesDictaminadorContent() {
                       <Icon name="bell" /> Notificaciones por correo
                     </span>
                   </div>
-                  <div className={styles.actionSub}>Avisos cuando cambie el estado o se registren correcciones/decisiones.</div>
+                  <div className={styles.actionSub}>
+                    Avisos cuando cambie el estado o se registren correcciones/decisiones.
+                  </div>
                 </div>
                 <button type="button" className={styles.btnGhost} onClick={() => setOpenPrefs(true)} disabled={loading}>
                   Configurar
@@ -1344,13 +1276,17 @@ function MisAsignacionesDictaminadorContent() {
                   </div>
                   <div className={styles.actionSub}>Controla qué datos se muestran en tu perfil.</div>
                 </div>
-                <button type="button" className={styles.btnGhost} onClick={() => setOpenPrivacy(true)} disabled={loading}>
+                <button
+                  type="button"
+                  className={styles.btnGhost}
+                  onClick={() => setOpenPrivacy(true)}
+                  disabled={loading}
+                >
                   Ajustar
                 </button>
               </div>
             </section>
 
-            {/* Soporte */}
             <section className={styles.card}>
               <div className={styles.cardHead}>
                 <div className={styles.cardTitle}>Soporte</div>
@@ -1358,7 +1294,8 @@ function MisAsignacionesDictaminadorContent() {
               </div>
 
               <div className={styles.note}>
-                Si tienes problemas con una asignación, contacta al área editorial. Revisa “Asignaciones” para ver el estado.
+                Si tienes problemas con una asignación, contacta al área editorial. Revisa “Asignaciones” para ver el
+                estado.
               </div>
 
               <div style={{ padding: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -1370,7 +1307,6 @@ function MisAsignacionesDictaminadorContent() {
           </div>
         ) : (
           <div className={styles.gridMain}>
-            {/* Lista */}
             <section className={styles.card}>
               <div className={styles.cardHeadRow}>
                 <div>
@@ -1383,11 +1319,11 @@ function MisAsignacionesDictaminadorContent() {
                     <span className={styles.searchIcon}>
                       <Icon name="search" />
                     </span>
-                    <input 
-                      className={styles.searchInput} 
-                      value={q} 
-                      onChange={(e) => setQ(e.target.value)} 
-                      placeholder="Buscar (título, autor, libro...)" 
+                    <input
+                      className={styles.searchInput}
+                      value={q}
+                      onChange={(e) => setQ(e.target.value)}
+                      placeholder="Buscar (título, autor, libro...)"
                     />
                   </div>
                 </div>
@@ -1420,7 +1356,7 @@ function MisAsignacionesDictaminadorContent() {
                 </div>
               </div>
 
-              <div className={styles.list}>
+              <div className={styles.list} style={{ minHeight: 240 }}>
                 {!loading && filtered.length === 0 ? (
                   <div className={styles.empty}>No hay asignaciones con ese filtro.</div>
                 ) : (
@@ -1438,7 +1374,6 @@ function MisAsignacionesDictaminadorContent() {
               </div>
             </section>
 
-            {/* Guía */}
             <section className={styles.card}>
               <div className={styles.cardHead}>
                 <div className={styles.cardTitle}>Guía rápida</div>
@@ -1446,7 +1381,7 @@ function MisAsignacionesDictaminadorContent() {
               </div>
 
               <div className={styles.note}>
-                1) Abre <b>Ver último</b> para ver el archivo más reciente (original o corregido).
+                1) Abre <b>Ver último</b> para ver el archivo más reciente.
                 <br />
                 2) Descarga con <b>Descargar último</b>.
                 <br />
@@ -1458,13 +1393,14 @@ function MisAsignacionesDictaminadorContent() {
               <div className={styles.sep} />
 
               <div className={styles.note}>
-                ¿No te aparece nada? Revisa que el backend devuelva asignaciones en <code>/dictaminador/chapters</code> para el dictaminador logueado.
+                Registros cargados: <b>{rows.length}</b>
+                <br />
+                Registros filtrados: <b>{filtered.length}</b>
               </div>
             </section>
           </div>
         )}
 
-        {/* Modal acción */}
         {actionOpen && selected && actionType && (
           <div className={styles.overlay} onClick={() => setActionOpen(false)}>
             <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -1484,7 +1420,9 @@ function MisAsignacionesDictaminadorContent() {
 
               {(actionType === "CORRECCIONES" || actionType === "RECHAZAR") && (
                 <>
-                  <label className={styles.modalLabel}>{actionType === "CORRECCIONES" ? "Observaciones / comentario" : "Motivo de rechazo"}</label>
+                  <label className={styles.modalLabel}>
+                    {actionType === "CORRECCIONES" ? "Observaciones / comentario" : "Motivo de rechazo"}
+                  </label>
                   <textarea
                     className={styles.modalInput}
                     style={{ minHeight: 120, resize: "vertical" }}
@@ -1497,7 +1435,6 @@ function MisAsignacionesDictaminadorContent() {
                     }
                   />
 
-                  {/* ✅ NUEVO: fecha límite que el dictaminador asigna al AUTOR (solo cuando es CORRECCIONES) */}
                   {actionType === "CORRECCIONES" && (
                     <>
                       <div style={{ height: 10 }} />
@@ -1525,7 +1462,6 @@ function MisAsignacionesDictaminadorContent() {
           </div>
         )}
 
-        {/* Modal preferencias */}
         {openPrefs && (
           <div className={styles.overlay} onClick={() => setOpenPrefs(false)}>
             <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -1535,7 +1471,11 @@ function MisAsignacionesDictaminadorContent() {
               </div>
 
               <label className={styles.checkRow}>
-                <input type="checkbox" checked={prefs.email_notify_enabled} onChange={(e) => setPrefs((s) => ({ ...s, email_notify_enabled: e.target.checked }))} />
+                <input
+                  type="checkbox"
+                  checked={prefs.email_notify_enabled}
+                  onChange={(e) => setPrefs((s) => ({ ...s, email_notify_enabled: e.target.checked }))}
+                />
                 <span>
                   <b>Activar notificaciones</b>
                   <div className={styles.checkSub}>Recibir avisos oficiales del proceso editorial.</div>
@@ -1586,7 +1526,6 @@ function MisAsignacionesDictaminadorContent() {
           </div>
         )}
 
-        {/* Modal privacidad */}
         {openPrivacy && (
           <div className={styles.overlay} onClick={() => setOpenPrivacy(false)}>
             <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -1594,12 +1533,20 @@ function MisAsignacionesDictaminadorContent() {
               <div className={styles.modalHint}>Controla lo que se muestra en tu perfil dentro del sistema.</div>
 
               <label className={styles.checkRow}>
-                <input type="checkbox" checked={privacy.show_name} onChange={(e) => setPrivacy((s) => ({ ...s, show_name: e.target.checked }))} />
+                <input
+                  type="checkbox"
+                  checked={privacy.show_name}
+                  onChange={(e) => setPrivacy((s) => ({ ...s, show_name: e.target.checked }))}
+                />
                 <span>Mostrar mi nombre</span>
               </label>
 
               <label className={styles.checkRow}>
-                <input type="checkbox" checked={privacy.show_email} onChange={(e) => setPrivacy((s) => ({ ...s, show_email: e.target.checked }))} />
+                <input
+                  type="checkbox"
+                  checked={privacy.show_email}
+                  onChange={(e) => setPrivacy((s) => ({ ...s, show_email: e.target.checked }))}
+                />
                 <span>Mostrar mi correo</span>
               </label>
 
@@ -1615,7 +1562,6 @@ function MisAsignacionesDictaminadorContent() {
           </div>
         )}
 
-        {/* Modal contraseña */}
         {openPwd && (
           <div className={styles.overlay} onClick={() => setOpenPwd(false)}>
             <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -1623,10 +1569,20 @@ function MisAsignacionesDictaminadorContent() {
               <div className={styles.modalHint}>Tu contraseña debe tener al menos 8 caracteres.</div>
 
               <label className={styles.modalLabel}>Contraseña actual</label>
-              <input className={styles.modalInput} type="password" value={pwd.current_password} onChange={(e) => setPwd((s) => ({ ...s, current_password: e.target.value }))} />
+              <input
+                className={styles.modalInput}
+                type="password"
+                value={pwd.current_password}
+                onChange={(e) => setPwd((s) => ({ ...s, current_password: e.target.value }))}
+              />
 
               <label className={styles.modalLabel}>Nueva contraseña</label>
-              <input className={styles.modalInput} type="password" value={pwd.new_password} onChange={(e) => setPwd((s) => ({ ...s, new_password: e.target.value }))} />
+              <input
+                className={styles.modalInput}
+                type="password"
+                value={pwd.new_password}
+                onChange={(e) => setPwd((s) => ({ ...s, new_password: e.target.value }))}
+              />
 
               <div className={styles.modalActions}>
                 <button className={styles.btnGhost} type="button" onClick={() => setOpenPwd(false)}>
@@ -1644,7 +1600,6 @@ function MisAsignacionesDictaminadorContent() {
   );
 }
 
-// Componente principal envuelto en ErrorBoundary
 export default function MisAsignacionesDictaminador() {
   return (
     <ErrorBoundary>

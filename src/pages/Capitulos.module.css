@@ -197,18 +197,43 @@
   margin-top:14px;
   border-radius:20px;
   border:1px solid rgba(15,23,42,0.10);
-  overflow:hidden;
+  overflow-x:auto;
+  overflow-y:auto;
+  max-height:600px;
   background:
     radial-gradient(900px 320px at 20% 0%, rgba(255,107,107,0.08), transparent 60%),
     radial-gradient(900px 320px at 95% 10%, rgba(108,99,255,0.10), transparent 55%),
     rgba(255,255,255,0.88);
   box-shadow: 0 18px 50px rgba(2,6,23,0.08);
   backdrop-filter: blur(14px);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 #e2e8f0;
+}
+
+.tableCard::-webkit-scrollbar{
+  width:10px;
+  height:10px;
+}
+
+.tableCard::-webkit-scrollbar-track{
+  background:#e2e8f0;
+  border-radius:999px;
+}
+
+.tableCard::-webkit-scrollbar-thumb{
+  background:#94a3b8;
+  border-radius:999px;
+}
+
+.tableCard::-webkit-scrollbar-thumb:hover{
+  background:#64748b;
 }
 
 .table{
   width:100%;
   border-collapse:collapse;
+  min-width:980px;
 }
 
 .th{
@@ -219,6 +244,7 @@
   border-bottom:1px solid rgba(15,23,42,0.08);
   color:#334155;
   font-weight:1000;
+  white-space:nowrap;
 }
 
 .td{
@@ -229,7 +255,10 @@
   vertical-align:top;
 }
 
-.cellTitle{ font-weight:1000; }
+.cellTitle{
+  font-weight:1000;
+}
+
 .cellSub{
   font-size:11px;
   color:#64748B;
@@ -321,7 +350,10 @@
   box-shadow: 0 22px 56px rgba(108,99,255,0.45);
 }
 
-.primaryBtn:active:not(:disabled){ transform: translateY(1px); }
+.primaryBtn:active:not(:disabled){
+  transform: translateY(1px);
+}
+
 .primaryBtn:disabled{
   opacity:0.6;
   cursor:not-allowed;
@@ -344,9 +376,23 @@
   transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
-.linkBtn{ padding:8px 10px; border-radius:12px; box-shadow:none; }
-.inlineBtn{ padding:8px 10px; border-radius:12px; box-shadow:none; }
-.ghostBtnSmall{ padding:8px 10px; border-radius:12px; box-shadow:none; }
+.linkBtn{
+  padding:8px 10px;
+  border-radius:12px;
+  box-shadow:none;
+}
+
+.inlineBtn{
+  padding:8px 10px;
+  border-radius:12px;
+  box-shadow:none;
+}
+
+.ghostBtnSmall{
+  padding:8px 10px;
+  border-radius:12px;
+  box-shadow:none;
+}
 
 .secondaryBtn:hover:not(:disabled),
 .linkBtn:hover:not(:disabled),
@@ -377,7 +423,11 @@
 }
 
 /* Inline sizing (mantener compatibilidad con tu TSX) */
-.inlineInput{ width:160px; padding:8px 10px; border-radius:12px; }
+.inlineInput{
+  width:160px;
+  padding:8px 10px;
+  border-radius:12px;
+}
 
 /* ===== MODALS ===== */
 .modalOverlay{
@@ -436,7 +486,10 @@
   transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
 }
 
-.modalTextarea{ min-height:110px; resize: vertical; }
+.modalTextarea{
+  min-height:110px;
+  resize:vertical;
+}
 
 .modalInput:focus,
 .modalTextarea:focus{
@@ -467,6 +520,7 @@
   .filtersGrid{
     grid-template-columns: 1fr 1fr 1fr;
   }
+
   .fieldActions{
     grid-column: span 3;
     justify-content:flex-start;
@@ -477,64 +531,102 @@
   .filtersGrid{
     grid-template-columns: 1fr 1fr;
   }
+
   .fieldActions{
     grid-column: span 2;
   }
-  .th, .td{ padding:10px 10px; }
-  .inlineInput{ width:120px; }
+
+  .th,
+  .td{
+    padding:10px 10px;
+  }
+
+  .inlineInput{
+    width:120px;
+  }
+
+  .table{
+    min-width:920px;
+  }
+
+  .tableCard{
+    max-height:450px;
+  }
 }
 
 @media (max-width: 600px){
-  .filtersGrid{ grid-template-columns: 1fr; }
-  .fieldActions{ grid-column: span 1; }
+  .filtersGrid{
+    grid-template-columns: 1fr;
+  }
+
+  .fieldActions{
+    grid-column: span 1;
+  }
+
   .top{
     flex-direction:column;
     align-items:flex-start;
   }
-  .resultsRow{ flex-direction:column; }
-  .chips{ justify-content:flex-start; }
-  .actions{ flex-direction:column; }
-  .linkBtn, .secondaryBtn, .ghostBtnSmall, .ghostBtn, .primaryBtn{ width:100%; }
-  .modal{ max-width:100%; }
-  .inlineInput{ width:100px; }
+
+  .resultsRow{
+    flex-direction:column;
+  }
+
+  .chips{
+    justify-content:flex-start;
+  }
+
+  .actions{
+    flex-direction:column;
+  }
+
+  .linkBtn,
+  .secondaryBtn,
+  .ghostBtnSmall,
+  .ghostBtn,
+  .primaryBtn{
+    width:100%;
+  }
+
+  .modal{
+    max-width:100%;
+  }
+
+  .inlineInput{
+    width:100px;
+  }
+
+  .table{
+    min-width:860px;
+  }
+
+  .tableCard{
+    max-height:380px;
+  }
+}
+
+@media (max-width: 420px){
+  .table{
+    min-width:820px;
+  }
+
+  .tableCard{
+    max-height:320px;
+  }
 }
 
 /* ===== Reduce Motion ===== */
 @media (prefers-reduced-motion: reduce){
-  .primaryBtn, .secondaryBtn, .linkBtn, .ghostBtn, .ghostBtnSmall, .inlineBtn,
-  .input, .inlineInput, .modalInput, .modalTextarea{
+  .primaryBtn,
+  .secondaryBtn,
+  .linkBtn,
+  .ghostBtn,
+  .ghostBtnSmall,
+  .inlineBtn,
+  .input,
+  .inlineInput,
+  .modalInput,
+  .modalTextarea{
     transition:none !important;
   }
-}
-/* ================================
-   ✅ SOLO TABLA RESPONSIVA
-   PÉGALO AL FINAL de Capitulos.module.css
-================================ */
-
-/* Card contenedor: habilita scroll horizontal */
-.tableCard{
-  overflow-x: auto !important;          /* antes estaba hidden */
-  -webkit-overflow-scrolling: touch;
-}
-
-/* La tabla mantiene columnas, en móvil se hace scroll */
-.table{
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 980px;                    /* ajusta si quieres: 850-1100 */
-}
-
-/* Ajustes de padding/tamaño en pantallas chicas */
-@media (max-width: 900px){
-  .table{ min-width: 920px; }
-  .th, .td{ padding: 10px 10px; }
-}
-
-@media (max-width: 600px){
-  .table{ min-width: 860px; }
-  .th, .td{ padding: 10px 8px; font-size: 12px; }
-}
-
-@media (max-width: 420px){
-  .table{ min-width: 820px; }
 }
