@@ -12,14 +12,6 @@ type User = {
   role: Role;
 };
 
-type QuickAction =
-  | "asignar_dictaminador"
-  | "solicitar_correccion"
-  | "aprobar"
-  | "rechazar"
-  | "generar_constancia"
-  | "subir_dictamen_firmado";
-
 function base64UrlDecode(input: string) {
   const pad = "=".repeat((4 - (input.length % 4)) % 4);
   const base64 = (input + pad).replace(/-/g, "+").replace(/_/g, "/");
@@ -84,7 +76,6 @@ const routeACL: Array<{ test: (path: string) => boolean; roles: Role[] }> = [
   { test: (p) => p.startsWith("/libros") || p.startsWith("/capitulos"), roles: ["editorial"] },
   { test: (p) => p.startsWith("/dictamenes"), roles: ["editorial"] },
   { test: (p) => p.startsWith("/usuarios"), roles: ["editorial"] },
-
   { test: (p) => p.startsWith("/dictaminador"), roles: ["dictaminador"] },
   { test: (p) => p.startsWith("/autor"), roles: ["autor"] },
 ];
@@ -100,27 +91,13 @@ export default function PrivateLayout() {
   const location = useLocation();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [panelOpen, setPanelOpen] = useState(false);
 
-  const [selectedAction, setSelectedAction] = useState<QuickAction | null>(null);
-  const [form, setForm] = useState({
-    folio: "",
-    tituloCapitulo: "",
-    autor: "",
-    dictaminador: "",
-    estado: "RECIBIDO",
-    comentario: "",
-  });
-
-  // ✅ al desmontar el layout, mata cualquier swal
   useEffect(() => {
     return () => {
       alertService.close();
     };
   }, []);
 
-  // ✅ bloquear scroll cuando sidebar abierto (móvil)
   useEffect(() => {
     if (!sidebarOpen) return;
     const prev = document.body.style.overflow;
@@ -181,16 +158,13 @@ export default function PrivateLayout() {
     guard = <Navigate to={defaultHomeByRole[user!.role]} replace />;
   }
 
-  // ✅ FIX REAL: blur antes del confirm (evita aria-hidden warning + “no pinta”)
   const logout = async () => {
     alertService.close();
 
-    // 🔥 Quitar foco de cualquier input (buscador, filtros, etc.)
     try {
       (document.activeElement as HTMLElement | null)?.blur?.();
     } catch {}
 
-    // deja un tick para que el blur se aplique
     await new Promise<void>((r) => setTimeout(() => r(), 0));
 
     const res = await alertService.confirm({
@@ -232,17 +206,7 @@ export default function PrivateLayout() {
     return [{ label: "Mis envíos", path: "/autor/mis-envios" }];
   }, [user]);
 
-  const onSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    alert(`(UI) Buscar: ${query}\nLuego se conectará al backend.`);
-  };
-
   const avatarLetter = (user?.name?.trim()?.[0] ?? "U").toUpperCase();
-
-  void selectedAction;
-  void setSelectedAction;
-  void form;
-  void setForm;
 
   if (guard) return guard;
 
@@ -299,13 +263,13 @@ export default function PrivateLayout() {
             </div>
           </div>
 
-<button
-  className={styles.logoutBtn}
-  onClick={() => { console.log("CLICK SALIR"); logout(); }}
-  type="button"
->
-  Salir
-</button>
+          <button
+            className={styles.logoutBtn}
+            onClick={() => logout()}
+            type="button"
+          >
+            Salir
+          </button>
         </div>
       </aside>
 
@@ -319,46 +283,12 @@ export default function PrivateLayout() {
           >
             ☰
           </button>
-
-          {user?.role === "editorial" && (
-            <div className={styles.headerRight}>
-              <form onSubmit={onSearch} className={styles.searchWrap}>
-                <input
-                  className={styles.searchInput}
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Buscar capítulo, libro, folio..."
-                />
-                <button type="submit" className={styles.searchBtn}>
-                  Buscar
-                </button>
-              </form>
-
-              <button
-                type="button"
-                className={styles.panelBtn}
-                onClick={() => setPanelOpen((v) => !v)}
-                title="Panel rápido"
-              >
-                {panelOpen ? "Cerrar panel" : "Panel rápido"}
-              </button>
-            </div>
-          )}
         </header>
 
-        <div className={styles.body} data-panel={panelOpen && user?.role === "editorial" ? "1" : "0"}>
+        <div className={styles.body}>
           <section className={styles.content}>
             <Outlet />
           </section>
-
-          {user?.role === "editorial" && panelOpen && (
-            <aside className={styles.rightPanel}>
-              <div className={styles.panelCard}>
-                <div className={styles.panelTitle}>Panel rápido</div>
-                <div className={styles.panelHint}>Aquí conectas tus acciones rápidas.</div>
-              </div>
-            </aside>
-          )}
         </div>
       </main>
     </div>
